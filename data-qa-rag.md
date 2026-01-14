@@ -1,12 +1,18 @@
-# Question Answering (RAG/Open-Book) Data Preparation
+# Open Book QA (RAG) Data Preparation
 
-Use open-book QA when the model should answer questions using provided context passages. This is the RAG (Retrieval-Augmented Generation) pattern.
+Use open-book QA when the model should answer questions using a provided context passage. The model grounds answers in the given text rather than relying on general knowledge. This is ideal for Retrieval-Augmented Generation (RAG) pipelines.
+
+**When to pick this task:**
+- You have (or can retrieve) relevant passages at inference time
+- You've chunked documents for a RAG pipeline
+- You want answers strictly grounded in provided context
 
 **Example use cases:**
-- Customer support from product documentation
-- Legal document analysis
+- Customer support systems answering from product documentation
+- Legal document analysis and question answering
 - Technical documentation assistants
-- Knowledge base automation
+- Knowledge base or FAQ automation
+- Research assistants answering from specific papers
 
 ## Required Files
 
@@ -14,119 +20,90 @@ Use open-book QA when the model should answer questions using provided context p
 
 ```json
 {
-  "task_description": "Answer customer questions about our product based on the provided documentation excerpt. Provide accurate, helpful responses grounded in the given context.",
-  "llm_as_a_judge_instructions": "Evaluate if the answer correctly addresses the question using information from the context. The answer should be accurate, complete, and not include information outside the provided context."
+  "task_description": "Answer the question using information in the context",
+  "llm_as_a_judge_instructions": "Evaluate whether the predicted answer correctly answers the question based on the reference answer. Output 'good' if the predicted answer is semantically equivalent to the reference answer or conveys the same key information, otherwise output 'bad'"
 }
 ```
 
 **Fields:**
-- `task_description`: Explain what the model should do
-- `llm_as_a_judge_instructions` (optional): Guidance for evaluation
+- `task_description`: Describes the main task
+- `llm_as_a_judge_instructions` (optional): Evaluation guidance
 
-### 2. train.csv
+### 2. train.csv (or train.jsonl)
 
-```csv
-question,context,answer
-"How do I reset my password?","To reset your password: 1) Click 'Forgot Password' on the login page. 2) Enter your email address. 3) Check your inbox for a reset link. 4) Click the link and create a new password.","To reset your password, click 'Forgot Password' on the login page, enter your email, and follow the reset link sent to your inbox to create a new password."
-"What payment methods do you accept?","We accept all major credit cards (Visa, MasterCard, American Express), PayPal, and bank transfers for annual plans. Cryptocurrency payments are not supported.","We accept Visa, MasterCard, American Express, PayPal, and bank transfers for annual plans."
+| Column | Description |
+|--------|-------------|
+| `question` | The question the model must answer |
+| `context` | The passage containing information needed to answer |
+| `answer` | The expected answer (based on the context) |
+
+**JSONL format:**
+```json
+{"context": "On August 15, 1971, the United States unilaterally pulled out of the Bretton Woods Accord. The US abandoned the Gold Exchange Standard whereby the value of the dollar had been pegged to the price of gold and all other currencies were pegged to the dollar, whose value was left to \"float\" (rise and fall according to market demand).", "question": "What does it mean when currencies are left to \"float?\"", "answer": "rise and fall according to market demand"}
+{"context": "The region is home to about 2.5 million insect species, tens of thousands of plants, and some 2,000 birds and mammals. To date, at least 40,000 plant species have been scientifically classified in the region.", "question": "How many species of insects are known in the region?", "answer": "2.5 million"}
+{"context": "In the fall quarter of 2014, the University of Chicago enrolled 5,792 students in the College, 3,468 students in its four graduate divisions, 5,984 students in its professional schools, and 15,244 students overall.", "question": "How many students signed up for the university's professional schools in fall 2014?", "answer": "5,984"}
 ```
 
-**Requirements:**
-- Minimum 20 examples
-- `question`: The user's question
-- `context`: The relevant passage/document excerpt
-- `answer`: The response grounded in the context
+**CSV format:**
 
-### 3. test.csv
+| question | context | answer |
+|----------|---------|--------|
+| What does it mean when currencies are left to "float?" | On August 15, 1971, the United States unilaterally pulled out of the Bretton Woods Accord... | rise and fall according to market demand |
+| How many species of insects are known in the region? | The region is home to about 2.5 million insect species... | 2.5 million |
 
-Same format as train.csv:
+**Requirements:** Minimum 20 examples
 
-```csv
-question,context,answer
-"What is the refund policy?","Refunds are available within 30 days of purchase for annual plans. Monthly plans can be cancelled anytime but are not refundable.","Refunds are available within 30 days for annual plans. Monthly plans can be cancelled but are not refundable."
-```
+### 3. test.csv (or test.jsonl)
+
+Same format as train data. Used for evaluation, not training.
 
 ### 4. config.yaml
 
+The default configuration works well for most cases. You only need to specify the task:
+
 ```yaml
-task: question-answering-open-book
-
-# Model selection
-student_model_name: Llama-3.2-1B-Instruct
-teacher_model_name: Llama-3.3-70B-Instruct
-
-# Training parameters
-tuning:
-  learning_rate: 5e-5
-  num_train_epochs: 4
-  use_lora: true
-  lora_r: 64
-
-# Synthetic data generation
-synthetic_generation:
-  generation_target: 10000
-  teacher_temperature: 0.7
-  num_distractor_context_blocks: 0
+base:
+  task: question-answering-open-book
 ```
 
-**Key settings for RAG:**
-- `task`: Must be `question-answering-open-book`
-- `num_distractor_context_blocks`: Set > 0 for RAFT training (adds irrelevant context to improve robustness)
+For advanced options (model selection, training parameters, etc.), see `config.md`.
 
 ### 5. unstructured.csv (Optional)
 
-Additional context passages for synthetic data generation:
+Context passages for synthetic data generation. Single column: `context`
 
-```csv
-context
-"Our enterprise plan includes SSO integration, custom branding, and dedicated support."
-"API rate limits are 1000 requests per minute for Pro plans and 5000 for Enterprise."
-"Data is encrypted at rest using AES-256 and in transit using TLS 1.3."
-```
-
-## Complete Example Directory
-
-```
-my-rag-data/
-├── job_description.json
-├── train.csv
-├── test.csv
-├── config.yaml
-└── unstructured.csv (optional)
+**JSONL format:**
+```json
+{"context": "For months each side had been building forward rifle pits and defensive positions. On 5 September, another French bombardment was followed by an assault resulting in the capture of the Malakoff by the French."}
+{"context": "The Premier League sells its television rights on a collective basis. The money is divided into three parts: half is divided equally between the clubs; one quarter is awarded on a merit basis based on final league position."}
 ```
 
 ## Upload and Train
 
 ```bash
-# Upload data
 distil model upload-data <model-id> --data ./my-rag-data
-
-# Run teacher evaluation
 distil model run-teacher-evaluation <model-id>
-distil model teacher-evaluation <model-id>
-
-# Train model
 distil model run-training <model-id>
 ```
 
 ## Using the Trained Model
 
-For RAG tasks, you must provide context when querying:
+For RAG tasks, provide context when querying:
 
 ```bash
-python model_client.py --question "How do I upgrade?" --context "Upgrades can be done from Settings > Billing > Change Plan."
+python model_client.py --question "What is the refund policy?" --context "Refunds are available within 30 days..."
 ```
 
 Or via API:
 ```python
 messages = [
-    {"role": "user", "content": "Context: Upgrades can be done from Settings > Billing.\n\nQuestion: How do I upgrade?"}
+    {"role": "user", "content": "Context: Refunds are available within 30 days...\n\nQuestion: What is the refund policy?"}
 ]
 ```
 
 ## Tips
 
-1. **Ground answers in context** - Answers should only use information from the provided context
-2. **Realistic context lengths** - Use context sizes similar to what you'll retrieve in production
-3. **Varied question types** - Include factual, procedural, and explanatory questions
-4. **Consider RAFT training** - Set `num_distractor_context_blocks` > 0 to train the model to ignore irrelevant context
+1. **Ground answers in context** — Answers should only use information from the provided context
+2. **Realistic context lengths** — Use context sizes similar to what you'll retrieve in production
+3. **Varied question types** — Include factual, procedural, and explanatory questions
+4. **Match your RAG pipeline** — Use the same chunking strategy in training data as production

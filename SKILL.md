@@ -3,17 +3,191 @@ name: distil-cli
 description: Train task-specific small language models (SLMs) using the Distil Labs CLI. Helps with data preparation, model training, and deployment.
 ---
 
-# Distil Labs CLI Skill
+# Distil CLI
 
-Use this skill to help users train specialized small language models (SLMs) using the Distil Labs platform. The platform uses knowledge distillation to create models up to 70x smaller than large models while maintaining comparable accuracy.
+Train specialized small language models (SLMs) using the Distil Labs platform. The platform uses knowledge distillation to create models up to 70x smaller than large models while maintaining comparable accuracy.
+
+**What you can help with depends on the environment:**
+
+| Environment | Capabilities |
+|-------------|--------------|
+| **Claude Code** | Full end-to-end workflow: task selection, data preparation, running CLI commands, training, and deployment |
+| **Claude Browser** | Task selection and data preparation only: help users choose the right task type and create job_description.json, config.yaml, train.csv, test.csv files. User runs CLI commands themselves. |
+
+## Instructions
+
+### Prerequisites
+
+Install the CLI and authenticate:
+```bash
+# Install
+curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
+
+# Authenticate (if not already logged in)
+distil login
+```
+
+Other auth commands: `distil signup` (create account), `distil whoami` (check user), `distil logout`
+
+### Core Workflow
+
+**Step 1: Create a Model**
+
+Register a new model to track your experiment:
+```bash
+distil model create my-model-name
+# Returns: Model ID (use this for all subsequent commands)
+```
+
+List all models with `distil model show`.
+
+**Step 2: Task Selection**
+
+Choosing the right task type is crucial. Help the user by asking what they need the model to do:
+
+| If the user needs to... | Choose | Data Guide |
+|-------------------------|--------|------------|
+| Extract specific facts from documents (invoices, contracts, tickets) | **Question Answering** | `data-question-answering.md` |
+| Assign text to categories from a fixed set | **Classification** | `data-classification.md` |
+| Generate structured tool/API calls from natural language | **Tool Calling** | `data-tool-calling.md` |
+| Answer questions using context passages they provide at inference | **Open Book QA (RAG)** | `data-qa-rag.md` |
+| Answer questions from knowledge learned during training (no context at inference) | **Closed Book QA** | `data-qa-closed.md` |
+
+**Question Answering** — Extracts or generates precise answers from text. The input contains both the document and the question. Use when retrieving specific facts from documents.
+- *Examples:* "What is the termination clause?" from contracts, "What's the total due?" from invoices, "What was the root cause?" from incident reports
+
+**Classification** — Assigns text to one category from a fixed set. Use when you need deterministic categorization, not open-ended generation.
+- *Examples:* Intent detection, content moderation (toxic/safe), sentiment analysis, ticket triage by department
+
+**Tool Calling** — Maps natural language to structured function calls with correct parameters. Use when routing user requests to backend APIs/services.
+- *Examples:* Voice assistant commands → smart home APIs, chatbot intents → CRM operations, natural language → database queries
+- *Note:* Only supports Llama3 family student models
+
+**Open Book QA (RAG)** — Answers questions using a provided context passage. The model grounds answers in the given text, not general knowledge. Use when you have (or can retrieve) relevant passages at inference time.
+- *Examples:* Customer support from product docs, legal document analysis, technical documentation assistants
+- *When to pick:* You've chunked documents for a RAG pipeline and want the model to answer strictly from retrieved chunks
+
+**Closed Book QA** — Learns facts from your unstructured data during training and answers without external context at inference. Use when you want knowledge "baked into" the model.
+- *Examples:* FAQ bots, domain-specific knowledge assistants
+- *When to pick:* You have lots of unstructured data, users shouldn't need to provide context, or RAG retrieval is difficult for your use case
+
+**Step 3: Data Preparation**
+
+Once the task type is selected, read the appropriate data guide and help the user prepare these files:
+
+| File | Required | Description |
+|------|----------|-------------|
+| `job_description.json` | Yes | Task objectives and configuration |
+| `train.csv` or `train.jsonl` | Yes | 20+ labeled (question, answer) pairs |
+| `test.csv` or `test.jsonl` | Yes | Held-out evaluation set |
+| `config.yaml` | Yes | Task type (defaults work well; see `config.md` for advanced options) |
+| `unstructured.csv` | No | Domain text for synthetic data generation |
+
+**Step 4: Upload Data**
+```bash
+distil model upload-data <model-id> --data ./my-data-folder
+```
+
+**Step 5: Teacher Evaluation**
+
+Before training, validate whether a large language model can solve your task. This serves as:
+- **Feasibility check**: If the teacher can solve the task, the student model will learn it effectively
+- **Performance benchmark**: Teacher accuracy predicts expected SLM performance
+
+```bash
+distil model run-teacher-evaluation <model-id>
+distil model teacher-evaluation <model-id>  # Check status/results
+```
+
+**Interpreting results:**
+- High accuracy → Task is well-defined, proceed to training
+- Low accuracy → Revise task description, improve data quality, or check for inconsistencies
+
+**Step 6: Model Training**
+
+Train your SLM using knowledge distillation:
+1. Teacher model generates synthetic training data from your examples
+2. Synthetic data is validated for diversity and quality
+3. Student model learns from synthetic data with task-specific optimization
+
+```bash
+distil model run-training <model-id>
+distil model training <model-id>  # Check status
+```
+
+Training takes several hours. Statuses: `JOB_PENDING`, `JOB_RUNNING`, `JOB_SUCCEEDED`, `JOB_FAILED`
+
+**If SLM performance is below expectations:**
+1. Increase the number of training examples
+2. Make task description more specific
+3. Modify config parameters (e.g., increase epochs)
+4. Try a larger student model
+
+**Step 7: Download and Deploy**
+```bash
+distil model download <model-id>
+```
+
+For local deployment with Ollama or vLLM, read `deployment.md`.
+
+### CLI Reference
+
+```bash
+# List all models
+distil model show
+
+# Show specific model details
+distil model show <model-id>
+
+# Download uploaded data files
+distil model download-data <model-id>
+
+# JSON output for scripting
+distil model show --output json
+```
+
+Command aliases: `distil model` = `distil models` = `distil m`
+
+### Supported Models
+
+**Student Models (what you train):**
+Llama 3.2 (1B, 3B), Llama 3.1 8B, SmolLM2 (135M, 1.7B), Gemma 3 (270M, 1B, 4B), Qwen3 (0.6B, 1.7B, 4B, 8B), IBM Granite 3.1/3.3 8B
+
+**Teacher Models (used for distillation):**
+DeepSeek R1, V3.1, Qwen3 (235B, 480B), Llama 3.1 405B, 3.3 70B, GPT OSS (20B, 120B)
+
+### Troubleshooting
+
+**Check model status:**
+```bash
+distil model show <model-id>
+```
+
+**Training failed:**
+1. Check teacher evaluation results first
+2. Verify data format matches task type requirements
+3. Ensure sufficient training examples (20+ minimum)
+
+**Authentication issues:**
+```bash
+distil logout
+distil login
+```
+
+### Platform Support
+
+- Linux (x86_64): Yes
+- macOS (Intel): Yes
+- macOS (Apple Silicon): Yes
+- Windows: Use WSL or REST API
 
 ---
 
-## Usage Examples
+## Examples
 
 ### Claude Code (End-to-End Workflow)
 
-In Claude Code, you can run CLI commands directly. Here are example conversations:
+In Claude Code, you can run CLI commands directly.
 
 **Example 1: Train a classification model**
 ```
@@ -170,235 +344,3 @@ question,answer
 
 [Provides complete templates]
 ```
-
----
-
-## Installation
-
-```bash
-curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
-```
-
-## Authentication
-
-```bash
-# Create account
-distil signup
-
-# Login (opens browser)
-distil login
-
-# Check current user
-distil whoami
-
-# Logout
-distil logout
-```
-
-## Core Workflow
-
-The typical workflow has 6 steps:
-
-### 1. Create a Model
-
-```bash
-distil model create my-model-name
-# Returns: Model ID (use this for all subsequent commands)
-```
-
-### 2. Prepare Data Files
-
-Every training job requires these files in a directory:
-
-| File | Required | Description |
-|------|----------|-------------|
-| `job_description.json` | Yes | Task definition and objectives |
-| `train.csv` or `train.jsonl` | Yes | Training examples (20+ minimum) |
-| `test.csv` or `test.jsonl` | Yes | Held-out evaluation set |
-| `config.yaml` | Yes | Training configuration |
-| `unstructured.csv` | Optional | Domain text for synthetic data generation |
-
-**Important:** Data format varies by task type. Read the appropriate data preparation guide:
-
-- **Classification** (intent detection, sentiment, categorization): Read `data-classification.md`
-- **Question Answering with RAG** (context-based, document QA): Read `data-qa-rag.md`
-- **Question Answering Closed-Book** (model learns facts internally): Read `data-qa-closed.md`
-- **Tool Calling** (function calling, API routing): Read `data-tool-calling.md`
-
-### 3. Upload Data
-
-```bash
-# Upload entire directory (recommended)
-distil model upload-data <model-id> --data ./my-data-folder
-
-# Or upload files individually
-distil model upload-data <model-id> \
-  --job-description job_description.json \
-  --train train.csv \
-  --test test.csv \
-  --config config.yaml \
-  --unstructured unstructured.csv
-```
-
-### 4. Run Teacher Evaluation
-
-Validates that a large model can solve your task before training:
-
-```bash
-# Start evaluation
-distil model run-teacher-evaluation <model-id>
-
-# Check status and results
-distil model teacher-evaluation <model-id>
-```
-
-**Interpreting results:**
-- High teacher accuracy → Task is well-defined, proceed to training
-- Low teacher accuracy → Refine task description, improve data quality, or check for inconsistencies
-
-### 5. Train the Model
-
-```bash
-# Start training
-distil model run-training <model-id>
-
-# Check status
-distil model training <model-id>
-```
-
-**Training statuses:**
-- `JOB_PENDING` - Waiting to start
-- `JOB_RUNNING` - Currently training
-- `JOB_SUCCEEDED` - Complete
-- `JOB_FAILED` - Error occurred
-
-Training typically takes several hours.
-
-### 6. Download Trained Model
-
-```bash
-distil model download <model-id>
-```
-
-Downloads an Ollama-ready package with:
-- `model/` - Model weights
-- `model-adapters/` - LoRA adapters
-- `Modelfile` - For Ollama integration
-- `model_client.py` - Inference script
-- `README.md` - Usage instructions
-
-## CLI Reference
-
-### Model Management
-
-```bash
-# List all models
-distil model show
-
-# Show specific model details (includes Upload ID, Training ID, etc.)
-distil model show <model-id>
-
-# Download uploaded data files
-distil model download-data <model-id>
-```
-
-### JSON Output
-
-Add `--output json` to any command for machine-readable output:
-
-```bash
-distil model show --output json
-distil model training <model-id> --output json
-```
-
-### Command Aliases
-
-- `distil model` = `distil models` = `distil m`
-
-## Local Deployment
-
-### Option 1: Ollama
-
-```bash
-# Install Ollama from https://ollama.com/
-
-# Create and run model
-ollama create my-model -f model/Modelfile
-ollama run my-model
-```
-
-Query via API:
-```python
-from openai import OpenAI
-client = OpenAI(base_url="http://localhost:11434/v1", api_key="ollama")
-response = client.chat.completions.create(
-    model="my-model",
-    messages=[{"role": "user", "content": "Your question"}]
-)
-```
-
-### Option 2: vLLM
-
-```bash
-pip install vllm openai
-vllm serve model --api-key EMPTY
-```
-
-Query via API:
-```python
-from openai import OpenAI
-client = OpenAI(base_url="http://localhost:8000/v1", api_key="EMPTY")
-response = client.chat.completions.create(
-    model="model",
-    messages=[{"role": "user", "content": "Your question"}]
-)
-```
-
-### Using the Provided Client
-
-```bash
-python model_client.py --question "Your question here"
-
-# For QA tasks with context
-python model_client.py --question "Your question" --context "Your context"
-```
-
-## Supported Models
-
-### Student Models (what you train)
-- Llama 3.2 (1B, 3B), Llama 3.1 8B
-- SmolLM2 (135M, 1.7B)
-- Gemma 3 (270M, 1B, 4B)
-- Qwen3 (0.6B, 1.7B, 4B, 8B)
-- IBM Granite 3.1/3.3 8B
-
-### Teacher Models (used for distillation)
-- DeepSeek R1, V3.1
-- Qwen3 (235B, 480B variants)
-- Llama 3.1 405B, 3.3 70B
-- GPT OSS (20B, 120B)
-
-## Troubleshooting
-
-### Check model status
-```bash
-distil model show <model-id>
-```
-
-### Training failed
-1. Check teacher evaluation results first
-2. Verify data format matches task type requirements
-3. Ensure sufficient training examples (20+ minimum)
-
-### Authentication issues
-```bash
-distil logout
-distil login
-```
-
-## Platform Support
-
-- Linux (x86_64): Yes
-- macOS (Intel): Yes
-- macOS (Apple Silicon): Yes
-- Windows: Use WSL or REST API

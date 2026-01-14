@@ -1,12 +1,17 @@
-# Question Answering (Closed-Book) Data Preparation
+# Closed Book QA Data Preparation
 
-Use closed-book QA when the model should learn facts from your data and answer questions using its internal knowledge—no context provided at inference time.
+Use closed-book QA when the model should learn facts from your unstructured data during training and answer questions using its internal knowledge—no context provided at inference time.
+
+**When to pick this task:**
+- You have lots of unstructured data you want to embed into a model
+- Users shouldn't need to provide context when asking questions
+- A typical RAG setup doesn't work due to retrieval difficulties
 
 **Example use cases:**
 - FAQ bots that "know" your product
 - Domain-specific knowledge assistants
 - Customer support without retrieval
-- Fact recall from training data
+- Information retrieval from embedded knowledge
 
 ## Required Files
 
@@ -14,101 +19,71 @@ Use closed-book QA when the model should learn facts from your data and answer q
 
 ```json
 {
-  "task_description": "Answer questions about our company's products, policies, and services. Use your knowledge to provide accurate, helpful responses.",
-  "llm_as_a_judge_instructions": "Evaluate if the answer is factually correct based on the company's actual policies and product information. The answer should be accurate and complete."
+  "task_description": "The task is to answer the question using your internal knowledge",
+  "llm_as_a_judge_instructions": "Evaluate whether the predicted answer correctly answers the question based on the reference answer. Output 'good' if the predicted answer is semantically equivalent to the reference answer or conveys the same key information, otherwise output 'bad'"
 }
 ```
 
 **Fields:**
-- `task_description`: Explain what the model should do
-- `llm_as_a_judge_instructions` (optional): Guidance for evaluation
+- `task_description`: Describes the main task (can be simple for closed-book QA)
+- `llm_as_a_judge_instructions` (optional): Evaluation guidance
 
-### 2. train.csv
+### 2. train.csv (or train.jsonl)
 
-```csv
-question,answer
-"What are your business hours?","Our support team is available Monday through Friday, 9 AM to 6 PM EST."
-"Do you offer a free trial?","Yes, we offer a 14-day free trial with full access to all features. No credit card required."
-"What is your refund policy?","We offer full refunds within 30 days of purchase for annual plans."
+| Column | Description |
+|--------|-------------|
+| `question` | The question the model must answer |
+| `answer` | The expected answer |
+
+**JSONL format:**
+```json
+{"question": "Where did Sands and Chopin take shelter after the locals in Majorca became inhospitable?", "answer": "a former Carthusian monastery"}
+{"question": "When did the Computer Emergency Readiness Team investigate 79 hacking incidents at energy companies?", "answer": "2014"}
+{"question": "How is the final quarter of the Premier League's television rights revenue distributed?", "answer": "paid out as facilities fees for games shown on television, with the top clubs receiving the largest shares"}
 ```
 
-**Requirements:**
-- Minimum 20 examples
-- `question`: The user's question
-- `answer`: The factual response the model should learn
+**CSV format:**
 
-### 3. test.csv
+| question | answer |
+|----------|--------|
+| Where did Sands and Chopin take shelter after the locals in Majorca became inhospitable? | a former Carthusian monastery |
+| When did the Computer Emergency Readiness Team investigate 79 hacking incidents at energy companies? | 2014 |
 
-Same format as train.csv:
+**Requirements:** Minimum 20 examples
 
-```csv
-question,answer
-"How do I contact support?","You can contact support via email at support@example.com or through the in-app chat."
-```
+### 3. test.csv (or test.jsonl)
+
+Same format as train data. Used for evaluation, not training.
 
 ### 4. config.yaml
 
+The default configuration works well for most cases. You only need to specify the task:
+
 ```yaml
-task: question-answering-closed-book
-
-# Model selection
-student_model_name: Llama-3.2-1B-Instruct
-teacher_model_name: Llama-3.3-70B-Instruct
-
-# Training parameters
-tuning:
-  learning_rate: 5e-5
-  num_train_epochs: 4
-  use_lora: true
-  lora_r: 64
-
-# Synthetic data generation
-synthetic_generation:
-  generation_target: 10000
-  teacher_temperature: 0.7
-  generation_per_unstructured_context: 5
+base:
+  task: question-answering-closed-book
 ```
 
-**Key settings for closed-book:**
-- `task`: Must be `question-answering-closed-book`
-- `generation_per_unstructured_context`: Number of examples to generate per unstructured context (important for this task type)
+For advanced options (model selection, training parameters, etc.), see `config.md`.
 
-### 5. unstructured.csv (Highly Recommended)
+### 5. unstructured.csv (Crucial for this task)
 
-This file is crucial for closed-book QA. It contains the knowledge you want the model to learn:
+The unstructured data is **crucial** for closed-book QA. This is where you provide the knowledge you want embedded into the model. The system generates QA pairs based on these contexts.
 
-```csv
-context
-"Our company was founded in 2019 and is headquartered in San Francisco. We have over 500 employees globally."
-"Pricing: Starter plan is $10/month, Pro plan is $25/month, Enterprise plan is custom pricing. All plans include basic support."
-"Security: We are SOC 2 Type II certified. Data is encrypted at rest and in transit. We perform annual security audits."
-"Integration: We support Slack, Microsoft Teams, Salesforce, and Zendesk integrations. API access is available on Pro and Enterprise plans."
-```
+Single column: `context`
 
-The model will generate synthetic QA pairs from these contexts and learn the facts.
-
-## Complete Example Directory
-
-```
-my-closed-book-data/
-├── job_description.json
-├── train.csv
-├── test.csv
-├── config.yaml
-└── unstructured.csv  # Highly recommended for this task type
+**JSONL format:**
+```json
+{"context": "In June 1837 Chopin visited London incognito in the company of the piano manufacturer Camille Pleyel. The two spent a miserable winter on Majorca (8 November 1838 to 13 February 1839). After discovering that the couple were not married, the deeply traditional Catholic people of Majorca became inhospitable, making accommodation difficult to find. This compelled the group to take lodgings in a former Carthusian monastery in Valldemossa."}
+{"context": "The Premier League sells its television rights on a collective basis. The money is divided into three parts: half is divided equally between the clubs; one quarter is awarded on a merit basis based on final league position; the final quarter is paid out as facilities fees for games that are shown on television, with the top clubs generally receiving the largest shares."}
+{"context": "Computers control functions at many utilities, including coordination of telecommunications, the power grid, and nuclear power plants. In 2014, the Computer Emergency Readiness Team, a division of the Department of Homeland Security, investigated 79 hacking incidents at energy companies."}
 ```
 
 ## Upload and Train
 
 ```bash
-# Upload data
 distil model upload-data <model-id> --data ./my-closed-book-data
-
-# Run teacher evaluation
 distil model run-teacher-evaluation <model-id>
-distil model teacher-evaluation <model-id>
-
-# Train model
 distil model run-training <model-id>
 ```
 
@@ -129,8 +104,8 @@ messages = [
 
 ## Tips
 
-1. **Comprehensive unstructured data** - Include all the facts you want the model to know in `unstructured.csv`
-2. **Consistent information** - Avoid contradictions in your training data
-3. **Cover your domain** - The model can only answer questions about topics in its training data
-4. **Factual accuracy** - Double-check facts in your data—the model will learn exactly what you provide
-5. **Consider scope** - Closed-book models work best for bounded domains with clear factual answers
+1. **Comprehensive unstructured data** — Include all facts you want the model to know
+2. **Consistent information** — Avoid contradictions in your data
+3. **Unstructured data is crucial** — This is how knowledge gets embedded into the model
+4. **Consider scope** — Closed-book models work best for bounded domains with clear factual answers
+5. **Quality over quantity in train data** — The train examples show the style; unstructured data provides the knowledge

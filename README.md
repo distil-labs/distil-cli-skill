@@ -39,10 +39,11 @@ curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
 
 | Task Type | Use Case | Example |
 |-----------|----------|---------|
-| Classification | Categorize text into fixed classes | Intent detection, sentiment analysis |
-| QA (RAG/Open-Book) | Answer questions using provided context | Document QA, support from docs |
-| QA (Closed-Book) | Answer questions from learned knowledge | FAQ bots, domain assistants |
-| Tool Calling | Select and invoke functions | API routing, workflow automation |
+| Question Answering | Extract answers from documents | Invoice parsing, contract analysis, ticket extraction |
+| Classification | Categorize text into fixed classes | Intent detection, sentiment analysis, ticket triage |
+| Tool Calling | Select and invoke functions/APIs | API routing, workflow automation, chatbot actions |
+| Open Book QA (RAG) | Answer questions using provided context | Document QA, support from docs |
+| Closed Book QA | Answer from knowledge learned during training | FAQ bots, domain assistants |
 
 ## Quick Start
 

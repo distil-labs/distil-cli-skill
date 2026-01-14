@@ -1,12 +1,13 @@
-# Classification Task Data Preparation
+# Classification Data Preparation
 
-Use classification when you need to assign text to categories from a fixed set.
+Use classification when the model needs to analyze input text and assign it to one category from a fixed set of options. This task type is effective when you need deterministic categorization rather than open-ended generation.
 
 **Example use cases:**
-- Intent detection for customer service
+- Intent detection for customer service queries
 - Content moderation (toxic/safe, spam/not spam)
 - Sentiment analysis (positive/negative/neutral)
-- Support ticket triage by department
+- Topic categorization for knowledge bases
+- Triaging support tickets by department
 
 ## Required Files
 
@@ -14,114 +15,88 @@ Use classification when you need to assign text to categories from a fixed set.
 
 ```json
 {
-  "task_description": "Classify customer support messages into intent categories to route them to the appropriate team.",
+  "task_description": "Classify the bank customer service requests into one of the provided classes",
   "classes_description": {
-    "billing": "Questions about invoices, payments, charges, or refunds",
-    "technical": "Issues with product functionality, bugs, or errors",
-    "account": "Account access, password resets, profile changes",
-    "sales": "Pricing inquiries, upgrades, new purchases",
-    "general": "General questions that don't fit other categories"
+    "balance_not_updated_after_bank_transfer": "Requests about a completed bank transfer not yet reflected in the account balance.",
+    "balance_not_updated_after_cheque_or_cash_deposit": "Requests regarding a recent cheque or cash deposit not showing up in the available account balance.",
+    "card_payment_fee_charged": "Requests questioning an unexpected or additional fee charged for making a payment with a card.",
+    "cash_withdrawal_charge": "Requests related to being charged a fee for withdrawing cash from an ATM.",
+    "declined_cash_withdrawal": "Requests about attempting to withdraw cash from an ATM but having the transaction declined.",
+    "direct_debit_payment_not_recognised": "Requests regarding an unauthorized direct debit payment charged to the account."
   }
 }
 ```
 
 **Fields:**
-- `task_description`: Explain what the model should do
-- `classes_description`: Map each class name to a clear description
+- `task_description`: Describes the main classification task
+- `classes_description`: Map from class names to their descriptions
 
-### 2. train.csv
+### 2. train.csv (or train.jsonl)
 
-```csv
-question,answer
-"Why was I charged twice this month?",billing
-"The app crashes when I try to upload a file",technical
-"How do I change my email address?",account
-"What's the difference between Pro and Enterprise?",sales
-"What are your business hours?",general
+| Column | Description |
+|--------|-------------|
+| `question` | The input text to classify |
+| `answer` | The class label |
+
+**JSONL format:**
+```json
+{"question": "Why is there a fee for getting cash?", "answer": "cash_withdrawal_charge"}
+{"question": "I was declined when I tried to take out cash!", "answer": "declined_cash_withdrawal"}
+{"question": "I deposited some money, but the balance has not changed.", "answer": "balance_not_updated_after_cheque_or_cash_deposit"}
+{"question": "It has been a couple of hours but I do not see my balance updated, can you help?", "answer": "balance_not_updated_after_bank_transfer"}
+{"question": "There is a payment showing on my app that I didn't do. Will you please cancel this payment?", "answer": "direct_debit_payment_not_recognised"}
+{"question": "How do I know which payments I make will have additional fees?", "answer": "card_payment_fee_charged"}
 ```
 
-**Requirements:**
-- Minimum 20 examples
-- `question`: The input text to classify
-- `answer`: The class label (must match keys in `classes_description`)
-- Include examples for all classes
+**CSV format:**
 
-### 3. test.csv
+| question | answer |
+|----------|--------|
+| Why is there a fee for getting cash? | cash_withdrawal_charge |
+| I was declined when I tried to take out cash! | declined_cash_withdrawal |
+| I deposited some money, but the balance has not changed. | balance_not_updated_after_cheque_or_cash_deposit |
 
-Same format as train.csv. Used for evaluation, not training.
+**Requirements:** Minimum 20 examples. Include examples for all classes.
 
-```csv
-question,answer
-"I need a refund for my last payment",billing
-"Button doesn't respond when clicked",technical
-```
+### 3. test.csv (or test.jsonl)
+
+Same format as train data. Used for evaluation, not training.
 
 ### 4. config.yaml
 
+The default configuration works well for most cases. You only need to specify the task:
+
 ```yaml
-task: classification
-
-# Model selection
-student_model_name: Llama-3.2-1B-Instruct
-teacher_model_name: Llama-3.3-70B-Instruct
-
-# Training parameters
-tuning:
-  learning_rate: 5e-5
-  num_train_epochs: 4
-  use_lora: true
-  lora_r: 64
-
-# Synthetic data generation
-synthetic_generation:
-  generation_target: 10000
-  teacher_temperature: 0.7
-  match_generated_distribution_to_seed: true
+base:
+  task: classification
 ```
 
-**Key settings for classification:**
-- `task`: Must be `classification`
-- `match_generated_distribution_to_seed`: Set to `true` to maintain class balance
+For advanced options (model selection, training parameters, etc.), see `config.md`.
 
 ### 5. unstructured.csv (Optional)
 
-Domain-specific text to improve synthetic data generation:
+Unlabelled examples or domain documentation to guide synthetic data generation. Single column: `context`
 
-```csv
-context
-"Our billing cycle runs from the 1st to the 30th of each month. Charges appear within 3 business days."
-"To reset your password, click the 'Forgot Password' link on the login page."
-"Enterprise plans include priority support and custom integrations."
-```
-
-## Complete Example Directory
-
-```
-my-classification-data/
-├── job_description.json
-├── train.csv
-├── test.csv
-├── config.yaml
-└── unstructured.csv (optional)
+**JSONL format:**
+```json
+{"context": "Canceling my order is what I need to do right now."}
+{"context": "I swear that there are 2 payments on the app that I didn't make. Could my card be stolen?"}
+{"context": "Too many charges on my card, how do I go about fixing that?"}
+{"context": "I got less cash than what I specified at the ATM."}
+{"context": "Why is my last cheque deposit taking so long?"}
 ```
 
 ## Upload and Train
 
 ```bash
-# Upload data
 distil model upload-data <model-id> --data ./my-classification-data
-
-# Run teacher evaluation
 distil model run-teacher-evaluation <model-id>
-distil model teacher-evaluation <model-id>
-
-# Train model
 distil model run-training <model-id>
 ```
 
 ## Tips
 
-1. **Balance your classes** - Include similar numbers of examples per class
-2. **Clear class boundaries** - Ensure classes don't overlap significantly
-3. **Representative examples** - Cover the variety of inputs you expect in production
-4. **Descriptive class names** - Use clear names in `classes_description`
+1. **Balance your classes** — Include similar numbers of examples per class
+2. **Clear class boundaries** — Ensure classes don't overlap significantly
+3. **Descriptive class names** — Use clear names and descriptions in `classes_description`
+4. **Representative examples** — Cover the variety of inputs you expect in production
