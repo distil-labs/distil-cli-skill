@@ -1,0 +1,23 @@
+{
+  "name": "distil-cli-skill",
+  "owner": {
+    "name": "Distil Labs",
+    "email": "support@distillabs.ai"
+  },
+  "metadata": {
+    "description": "Claude skill for training task-specific small language models using the Distil Labs CLI",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "distil-cli",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/distil-labs/distil-cli-skill.git"
+      },
+      "description": "Train task-specific small language models (SLMs) using the Distil Labs CLI",
+      "version": "1.0.0",
+      "skills": ["."]
+    }
+  ]
+}
