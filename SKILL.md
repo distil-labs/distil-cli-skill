@@ -103,6 +103,8 @@ distil model teacher-evaluation <model-id>  # Check status/results
 - High accuracy → Task is well-defined, proceed to training
 - Low accuracy → Revise task description, improve data quality, or check for inconsistencies
 
+For details on evaluation metrics (LLM-as-a-Judge, Exact-Match, ROUGE-L, tool_call_equivalence, etc.), see `metrics.md`.
+
 **Step 6: Model Training**
 
 Train your SLM using knowledge distillation:
@@ -122,6 +124,8 @@ Training takes several hours. Statuses: `JOB_PENDING`, `JOB_RUNNING`, `JOB_SUCCE
 2. Make task description more specific
 3. Modify config parameters (e.g., increase epochs)
 4. Try a larger student model
+
+When training completes, compare SLM metrics against teacher metrics. For help interpreting results, see `metrics.md`.
 
 **Step 7: Download and Deploy**
 ```bash
