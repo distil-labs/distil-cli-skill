@@ -50,7 +50,7 @@ Choosing the right task type is crucial. Help the user by asking what they need 
 | Solve problems by returning text answers (QA or text transformations) | **Question Answering** | `data-question-answering.md` |
 | Assign text to categories from a fixed set | **Classification** | `data-classification.md` |
 | Generate structured tool/API calls from natural language | **Tool Calling** | `data-tool-calling.md` |
-| Answer questions given context from a knowledge database | **Open Book QA (RAG)** | `data-qa-rag.md` |
+| Answer questions given context (requires existing knowledge database) | **Open Book QA (RAG)** | `data-qa-rag.md` |
 | Answer questions from knowledge learned during training | **Closed Book QA** | `data-qa-closed.md` |
 
 **Question Answering** — The most general task type. Solves problems by returning text answers. Use for question answering, text transformations, or any task that takes text input and produces text output.
@@ -63,9 +63,10 @@ Choosing the right task type is crucial. Help the user by asking what they need 
 - *Examples:* Voice assistant commands → smart home APIs, chatbot intents → CRM operations, natural language → database queries
 - *Note:* Only supports Llama3 family student models
 
-**Open Book QA (RAG)** — Answers questions using provided context passages. Use when you have a knowledge database with context chunks that will be retrieved and provided to the model at inference time.
+**Open Book QA (RAG)** — Answers questions using provided context passages. **Only use this if you already have a well-structured knowledge database with context chunks.** The model expects retrieved context to be provided at inference time.
 - *Examples:* Customer support from product docs, legal document analysis, technical documentation assistants
-- *When to pick:* You have a RAG pipeline that retrieves relevant chunks, and want the model to answer strictly from provided context
+- *When to pick:* You already have a RAG pipeline with good retrieval, and want the model to answer strictly from provided context
+- *Not appropriate if:* You don't have a knowledge database yet, or your context chunks are poorly structured
 
 **Closed Book QA** — Answers questions from knowledge learned during training. The user provides a knowledge database and the model learns the knowledge from it during training—no context needed at inference.
 - *Examples:* FAQ bots, domain-specific knowledge assistants
