@@ -91,8 +91,10 @@ After reading the appropriate guide, help the user prepare these files:
 | `job_description.json` | Yes | Task objectives and configuration |
 | `train.csv` or `train.jsonl` | Yes | 20+ labeled (question, answer) pairs |
 | `test.csv` or `test.jsonl` | Yes | Held-out evaluation set |
-| `config.yaml` | Yes | Task type (defaults work well; see `config.md` for advanced options) |
+| `config.yaml` | Yes | Task type, student model, and teacher model (see `config.md` for options) |
 | `unstructured.csv` | No | Domain text for synthetic data generation |
+
+**Note on config.yaml:** Always ask the user which student model they want to train and which teacher model to use. See `config.md` for the full list of available models. If the user is unsure, recommend `Llama-3.2-1B-Instruct` as the student and `openai.gpt-oss-120b` as the teacher.
 
 **Step 4: Upload Data**
 ```bash
