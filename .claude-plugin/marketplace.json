@@ -17,7 +17,7 @@
       },
       "description": "Train task-specific small language models (SLMs) using the Distil Labs CLI",
       "version": "1.0.0",
-      "skills": ["."]
+      "skills": ["./"]
     }
   ]
 }
