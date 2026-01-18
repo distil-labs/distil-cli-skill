@@ -74,7 +74,17 @@ Choosing the right task type is crucial. Help the user by asking what they need 
 
 **Step 3: Data Preparation**
 
-Once the task type is selected, read the appropriate data guide and help the user prepare these files:
+**IMPORTANT:** Before creating any files, you MUST read the data preparation guide for the selected task type. Each task has specific requirements for file formats and content.
+
+| Task Type | Data Guide to Read First |
+|-----------|--------------------------|
+| Question Answering | `data-question-answering.md` |
+| Classification | `data-classification.md` |
+| Tool Calling | `data-tool-calling.md` |
+| Open Book QA (RAG) | `data-qa-rag.md` |
+| Closed Book QA | `data-qa-closed.md` |
+
+After reading the appropriate guide, help the user prepare these files:
 
 | File | Required | Description |
 |------|----------|-------------|
