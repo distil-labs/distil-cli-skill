@@ -47,14 +47,14 @@ Choosing the right task type is crucial. Help the user by asking what they need 
 
 | If the user needs to... | Choose | Data Guide |
 |-------------------------|--------|------------|
-| Extract specific facts from documents (invoices, contracts, tickets) | **Question Answering** | `data-question-answering.md` |
+| Solve problems by returning text answers (QA or text transformations) | **Question Answering** | `data-question-answering.md` |
 | Assign text to categories from a fixed set | **Classification** | `data-classification.md` |
 | Generate structured tool/API calls from natural language | **Tool Calling** | `data-tool-calling.md` |
-| Answer questions using context passages they provide at inference | **Open Book QA (RAG)** | `data-qa-rag.md` |
-| Answer questions from knowledge learned during training (no context at inference) | **Closed Book QA** | `data-qa-closed.md` |
+| Answer questions given context from a knowledge database | **Open Book QA (RAG)** | `data-qa-rag.md` |
+| Answer questions from knowledge learned during training | **Closed Book QA** | `data-qa-closed.md` |
 
-**Question Answering** — Extracts or generates precise answers from text. The input contains both the document and the question. Use when retrieving specific facts from documents.
-- *Examples:* "What is the termination clause?" from contracts, "What's the total due?" from invoices, "What was the root cause?" from incident reports
+**Question Answering** — The most general task type. Solves problems by returning text answers. Use for question answering, text transformations, or any task that takes text input and produces text output.
+- *Examples:* "What is the termination clause?" from contracts, "Summarize this document", "Extract the key dates from this email", "Reformat this data as JSON"
 
 **Classification** — Assigns text to one category from a fixed set. Use when you need deterministic categorization, not open-ended generation.
 - *Examples:* Intent detection, content moderation (toxic/safe), sentiment analysis, ticket triage by department
@@ -63,13 +63,13 @@ Choosing the right task type is crucial. Help the user by asking what they need 
 - *Examples:* Voice assistant commands → smart home APIs, chatbot intents → CRM operations, natural language → database queries
 - *Note:* Only supports Llama3 family student models
 
-**Open Book QA (RAG)** — Answers questions using a provided context passage. The model grounds answers in the given text, not general knowledge. Use when you have (or can retrieve) relevant passages at inference time.
+**Open Book QA (RAG)** — Answers questions using provided context passages. Use when you have a knowledge database with context chunks that will be retrieved and provided to the model at inference time.
 - *Examples:* Customer support from product docs, legal document analysis, technical documentation assistants
-- *When to pick:* You've chunked documents for a RAG pipeline and want the model to answer strictly from retrieved chunks
+- *When to pick:* You have a RAG pipeline that retrieves relevant chunks, and want the model to answer strictly from provided context
 
-**Closed Book QA** — Learns facts from your unstructured data during training and answers without external context at inference. Use when you want knowledge "baked into" the model.
+**Closed Book QA** — Answers questions from knowledge learned during training. The user provides a knowledge database and the model learns the knowledge from it during training—no context needed at inference.
 - *Examples:* FAQ bots, domain-specific knowledge assistants
-- *When to pick:* You have lots of unstructured data, users shouldn't need to provide context, or RAG retrieval is difficult for your use case
+- *When to pick:* You want knowledge "baked into" the model, users shouldn't need to provide context, or RAG retrieval is difficult for your use case
 
 **Step 3: Data Preparation**
 
