@@ -39,7 +39,7 @@ distil model create my-model-name
 # Returns: Model ID (use this for all subsequent commands)
 ```
 
-List all models with `distil model show`.
+List all models with `distil model list`.
 
 **Step 2: Task Selection**
 
@@ -151,7 +151,7 @@ For local deployment with Ollama or vLLM, read `deployment.md`.
 
 ```bash
 # List all models
-distil model show
+distil model list
 
 # Show specific model details
 distil model show <model-id>
@@ -160,7 +160,7 @@ distil model show <model-id>
 distil model download-data <model-id>
 
 # JSON output for scripting
-distil model show --output json
+distil model list --output json
 ```
 
 Command aliases: `distil model` = `distil models` = `distil m`
