@@ -1,5 +1,6 @@
 ---
 name: distil-cli
+version: 1.1.0
 description: Train task-specific small language models (SLMs) using the Distil Labs CLI. Helps with data preparation, model training, and deployment.
 ---
 
@@ -50,6 +51,7 @@ Choosing the right task type is crucial. Help the user by asking what they need 
 | Solve problems by returning text answers (QA or text transformations) | **Question Answering** | `data-question-answering.md` |
 | Assign text to categories from a fixed set | **Classification** | `data-classification.md` |
 | Generate structured tool/API calls from natural language | **Tool Calling** | `data-tool-calling.md` |
+| Generate tool calls in multi-turn conversations | **Multi-Turn Tool Calling** | `data-multi-turn-tool-calling.md` |
 | Answer questions given context (requires existing knowledge database) | **Open Book QA (RAG)** | `data-qa-rag.md` |
 | Answer questions from knowledge learned during training | **Closed Book QA** | `data-qa-closed.md` |
 
@@ -61,7 +63,11 @@ Choosing the right task type is crucial. Help the user by asking what they need 
 
 **Tool Calling** — Maps natural language to structured function calls with correct parameters. Use when routing user requests to backend APIs/services.
 - *Examples:* Voice assistant commands → smart home APIs, chatbot intents → CRM operations, natural language → database queries
-- *Note:* Only supports Llama3 family student models
+- *Note:* Only Qwen3 and Llama 3-family student models are supported
+
+**Multi-Turn Tool Calling** — Generates function calls within a conversational context. Unlike single-turn tool calling, this takes a conversation history and generates the next appropriate function call based on full context.
+- *Examples:* File system assistants, database query interfaces, DevOps chatbots, smart home controllers with chained commands
+- *Note:* Only Qwen3 and Llama 3-family student models are supported. Requires specific teacher models: `Qwen3-235B-A22B-Instruct-2507`, `Llama-3.1-405B-Instruct`, or `openai.gpt-oss-120b`
 
 **Open Book QA (RAG)** — Answers questions using provided context passages. **Only use this if you already have a well-structured knowledge database with context chunks.** The model expects retrieved context to be provided at inference time.
 - *Examples:* Customer support from product docs, legal document analysis, technical documentation assistants
@@ -81,6 +87,7 @@ Choosing the right task type is crucial. Help the user by asking what they need 
 | Question Answering | `data-question-answering.md` |
 | Classification | `data-classification.md` |
 | Tool Calling | `data-tool-calling.md` |
+| Multi-Turn Tool Calling | `data-multi-turn-tool-calling.md` |
 | Open Book QA (RAG) | `data-qa-rag.md` |
 | Closed Book QA | `data-qa-closed.md` |
 
@@ -352,11 +359,45 @@ Claude: For tool calling, I'll prepare files per `data-tool-calling.md`:
   ]
 }
 
-Note: Tool calling requires Llama3 family models.
+Note: Tool calling only supports Qwen3 and Llama 3-family student models.
 
 2. **train.csv:**
 question,answer
 "Where is my order #12345?","{""name"": ""get_order_status"", ""parameters"": {""order_id"": ""12345""}}"
+...
+
+[Provides complete templates]
+```
+
+**Example 4: Prepare multi-turn tool calling data**
+```
+User: I want a conversational assistant that can navigate files through dialogue
+
+Claude: For multi-turn tool calling, I'll prepare files per `data-multi-turn-tool-calling.md`:
+
+1. **job_description.json** with your tool schemas:
+{
+  "task_description": "Help users navigate and manage files through conversation",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "ls",
+        "description": "List directory contents",
+        "parameters": {...}
+      }
+    },
+    ...
+  ]
+}
+
+Note: Multi-turn tool calling only supports Qwen3 and Llama 3-family student models,
+and requires specific teacher models: Qwen3-235B-A22B-Instruct-2507, Llama-3.1-405B-Instruct,
+or openai.gpt-oss-120b.
+
+2. **train.csv** - The question field is a JSON array of conversation turns:
+question,answer
+"[{""role"": ""user"", ""content"": ""List files here""}, ...]","{""name"": ""ls"", ""parameters"": {}}"
 ...
 
 [Provides complete templates]

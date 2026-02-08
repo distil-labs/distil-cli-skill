@@ -2,7 +2,9 @@
 
 Use tool calling when the model needs to select and invoke the appropriate function or API based on user requests. The model learns to map natural language queries to structured tool calls with correct parameters.
 
-**Note:** Only Llama3 family of student models is supported for tool calling.
+## Model Compatibility
+
+**Student models**: Only Qwen3 and Llama 3-family models are supported for tool calling tasks.
 
 **Example use cases:**
 - Voice assistants — Map spoken commands to smart home APIs
@@ -113,7 +115,7 @@ base:
   task: tool-calling-closed-book
 ```
 
-**Note:** Tool calling only supports Llama3 family student models.
+**Note:** Tool calling only supports Qwen3 and Llama 3-family student models.
 
 For advanced options (model selection, training parameters, etc.), see `config.md`.
 
@@ -156,4 +158,4 @@ if tool_call["name"] == "get_weather":
 2. **Comprehensive parameter descriptions** — Help the model understand what each parameter expects
 3. **Varied examples** — Show different ways users might request the same action
 4. **Valid JSON** — Ensure all answer fields contain properly escaped JSON strings
-5. **Llama3 only** — Remember only Llama3 family models are supported
+5. **Supported models** — Remember only Qwen3 and Llama 3-family student models are supported
