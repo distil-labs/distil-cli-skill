@@ -1,6 +1,6 @@
 ---
 name: distil-cli
-version: 1.1.0
+version: 3.1.0
 description: Train task-specific small language models (SLMs) using the Distil Labs CLI. Helps with data preparation, model training, and deployment.
 ---
 
