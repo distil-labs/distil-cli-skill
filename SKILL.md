@@ -152,7 +152,7 @@ When training completes, compare SLM metrics against teacher metrics. For help i
 distil model download <model-id>
 ```
 
-For local deployment with Ollama or vLLM, read `deployment.md`.
+For local deployment with vLLM, read `deployment.md`.
 
 ### CLI Reference
 
@@ -251,10 +251,7 @@ Your training completed successfully! Downloading the model:
 
 > distil model download abc123
 
-Model downloaded. To run it locally with Ollama:
-
-> ollama create support-classifier -f model/Modelfile
-> ollama run support-classifier
+Model downloaded. To run it locally, see `deployment.md` for vLLM setup.
 ```
 
 **Example 3: Debug a failed training**
