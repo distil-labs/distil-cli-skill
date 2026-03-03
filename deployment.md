@@ -2,7 +2,46 @@
 
 After downloading your trained model with `distil model download <model-id>`, deploy it locally using one of these options.
 
-## vLLM
+## Option 1: Distil CLI (Recommended)
+
+Deploy your trained model locally using the built-in `distil model deploy` command, which uses `llama-cpp` as the inference backend:
+
+```bash
+distil model deploy local <model-id>
+```
+
+This downloads the model and starts a local llama-server on port 8000. Customize the port and enable server logs:
+
+```bash
+distil model deploy local --port 9000 --logs <model-id>
+```
+
+Once running, the model is available via the OpenAI-compatible API at `http://localhost:<port>/v1`.
+
+To get the command to invoke your locally deployed model:
+
+```bash
+distil model invoke <model-id>
+```
+
+This outputs a ready-to-run command using [uv](https://docs.astral.sh/uv/). Copy and run it directly:
+
+```bash
+uv run $PATH_TO_CLIENT --question "Your question here"
+
+# For QA tasks with context
+uv run $PATH_TO_CLIENT --question "Your question here" --context "Your context here"
+```
+
+| Option | Description |
+|--------|-------------|
+| `--port <port>` | Port number for local llama-server (default: 8000) |
+| `--logs` | Show llama-server logs during local deployment |
+| `--output json` | Output results in JSON format |
+
+**Note:** Local deployment requires [llama-cpp](https://github.com/ggerganov/llama.cpp) to be installed on your machine.
+
+## Option 2: vLLM
 
 ```bash
 pip install vllm openai

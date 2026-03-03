@@ -152,7 +152,13 @@ When training completes, compare SLM metrics against teacher metrics. For help i
 distil model download <model-id>
 ```
 
-For local deployment with vLLM, read `deployment.md`.
+Deploy locally using the CLI (uses llama-cpp as the backend):
+```bash
+distil model deploy local <model-id>
+distil model invoke <model-id>  # Get the command to query your model
+```
+
+For alternative deployment options (e.g., vLLM), read `deployment.md`.
 
 ### CLI Reference
 
@@ -251,7 +257,15 @@ Your training completed successfully! Downloading the model:
 
 > distil model download abc123
 
-Model downloaded. To run it locally, see `deployment.md` for vLLM setup.
+Model downloaded. Let me deploy it locally:
+
+> distil model deploy local abc123
+
+The model is now running on port 8000. To invoke it:
+
+> distil model invoke abc123
+
+Copy and run the output command to query your model.
 ```
 
 **Example 3: Debug a failed training**
