@@ -1,6 +1,6 @@
 ---
 name: distil-cli
-version: 3.1.0
+version: 3.2.0
 description: Train task-specific small language models (SLMs) using the Distil Labs CLI. Helps with data preparation, model training, and deployment.
 ---
 
@@ -152,7 +152,13 @@ When training completes, compare SLM metrics against teacher metrics. For help i
 distil model download <model-id>
 ```
 
-For local deployment with Ollama or vLLM, read `deployment.md`.
+Deploy locally using the CLI (uses llama-cpp as the backend):
+```bash
+distil model deploy local <model-id>
+distil model invoke <model-id>  # Get the command to query your model
+```
+
+For alternative deployment options (e.g., vLLM), read `deployment.md`.
 
 ### CLI Reference
 
@@ -251,10 +257,15 @@ Your training completed successfully! Downloading the model:
 
 > distil model download abc123
 
-Model downloaded. To run it locally with Ollama:
+Model downloaded. Let me deploy it locally:
 
-> ollama create support-classifier -f model/Modelfile
-> ollama run support-classifier
+> distil model deploy local abc123
+
+The model is now running on port 8000. To invoke it:
+
+> distil model invoke abc123
+
+Copy and run the output command to query your model.
 ```
 
 **Example 3: Debug a failed training**
