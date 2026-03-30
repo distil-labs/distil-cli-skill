@@ -60,8 +60,8 @@ Claude will guide you through:
 
 ## Documentation
 
-- [Distil Labs Documentation](https://docs.distillabs.ai)
-- [CLI Reference](https://docs.distillabs.ai/getting-started/cli)
+- [Distil Labs Documentation](https://www.distillabs.ai/docs)
+- [CLI Reference](https://www.distillabs.ai/docs/getting-started/cli)
 
 ## License
 
