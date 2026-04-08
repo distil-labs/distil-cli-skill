@@ -1,6 +1,6 @@
 ---
 name: distil-cli
-version: 3.3.0
+version: 3.4.0
 description: Train task-specific small language models (SLMs) using the Distil Labs CLI. Helps with data preparation, model training, and deployment.
 ---
 
@@ -101,11 +101,32 @@ After reading the appropriate guide, help the user prepare these files:
 | `config.yaml` | Yes | Task type, student model, and teacher model (see `config.md` for options) |
 | `unstructured.csv` | No | Domain text for synthetic data generation |
 
+**Alternative: Training from Traces**
+
+If the user has production traces (logs of real LLM interactions), they can skip manual data preparation and use the traces workflow instead. Read `data-traces.md` for the full guide. Traces are uploaded with `upload-traces` instead of `upload-data`, and the platform automatically processes them into training and test data.
+
 **Note on config.yaml:** Always ask the user which student model they want to train and which teacher model to use. See `config.md` for the full list of available models. If the user is unsure, recommend `Llama-3.2-1B-Instruct` as the student and `openai.gpt-oss-120b` as the teacher.
 
 **Step 4: Upload Data**
+
+*Option A: Structured data (manual data files)*
 ```bash
 distil model upload-data <model-id> --data ./my-data-folder
+```
+
+*Option B: Training from traces (production LLM logs)*
+```bash
+distil model upload-traces <model-id> --data ./my-traces-folder
+```
+
+To reprocess previously uploaded traces with different processing parameters:
+```bash
+distil model reprocess-traces <model-id> --trace-processing-config new-config.yaml
+```
+
+Check upload/processing status:
+```bash
+distil model upload-status <model-id>
 ```
 
 **Step 5: Teacher Evaluation**
@@ -174,6 +195,15 @@ distil model download-data <model-id>
 
 # JSON output for scripting
 distil model list --output json
+
+# Upload traces (alternative to upload-data)
+distil model upload-traces <model-id> --data ./traces-dir
+
+# Reprocess traces with new config
+distil model reprocess-traces <model-id> --trace-processing-config config.yaml
+
+# Check upload/processing status
+distil model upload-status <model-id>
 ```
 
 Command aliases: `distil model` = `distil models` = `distil m`
@@ -284,6 +314,32 @@ I see the issue - teacher evaluation accuracy was low. Let me check your data:
 [Reviews data files and suggests improvements]
 ```
 
+**Example 4: Train from production traces**
+```
+User: I have production traces from our customer support chatbot, can we train a model from them?
+
+Claude: Great, we can train directly from your production traces. Let me create a model first:
+
+> distil model create support-chatbot
+
+Now I'll read `data-traces.md` for the format requirements...
+
+[Claude helps create job_description.json and config.yaml with trace_processing settings, reviews traces.jsonl format]
+
+Let's upload the traces:
+
+> distil model upload-traces abc123 --data ./traces
+
+Let me check the processing status:
+
+> distil model upload-status abc123
+
+[Once processing completes, proceeds with teacher evaluation and training]
+
+> distil model run-teacher-evaluation abc123
+> distil model run-training abc123
+```
+
 ---
 
 ### Claude Browser (Data Preparation Only)
@@ -378,6 +434,40 @@ question,answer
 ...
 
 [Provides complete templates]
+```
+
+**Example 5: Prepare trace files for training**
+```
+User: I have Langfuse traces from my QA bot, how do I train a model from them?
+
+Claude: You can train directly from your traces. Based on `data-traces.md`, you need:
+
+1. **traces.jsonl** — Export your Langfuse observations as JSONL. Each line should have `id`, `input`, and `output` fields.
+
+2. **job_description.json:**
+{
+  "task_description": "Answer customer questions accurately based on the conversation context."
+}
+
+3. **config.yaml:**
+base:
+  task: question-answering
+  student_model_name: Llama-3.2-1B-Instruct
+
+trace_processing:
+  observation_format: langfuse
+  relabel: true
+  expand_multiturn_conversations: true
+
+Once your files are ready, run:
+$ distil model create my-qa-model
+$ distil model upload-traces <model-id> --data ./my-traces
+$ distil model upload-status <model-id>
+$ distil model run-teacher-evaluation <model-id>
+$ distil model run-training <model-id>
+
+If the processed data doesn't look right, you can adjust trace_processing parameters and reprocess:
+$ distil model reprocess-traces <model-id> --trace-processing-config updated-config.yaml
 ```
 
 **Example 4: Prepare multi-turn tool calling data**

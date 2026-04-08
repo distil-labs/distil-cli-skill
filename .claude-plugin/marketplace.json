@@ -16,7 +16,7 @@
         "url": "https://github.com/distil-labs/distil-cli-skill.git"
       },
       "description": "Train task-specific small language models (SLMs) using the Distil Labs CLI",
-      "version": "3.3.0",
+      "version": "3.4.0",
       "skills": ["./"]
     }
   ]
