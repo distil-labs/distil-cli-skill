@@ -1,6 +1,6 @@
 # Configuration File Reference
 
-The configuration file controls the training pipeline through four main sections: `base`, `tuning`, `evaluation`, and `synthgen`.
+The configuration file controls the training pipeline through five main sections: `base`, `tuning`, `evaluation`, `synthgen`, and `trace_processing`.
 
 **For most use cases, the defaults work well.** You only need to specify the task type. Customize other parameters only if you need to fine-tune the training process.
 
@@ -44,6 +44,10 @@ evaluation:
 synthgen:
   # Synthetic data generation parameters
   generation_target: 10000
+
+trace_processing:
+  # Trace processing parameters (for training from traces)
+  relabel: true
 ```
 
 ---
@@ -66,6 +70,7 @@ synthgen:
 | Tool Calling | `tool-calling-closed-book` |
 | Open Book QA (RAG) | `question-answering-open-book` |
 | Closed Book QA | `question-answering-closed-book` |
+| Multi-Turn Tool Calling | `multi-turn-tool-calling-closed-book` |
 
 ### Student Models
 
@@ -147,6 +152,30 @@ Parameters controlling synthetic data generation.
 
 ---
 
+## Trace Processing Configuration
+
+Parameters for the trace processing pipeline, which converts production traces into training and test data. These are used when training from traces via `distil model upload-traces`.
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `relabel` | `true` | If true, use a committee of models to relabel trace examples. If false, use the original labels from traces. |
+| `expand_multiturn_conversations` | `true` | If true, expand multi-turn conversations into multiple training examples. If false, each observation produces a single example using only the last assistant turn. |
+| `max_examples` | `null` | Maximum number of training examples to use from traces. |
+| `relevance_filtering_batch_size` | `32` | Number of examples scored per batch during relevance filtering. Controls early-stopping granularity against `max_examples`. |
+| `num_traces_as_training_base` | `200` | Number of traces to use as the seed for generating training examples. Unused traces beyond this count are used as unstructured data. |
+| `num_traces_as_testing_base` | `200` | Number of traces to use as the seed for generating testing examples. Unused traces beyond this count are used as unstructured data. Ignored if a test set is provided. |
+| `min_generated_examples` | `20` | Minimum number of examples that trace processing must produce. Raises an error if fewer are generated, to prevent training with too few examples. |
+| `max_unstructured` | `10000` | Maximum number of unstructured data examples to include. |
+| `observation_format` | `openai_messages` | Format of trace observations in `traces.jsonl`. Options: `langfuse`, `openai_messages`, `unstructured_with_openai_messages`. |
+| `remove_system_prompt_from_traces` | `false` | If true, remove the system prompt from traces before converting them to unstructured data. Useful when the system prompt is very large. |
+| `compress_job_description` | `false` | If true, compress the job description using the teacher model before relevance filtering. Useful when the task description is very long. |
+| `teacher_model_name` | `openai.gpt-oss-120b` | Teacher model used for relevance filtering and picking the best relabelled answer. |
+| `relabelling_committee_models` | See below | Models that produce candidate relabels. Each model generates an output for every example; the teacher then picks the best. Only used when `relabel` is true. |
+
+**Default relabelling committee:** `["zai.glm-5", "Qwen3-235B-A22B-Instruct-2507", "openai.gpt-oss-120b-thinking", "deepseek.v3.2"]`
+
+---
+
 ## Full Configuration Example
 
 ```yaml
@@ -171,6 +200,12 @@ synthgen:
   generation_target: 5000
   teacher_temperature: 0.6
   validation_similarity_threshold: 0.9
+
+trace_processing:
+  relabel: true
+  num_traces_as_training_base: 5000
+  num_traces_as_testing_base: 100
+  max_examples: 10000
 ```
 
 ---
@@ -181,4 +216,4 @@ synthgen:
 When using `deepseek.r1` as the teacher model, use temperature between **0.5 and 0.7**.
 
 ### Tool Calling
-Only **Llama3 family** student models are supported for the `tool-calling-closed-book` task.
+Only **Qwen3 and Llama 3-family** student models are supported for the `tool-calling-closed-book` task.
