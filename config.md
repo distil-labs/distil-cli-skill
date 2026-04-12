@@ -58,7 +58,7 @@ trace_processing:
 |-----------|---------|-------------|
 | `task` | *required* | Task type (see below) |
 | `student_model_name` | `Llama-3.2-1B-Instruct` | Model to fine-tune |
-| `teacher_model_name` | `Llama-3.3-70B-Instruct` | Model for synthetic data generation |
+| `teacher_model_name` | `openai.gpt-oss-120b` | Model for synthetic data generation |
 | `random_seed` | `123` | Random seed for reproducibility |
 
 ### Task Types
@@ -98,7 +98,6 @@ trace_processing:
 | DeepSeek R1 | `deepseek.r1` |
 | DeepSeek V3.1 | `deepseek.v3.1` |
 | Qwen3 235B | `Qwen3-235B-A22B-Instruct-2507` |
-| Llama 3.1 405B Instruct | `Llama-3.1-405B-Instruct` |
 | Llama 3.3 70B Instruct | `Llama-3.3-70B-Instruct` |
 | GPT OSS 120B | `openai.gpt-oss-120b` |
 

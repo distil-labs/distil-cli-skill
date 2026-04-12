@@ -8,7 +8,6 @@ Use multi-turn tool calling when the model needs to generate function calls with
 
 **Teacher models**: Multi-turn tool calling requires one of the following teacher models:
 - `Qwen3-235B-A22B-Instruct-2507`
-- `Llama-3.1-405B-Instruct`
 - `openai.gpt-oss-120b`
 
 **Example use cases:**
@@ -186,7 +185,6 @@ base:
 
 **Important:** Multi-turn tool calling requires one of these teacher models:
 - `Qwen3-235B-A22B-Instruct-2507`
-- `Llama-3.1-405B-Instruct`
 - `openai.gpt-oss-120b`
 
 For advanced options (model selection, training parameters, etc.), see `config.md`.
@@ -228,4 +226,4 @@ if tool_call["name"] == "cd":
 4. **Valid JSON** — Ensure all question fields contain properly escaped JSON arrays and answer fields contain properly escaped JSON strings
 5. **Context-dependent examples** — Show cases where the next tool call depends on previous conversation context
 6. **Supported models** — Remember only Qwen3 and Llama 3-family student models are supported
-7. **Teacher model** — You must use one of the supported teacher models: `Qwen3-235B-A22B-Instruct-2507`, `Llama-3.1-405B-Instruct`, or `openai.gpt-oss-120b`
+7. **Teacher model** — You must use one of the supported teacher models: `Qwen3-235B-A22B-Instruct-2507` or `openai.gpt-oss-120b`

@@ -67,7 +67,7 @@ Choosing the right task type is crucial. Help the user by asking what they need 
 
 **Multi-Turn Tool Calling** — Generates function calls within a conversational context. Unlike single-turn tool calling, this takes a conversation history and generates the next appropriate function call based on full context.
 - *Examples:* File system assistants, database query interfaces, DevOps chatbots, smart home controllers with chained commands
-- *Note:* Only Qwen3 and Llama 3-family student models are supported. Requires specific teacher models: `Qwen3-235B-A22B-Instruct-2507`, `Llama-3.1-405B-Instruct`, or `openai.gpt-oss-120b`
+- *Note:* Only Qwen3 and Llama 3-family student models are supported. Requires specific teacher models: `Qwen3-235B-A22B-Instruct-2507` or `openai.gpt-oss-120b`
 
 **Open Book QA (RAG)** — Answers questions using provided context passages. **Only use this if you already have a well-structured knowledge database with context chunks.** The model expects retrieved context to be provided at inference time.
 - *Examples:* Customer support from product docs, legal document analysis, technical documentation assistants
@@ -223,7 +223,7 @@ Command aliases: `distil model` = `distil models` = `distil m`
 Llama 3.2 (1B, 3B), Llama 3.1 8B, SmolLM2 (135M, 1.7B), Gemma 3 (270M, 1B, 4B), Qwen3 (0.6B, 1.7B, 4B, 8B), IBM Granite 3.1/3.3 8B
 
 **Teacher Models (used for distillation):**
-DeepSeek R1, V3.1, Qwen3 (235B, 480B), Llama 3.1 405B, 3.3 70B, GPT OSS (20B, 120B)
+DeepSeek R1, V3.1, Qwen3 (235B, 480B), Llama 3.3 70B, GPT OSS (20B, 120B)
 
 ### Troubleshooting
 
@@ -505,7 +505,7 @@ Claude: For multi-turn tool calling, I'll prepare files per `data-multi-turn-too
 }
 
 Note: Multi-turn tool calling only supports Qwen3 and Llama 3-family student models,
-and requires specific teacher models: Qwen3-235B-A22B-Instruct-2507, Llama-3.1-405B-Instruct,
+and requires specific teacher models: Qwen3-235B-A22B-Instruct-2507
 or openai.gpt-oss-120b.
 
 2. **train.csv** - The question field is a JSON array of conversation turns:
