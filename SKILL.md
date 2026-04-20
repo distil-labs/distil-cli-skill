@@ -1,517 +1,196 @@
 ---
 name: distil-cli
-version: 3.4.0
-description: Train task-specific small language models (SLMs) using the Distil Labs CLI. Helps with data preparation, model training, and deployment.
+version: 4.0.0
+description: >
+  Train task-specific small language models (SLMs) using the Distil Labs CLI and platform.
+  Activate this skill when the user asks about: distil labs, distil CLI, the distil command,
+  training small language models, knowledge distillation, creating SLMs from production traces,
+  data preparation for model training, fine-tuning student models from teacher models,
+  deploying trained SLMs, model evaluation metrics, task-specific model training,
+  classification/QA/tool-calling model training, synthetic data generation for training,
+  or any question about the distil platform, its configuration, or its workflows.
+  Also activate when the user mentions: distil model, distil login, distil register,
+  uploading training data, teacher evaluation, model retuning, model deployment with llama-cpp or vLLM,
+  or when working with config.yaml / job_description.json / train.csv files for model training.
 ---
 
 # Distil CLI
 
-Train specialized small language models (SLMs) using the Distil Labs platform. The platform uses knowledge distillation to create models up to 70x smaller than large models while maintaining comparable accuracy.
+## Environment
 
-**What you can help with depends on the environment:**
+| Environment | What you can do |
+|---|---|
+| **Claude Code** | Full end-to-end workflow: run CLI commands, prepare data, train, deploy |
+| **Claude.ai (browser)** | Data preparation guidance only: help choose task types, create config files, format datasets. User runs CLI commands themselves. |
 
-| Environment | Capabilities |
-|-------------|--------------|
-| **Claude Code** | Full end-to-end workflow: task selection, data preparation, running CLI commands, training, and deployment |
-| **Claude Browser** | Task selection and data preparation only: help users choose the right task type and create job_description.json, config.yaml, train.csv, test.csv files. User runs CLI commands themselves. |
+**Windows users:** The Distil CLI does not support Windows natively. Without WSL, users won't get the full experience — CLI commands won't run. They can fall back to the REST API via `references/api-reference.md`, or run the CLI inside WSL. Call this out early if the user is on Windows.
+
+## Default to Workflows for Training Tasks
+
+If the user wants to train a model end-to-end (any phrasing — "help me train a model", "build me an SLM", "I want to fine-tune for X"), do NOT answer ad hoc from the reference files. Instead:
+
+1. Ask one disambiguating question: **"Do you have a labeled dataset to start from, or production traces from an existing LLM application?"**
+2. Load the matching workflow:
+   - **Dataset** → `workflows/dataset-to-model.md`
+   - **Traces** → `workflows/traces-to-model.md`
+3. Follow the workflow step-by-step. The workflow tells you which references to read at each step.
+
+The workflows encode the right sequence, decision points, and checkpoints (e.g., confirming config before kicking off a 6+ hour training job). Skipping the workflow and answering Q&A-style usually leads to skipped steps and missing analysis reports.
+
+For specific lookup questions ("what's the API endpoint for X", "what does parameter Y mean", "how do I download predictions"), continue to use the routing table below — those don't need a workflow.
+
+## Intent Detection
+
+Route the user to the right reference file based on their intent. Read the referenced file BEFORE answering.
+
+**If multiple intents apply, read multiple files.** For data preparation, always read both the overview and the task-specific file.
+
+### End-to-End Workflows (Use These First)
+
+| User intent | Read this file |
+|---|---|
+| "Help me train a model" / "I want to build an SLM" / "Train a model for X" / "Fine-tune for Y" | First ask: dataset or traces? Then load the matching workflow below. |
+| "Train from a dataset" / "dataset to model" / end-to-end with CSV data | `workflows/dataset-to-model.md` |
+| "Train from production traces" / "traces to model" / end-to-end with traces | `workflows/traces-to-model.md` |
+| "Model isn't good enough" / "How do I improve?" / "Retune" / iteration / "Teacher eval scored too low" | `workflows/improving-a-model.md` |
+
+### Getting Started & Platform
+
+| User intent | Read this file |
+|---|---|
+| "I'm new" / "How do I get started?" / "Install the CLI" | `references/getting-started.md` |
+| "What is distil labs?" / "What can it do?" / "How does it work?" | `references/platform-overview.md` |
+| "How do I use command X?" / "What CLI commands are available?" | `references/cli-reference.md` |
+| "How do I use the API?" / "REST API" / "API authentication" / "programmatic access" | `references/api-reference.md` |
+
+### Task & Model Selection
+
+| User intent | Read this file |
+|---|---|
+| "What task type should I pick?" / "Classification or QA?" / describing their use case | `references/task-selection-guide.md` |
+| "Which model should I use?" / "What student/teacher models are available?" / "Can I use model X?" | `references/model-catalog.md` |
+| "How do I write a good task/input description?" / "What goes in job_description.json?" | `references/job-description-guide.md` |
+
+### Data Preparation
+
+Always read `references/tasks/prepare-data/overview.md` first, then the task-specific file.
+
+| User intent | Read this file (after overview.md) |
+|---|---|
+| General data prep / "What files do I need?" | `references/tasks/prepare-data/overview.md` (just this one) |
+| Question answering data | `references/tasks/prepare-data/question-answering.md` |
+| Classification data | `references/tasks/prepare-data/classification.md` |
+| Tool calling data | `references/tasks/prepare-data/tool-calling.md` |
+| Multi-turn tool calling data | `references/tasks/prepare-data/multi-turn-tool-calling.md` |
+| Open book QA / RAG data | `references/tasks/prepare-data/open-book-qa.md` |
+| Closed book QA data | `references/tasks/prepare-data/closed-book-qa.md` |
+
+### Pipeline Steps
+
+| User intent | Read this file |
+|---|---|
+| "How do I upload my dataset?" / "upload-data command" | `references/tasks/upload-dataset.md` |
+| "How do I use production traces?" / "upload-traces" / "reprocess traces" | `references/tasks/upload-and-process-traces.md` |
+| "How do I run teacher evaluation?" / "Is my task feasible?" | `references/tasks/teacher-evaluation.md` |
+| "How do I train?" / "Start training" / "Training status" | `references/tasks/training.md` |
+| "How do I deploy?" / "Download model" / "Run inference" | `references/tasks/deployment-integration.md` |
+| "distil login" / "Credit balance is too low" / 401 errors / "/login doesn't work for distil" | `references/tasks/verify-auth.md` |
+| "Download predictions" / "per-example results" / "inspect model outputs" | `references/tasks/retrieve-predictions.md` |
+| "Analyze predictions" / "write analysis report" / "compare teacher and student" | `references/tasks/analyze-predictions.md` |
+| "How do I poll a long-running job?" / "Wait for training" / "grep status doesn't work" | `references/tasks/polling-jobs.md` |
+
+### Configuration & Metrics
+
+| User intent | Read this file |
+|---|---|
+| "How do I configure training?" / "config.yaml" / "tuning parameters" | `references/configuration.md` |
+| "What are mutations?" / "Seed data doesn't cover all scenarios" / "Improve on specific domains" | `references/mutations-guide.md` |
+| "What do these metrics mean?" / "How do I interpret results?" | `references/evaluation-metrics.md` |
+
+## Quick Platform Summary
+
+The core flow is: **create model** → **prepare data** → **upload** → **teacher evaluation** → **train** → **deploy**. Teacher evaluation is a feasibility check — if the teacher can solve the task, the student will learn it. Training takes several hours and produces a downloadable model you can deploy locally (llama-cpp, vLLM) or via the platform.
+
+For the longer write-up of what Distil Labs is and why, read `references/platform-overview.md`. For the list of supported task types, student models, and teacher models — always read `references/model-catalog.md` before recommending a specific model; availability changes over time.
+
+## Quickstart Checklist
+
+Minimum steps to go from zero to a trained model. Read the relevant reference files for details on each step.
+
+```bash
+# 1. Install / update and authenticate
+curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh   # first-time install
+distil update                                                  # if already installed — the platform evolves quickly
+distil login
+
+# 2. Create a model
+distil model create my-model-name
+# Note the model ID from the output
+
+# 3. Prepare data files in a directory:
+#    - job_description.json  (task objectives)
+#    - config.yaml           (task type, student model, teacher model)
+#    - train.csv             (20+ labeled examples)
+#    - test.csv              (held-out evaluation set)
+
+# 4. Upload data
+distil model upload-data <model-id> --data ./my-data-dir
+
+# 5. Run teacher evaluation (feasibility check)
+distil model run-teacher-evaluation <model-id>
+distil model teacher-evaluation <model-id>  # Check results
+# Status values: JOB_NOT_STARTED, JOB_PENDING, JOB_RUNNING, JOB_SUCCESS, JOB_FAILURE, JOB_STOPPED
+
+# 6. Train (long-running — confirm config with user before starting)
+distil model run-training <model-id>
+distil model training <model-id>  # Check status
+
+# 7. Download and deploy
+distil model download <model-id>
+distil model deploy local <model-id>
+distil model invoke <model-id>  # Get the curl command to query your model
+```
+
+**Alternative: Train from traces** — Instead of steps 3-4, prepare a `traces.jsonl` file with your production logs, a `job_description.json`, and a `config.yaml`, then run `distil model upload-traces <model-id> --data ./my-traces-dir`. See `references/tasks/upload-and-process-traces.md` for trace formats and task compatibility (note: `question-answering-open-book` is not supported via traces).
 
 ## Instructions
 
-### Prerequisites
+### Before Answering Any Question
 
-Install the CLI and authenticate:
-```bash
-# Install
-curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
+1. Identify the user's intent using the routing table above.
+2. Read the referenced file(s). Do not answer from memory alone — the reference files contain exact formats, constraints, and edge cases.
+3. If the user's intent spans multiple topics (e.g., "help me prepare classification data and train"), read all relevant files.
 
-# Authenticate (if not already logged in)
-distil login
-```
+### Deterministic-First Principle
 
-Other auth commands: `distil signup` (create account), `distil whoami` (check user), `distil logout`
+When helping users, exhaust all mechanical/lookup steps before engaging judgment. Check model compatibility constraints, file format requirements, and parameter defaults from the reference files *first*. Only then apply judgment for task selection, data quality assessment, or configuration tuning.
 
-### Core Workflow
+### Data Preparation Rules
 
-**Step 1: Create a Model**
+- Always read `references/tasks/prepare-data/overview.md` before any task-specific data file. The overview contains shared requirements (directory structure, min examples, file formats) that the task files assume you know.
+- Ask the user what task type they need before preparing data. If unclear, read `references/task-selection-guide.md` and help them decide.
+- Ask what student and teacher models they want. If unsure, read `references/model-catalog.md`. Default recommendation: `Llama-3.2-1B-Instruct` as student, `openai.gpt-oss-120b` as teacher.
+- Before writing `job_description.json`, read `references/job-description-guide.md` for what makes each field good — `input_description` self-containment is the most common footgun.
 
-Register a new model to track your experiment:
-```bash
-distil model create my-model-name
-# Returns: Model ID (use this for all subsequent commands)
-```
+### In Claude Code
 
-List all models with `distil model list`.
+- Run CLI commands directly. Do not just tell the user what to run.
+- After running `distil model create`, capture the model ID and use it in subsequent commands.
+- Check status commands (`upload-status`, `teacher-evaluation`, `training`) to monitor progress.
+- When training or evaluation is running, tell the user approximately how long it takes and suggest checking back.
+- **Polling long-running jobs:** Copy the canonical polling loop from `references/tasks/polling-jobs.md` verbatim. Do not write your own grep loop or `sleep N && command` chain — the former picks the wrong status pattern half the time and the latter is blocked by Claude Code. Use `while ...; do ...; sleep 60; done` with the sleep inside the loop body.
+- **Status checks always use `--output json | jq`** — never grep human-readable output. The default text output also omits some metrics (notably LLM-as-a-Judge), so for analysis always use `--output json` too.
 
-**Step 2: Task Selection**
+### In Claude.ai (Browser)
 
-Choosing the right task type is crucial. Help the user by asking what they need the model to do:
+- Provide complete, copy-pasteable file contents (job_description.json, config.yaml, train.csv, test.csv).
+- List the CLI commands the user should run in order, with their model ID placeholder.
+- Explain what each command does and what to look for in the output.
 
-| If the user needs to... | Choose | Data Guide |
-|-------------------------|--------|------------|
-| Solve problems by returning text answers (QA or text transformations) | **Question Answering** | `data-question-answering.md` |
-| Assign text to categories from a fixed set | **Classification** | `data-classification.md` |
-| Generate structured tool/API calls from natural language | **Tool Calling** | `data-tool-calling.md` |
-| Generate tool calls in multi-turn conversations | **Multi-Turn Tool Calling** | `data-multi-turn-tool-calling.md` |
-| Answer questions given context (requires existing knowledge database) | **Open Book QA (RAG)** | `data-qa-rag.md` |
-| Answer questions from knowledge learned during training | **Closed Book QA** | `data-qa-closed.md` |
+### When the User Wants to Improve a Model
 
-**Question Answering** — The most general task type. Solves problems by returning text answers. Use for question answering, text transformations, or any task that takes text input and produces text output.
-- *Examples:* "What is the termination clause?" from contracts, "Summarize this document", "Extract the key dates from this email", "Reformat this data as JSON"
+Read `workflows/improving-a-model.md`. It covers both iteration cases — teacher eval below thresholds, and training results that don't pass the DEPLOY bar — and consolidates the levers (job description, data, synthgen/mutations, student/teacher choice, tuning parameters, retune).
 
-**Classification** — Assigns text to one category from a fixed set. Use when you need deterministic categorization, not open-ended generation.
-- *Examples:* Intent detection, content moderation (toxic/safe), sentiment analysis, ticket triage by department
+### Command Aliases
 
-**Tool Calling** — Maps natural language to structured function calls with correct parameters. Use when routing user requests to backend APIs/services.
-- *Examples:* Voice assistant commands → smart home APIs, chatbot intents → CRM operations, natural language → database queries
-- *Note:* Only Qwen3 and Llama 3-family student models are supported
-
-**Multi-Turn Tool Calling** — Generates function calls within a conversational context. Unlike single-turn tool calling, this takes a conversation history and generates the next appropriate function call based on full context.
-- *Examples:* File system assistants, database query interfaces, DevOps chatbots, smart home controllers with chained commands
-- *Note:* Only Qwen3 and Llama 3-family student models are supported. Requires specific teacher models: `Qwen3-235B-A22B-Instruct-2507` or `openai.gpt-oss-120b`
-
-**Open Book QA (RAG)** — Answers questions using provided context passages. **Only use this if you already have a well-structured knowledge database with context chunks.** The model expects retrieved context to be provided at inference time.
-- *Examples:* Customer support from product docs, legal document analysis, technical documentation assistants
-- *When to pick:* You already have a RAG pipeline with good retrieval, and want the model to answer strictly from provided context
-- *Not appropriate if:* You don't have a knowledge database yet, or your context chunks are poorly structured
-
-**Closed Book QA** — Answers questions from knowledge learned during training. The user provides a knowledge database and the model learns the knowledge from it during training—no context needed at inference.
-- *Examples:* FAQ bots, domain-specific knowledge assistants
-- *When to pick:* You want knowledge "baked into" the model, users shouldn't need to provide context, or RAG retrieval is difficult for your use case
-
-**Step 3: Data Preparation**
-
-**IMPORTANT:** Before creating any files, you MUST read the data preparation guide for the selected task type. Each task has specific requirements for file formats and content.
-
-| Task Type | Data Guide to Read First |
-|-----------|--------------------------|
-| Question Answering | `data-question-answering.md` |
-| Classification | `data-classification.md` |
-| Tool Calling | `data-tool-calling.md` |
-| Multi-Turn Tool Calling | `data-multi-turn-tool-calling.md` |
-| Open Book QA (RAG) | `data-qa-rag.md` |
-| Closed Book QA | `data-qa-closed.md` |
-
-After reading the appropriate guide, help the user prepare these files:
-
-| File | Required | Description |
-|------|----------|-------------|
-| `job_description.json` | Yes | Task objectives and configuration |
-| `train.csv` or `train.jsonl` | Yes | 20+ labeled (question, answer) pairs |
-| `test.csv` or `test.jsonl` | Yes | Held-out evaluation set |
-| `config.yaml` | Yes | Task type, student model, and teacher model (see `config.md` for options) |
-| `unstructured.csv` | No | Domain text for synthetic data generation |
-
-**Alternative: Training from Traces**
-
-If the user has production traces (logs of real LLM interactions), they can skip manual data preparation and use the traces workflow instead. Read `data-traces.md` for the full guide. Traces are uploaded with `upload-traces` instead of `upload-data`, and the platform automatically processes them into training and test data.
-
-**Note on config.yaml:** Always ask the user which student model they want to train and which teacher model to use. See `config.md` for the full list of available models. If the user is unsure, recommend `Llama-3.2-1B-Instruct` as the student and `openai.gpt-oss-120b` as the teacher.
-
-**Step 4: Upload Data**
-
-*Option A: Structured data (manual data files)*
-```bash
-distil model upload-data <model-id> --data ./my-data-folder
-```
-
-*Option B: Training from traces (production LLM logs)*
-```bash
-distil model upload-traces <model-id> --data ./my-traces-folder
-```
-
-To reprocess previously uploaded traces with different processing parameters:
-```bash
-distil model reprocess-traces <model-id> --trace-processing-config new-config.yaml
-# Or using a full config file
-distil model reprocess-traces <model-id> --config new-config.yaml
-```
-
-Check upload/processing status:
-```bash
-distil model upload-status <model-id>
-```
-
-**Step 5: Teacher Evaluation**
-
-Before training, validate whether a large language model can solve your task. This serves as:
-- **Feasibility check**: If the teacher can solve the task, the student model will learn it effectively
-- **Performance benchmark**: Teacher accuracy predicts expected SLM performance
-
-```bash
-distil model run-teacher-evaluation <model-id>
-distil model teacher-evaluation <model-id>  # Check status/results
-```
-
-**Interpreting results:**
-- High accuracy → Task is well-defined, proceed to training
-- Low accuracy → Revise task description, improve data quality, or check for inconsistencies
-
-For details on evaluation metrics (LLM-as-a-Judge, Exact-Match, ROUGE-L, tool_call_equivalence, etc.), see `metrics.md`.
-
-**Step 6: Model Training**
-
-Train your SLM using knowledge distillation:
-1. Teacher model generates synthetic training data from your examples
-2. Synthetic data is validated for diversity and quality
-3. Student model learns from synthetic data with task-specific optimization
-
-```bash
-distil model run-training <model-id>
-distil model training <model-id>  # Check status
-```
-
-Training takes several hours. Statuses: `JOB_PENDING`, `JOB_RUNNING`, `JOB_SUCCEEDED`, `JOB_FAILED`
-
-**If SLM performance is below expectations:**
-1. Increase the number of training examples
-2. Make task description more specific
-3. Modify config parameters (e.g., increase epochs)
-4. Try a larger student model
-
-When training completes, compare SLM metrics against teacher metrics. For help interpreting results, see `metrics.md`.
-
-**Step 7: Download and Deploy**
-```bash
-distil model download <model-id>
-```
-
-Deploy locally using the CLI (uses llama-cpp as the backend):
-```bash
-distil model deploy local <model-id>
-distil model invoke <model-id>  # Get the command to query your model
-```
-
-For alternative deployment options (e.g., vLLM), read `deployment.md`.
-
-### CLI Reference
-
-```bash
-# List all models
-distil model list
-
-# Show specific model details
-distil model show <model-id>
-
-# Download uploaded data files
-distil model download-data <model-id>
-
-# JSON output for scripting
-distil model list --output json
-
-# Upload traces (alternative to upload-data)
-distil model upload-traces <model-id> --data ./traces-dir
-
-# Upload traces with individual files
-distil model upload-traces <model-id> --traces traces.jsonl --job-description job_description.json --config config.yaml
-
-# Upload traces with individual files and optional test data
-distil model upload-traces <model-id> --traces traces.jsonl --job-description job_description.json --config config.yaml --test test.jsonl
-
-# Reprocess traces with new config
-distil model reprocess-traces <model-id> --trace-processing-config config.yaml
-distil model reprocess-traces <model-id> --config config.yaml
-
-# Check upload/processing status
-distil model upload-status <model-id>
-```
-
-Command aliases: `distil model` = `distil models` = `distil m`
-
-### Supported Models
-
-**Student Models (what you train):**
-Llama 3.2 (1B, 3B), Llama 3.1 8B, SmolLM2 (135M, 1.7B), Gemma 3 (270M, 1B, 4B), Qwen3 (0.6B, 1.7B, 4B, 8B), IBM Granite 3.1/3.3 8B
-
-**Teacher Models (used for distillation):**
-DeepSeek R1, V3.1, Qwen3 (235B, 480B), Llama 3.3 70B, GPT OSS (20B, 120B)
-
-### Troubleshooting
-
-**Check model status:**
-```bash
-distil model show <model-id>
-```
-
-**Training failed:**
-1. Check teacher evaluation results first
-2. Verify data format matches task type requirements
-3. Ensure sufficient training examples (20+ minimum)
-
-**Authentication issues:**
-```bash
-distil logout
-distil login
-```
-
-### Platform Support
-
-- Linux (x86_64): Yes
-- macOS (Intel): Yes
-- macOS (Apple Silicon): Yes
-- Windows: Use WSL or REST API
-
----
-
-## Examples
-
-### Claude Code (End-to-End Workflow)
-
-In Claude Code, you can run CLI commands directly.
-
-**Example 1: Train a classification model**
-```
-User: Help me train a model to classify customer support tickets into categories
-
-Claude: I'll help you train a classification model. Let me start by creating a model:
-
-> distil model create support-ticket-classifier
-
-Now let's prepare your data. I'll read `data-classification.md` for the format...
-
-[Claude creates job_description.json, config.yaml, and helps format train.csv/test.csv]
-
-Data files ready. Uploading:
-
-> distil model upload-data abc123 --data ./support-classifier-data
-
-Let's validate with teacher evaluation first:
-
-> distil model run-teacher-evaluation abc123
-
-[Checks status, then proceeds to training when ready]
-
-> distil model run-training abc123
-```
-
-**Example 2: Check training status and download**
-```
-User: What's the status of my model abc123?
-
-Claude: Let me check:
-
-> distil model show abc123
-> distil model training abc123
-
-Your training completed successfully! Downloading the model:
-
-> distil model download abc123
-
-Model downloaded. Let me deploy it locally:
-
-> distil model deploy local abc123
-
-The model is now running on port 8000. To invoke it:
-
-> distil model invoke abc123
-
-Copy and run the output command to query your model.
-```
-
-**Example 3: Debug a failed training**
-```
-User: My training failed, can you help?
-
-Claude: Let me investigate:
-
-> distil model show abc123
-> distil model training abc123
-
-I see the issue - teacher evaluation accuracy was low. Let me check your data:
-
-> distil model download-data abc123
-
-[Reviews data files and suggests improvements]
-```
-
-**Example 4: Train from production traces**
-```
-User: I have production traces from our customer support chatbot, can we train a model from them?
-
-Claude: Great, we can train directly from your production traces. Let me create a model first:
-
-> distil model create support-chatbot
-
-Now I'll read `data-traces.md` for the format requirements...
-
-[Claude helps create job_description.json and config.yaml with trace_processing settings, reviews traces.jsonl format]
-
-Let's upload the traces:
-
-> distil model upload-traces abc123 --data ./traces
-# If you have a curated test set, place test.jsonl in the ./traces directory
-
-Let me check the processing status:
-
-> distil model upload-status abc123
-
-[Once processing completes, proceeds with teacher evaluation and training]
-
-> distil model run-teacher-evaluation abc123
-> distil model run-training abc123
-```
-
----
-
-### Claude Browser (Data Preparation Only)
-
-In the browser, Claude cannot run CLI commands but can help prepare all data files. The user then runs commands themselves.
-
-**Example 1: Prepare classification data**
-```
-User: I want to build a sentiment classifier for product reviews
-
-Claude: I'll help you prepare the data files. Based on `data-classification.md`, you need:
-
-1. **job_description.json:**
-{
-  "task_description": "Classify product reviews by sentiment",
-  "classes_description": {
-    "positive": "Reviews expressing satisfaction, praise, or recommendation",
-    "negative": "Reviews expressing dissatisfaction, complaints, or warnings",
-    "neutral": "Reviews that are balanced or purely factual"
-  }
-}
-
-2. **config.yaml:**
-task: classification
-student_model_name: Llama-3.2-1B-Instruct
-...
-
-3. **train.csv format:**
-question,answer
-"This product exceeded my expectations!",positive
-"Broke after two days, waste of money",negative
-...
-
-Once you have 20+ examples in train.csv and test.csv, run:
-$ distil model create sentiment-classifier
-$ distil model upload-data <model-id> --data ./my-data
-$ distil model run-teacher-evaluation <model-id>
-```
-
-**Example 2: Prepare RAG/QA data**
-```
-User: I need a model that answers questions about our product documentation
-
-Claude: For RAG-style QA, I'll prepare files per `data-qa-rag.md`:
-
-1. **job_description.json:**
-{
-  "task_description": "Answer customer questions using provided documentation excerpts"
-}
-
-2. **config.yaml:**
-task: question-answering-open-book
-...
-
-3. **train.csv format** (note the context column):
-question,context,answer
-"How do I reset my password?","Password Reset: Click forgot password...","Click 'Forgot Password' on the login page..."
-...
-
-[Provides complete file templates]
-
-Save these files and run the CLI commands to train.
-```
-
-**Example 3: Prepare tool calling data**
-```
-User: I want a model that can call our internal APIs based on user requests
-
-Claude: For tool calling, I'll prepare files per `data-tool-calling.md`:
-
-1. **job_description.json** with your tool schemas:
-{
-  "task_description": "Select the correct API endpoint based on user request",
-  "tools": [
-    {
-      "type": "function",
-      "function": {
-        "name": "get_order_status",
-        "description": "Look up order status by order ID",
-        "parameters": {...}
-      }
-    },
-    ...
-  ]
-}
-
-Note: Tool calling only supports Qwen3 and Llama 3-family student models.
-
-2. **train.csv:**
-question,answer
-"Where is my order #12345?","{""name"": ""get_order_status"", ""parameters"": {""order_id"": ""12345""}}"
-...
-
-[Provides complete templates]
-```
-
-**Example 5: Prepare trace files for training**
-```
-User: I have Langfuse traces from my QA bot, how do I train a model from them?
-
-Claude: You can train directly from your traces. Based on `data-traces.md`, you need:
-
-1. **traces.jsonl** — Export your Langfuse observations as JSONL. Each line should have `id`, `input`, and `output` fields.
-
-2. **job_description.json:**
-{
-  "task_description": "Answer customer questions accurately based on the conversation context."
-}
-
-3. **config.yaml:**
-base:
-  task: question-answering
-  student_model_name: Llama-3.2-1B-Instruct
-
-trace_processing:
-  observation_format: langfuse
-  relabel: true
-  expand_multiturn_conversations: true
-
-Once your files are ready, run:
-$ distil model create my-qa-model
-$ distil model upload-traces <model-id> --data ./my-traces
-# If you have a curated test set, place test.jsonl or test.csv in the ./my-traces directory
-$ distil model upload-status <model-id>
-$ distil model run-teacher-evaluation <model-id>
-$ distil model run-training <model-id>
-
-If the processed data doesn't look right, you can adjust trace_processing parameters and reprocess:
-$ distil model reprocess-traces <model-id> --trace-processing-config updated-config.yaml
-# Or: distil model reprocess-traces <model-id> --config updated-config.yaml
-```
-
-**Example 4: Prepare multi-turn tool calling data**
-```
-User: I want a conversational assistant that can navigate files through dialogue
-
-Claude: For multi-turn tool calling, I'll prepare files per `data-multi-turn-tool-calling.md`:
-
-1. **job_description.json** with your tool schemas:
-{
-  "task_description": "Help users navigate and manage files through conversation",
-  "tools": [
-    {
-      "type": "function",
-      "function": {
-        "name": "ls",
-        "description": "List directory contents",
-        "parameters": {...}
-      }
-    },
-    ...
-  ]
-}
-
-Note: Multi-turn tool calling only supports Qwen3 and Llama 3-family student models,
-and requires specific teacher models: Qwen3-235B-A22B-Instruct-2507
-or openai.gpt-oss-120b.
-
-2. **train.csv** - The question field is a JSON array of conversation turns:
-question,answer
-"[{""role"": ""user"", ""content"": ""List files here""}, ...]","{""name"": ""ls"", ""parameters"": {}}"
-...
-
-[Provides complete templates]
-```
+`distil model` = `distil models` = `distil m` — all three work identically.

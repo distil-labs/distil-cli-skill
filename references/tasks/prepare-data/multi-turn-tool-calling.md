@@ -1,26 +1,46 @@
 # Multi-Turn Tool Calling Data Preparation
 
+Task type: `multi-turn-tool-calling-closed-book`
+
 Use multi-turn tool calling when the model needs to generate function calls within a conversational context. Unlike single-turn tool calling where each input is independent, multi-turn tool calling takes a conversation history (alternating user and assistant messages) and generates the next appropriate function call based on the full context.
 
 ## Model Compatibility
 
-**Student models**: Only Qwen3 and Llama 3-family models are supported for multi-turn tool calling.
+**Students:** Only Qwen3 and Llama 3-family. **Teachers:** restricted to a 10-model allowlist — `openai.gpt-oss-120b`, `openai.gpt-oss-120b-thinking`, `Llama-3.1-405B-Instruct`, `Qwen3-235B-A22B-Instruct-2507`, `deepseek.v3.2`, `deepseek.v3.2-thinking`, `zai.glm-5`, `zai.glm-5-thinking`, `moonshotai.kimi-k2-thinking`, `minimax.minimax-m2-thinking`. No other teachers work for this task type.
 
-**Teacher models**: Multi-turn tool calling requires one of the following teacher models:
-- `Qwen3-235B-A22B-Instruct-2507`
-- `openai.gpt-oss-120b`
+See `references/model-catalog.md` for the full catalog and the authoritative constraint list.
 
-**Example use cases:**
-- File system assistants — Navigate directories and manage files through conversation
-- Database query interfaces — Build complex queries through iterative refinement
-- DevOps chatbots — Execute sequences of infrastructure commands conversationally
-- Smart home controllers — Chain home automation commands naturally
-- Customer service bots — Handle multi-step service requests in dialogue
-- IDE assistants — Execute code operations through conversational commands
+## Example Use Cases
 
-## Required Files
+- **File system assistants** -- Navigate directories and manage files through conversation
+- **Database query interfaces** -- Build complex queries through iterative refinement
+- **DevOps chatbots** -- Execute sequences of infrastructure commands conversationally
+- **Smart home controllers** -- Chain home automation commands naturally
+- **Customer service bots** -- Handle multi-step service requests in dialogue
+- **IDE assistants** -- Execute code operations through conversational commands
 
-### 1. job_description.json
+## Data Columns
+
+| Column | Description |
+|--------|-------------|
+| `question` | A JSON array (as a string) representing the conversation history with alternating user and assistant messages |
+| `answer` | The tool call to be invoked according to the provided schema |
+
+**Important:**
+- The `question` field contains a **stringified JSON array** representing the conversation
+- Each assistant turn must contain **exactly one function call** (multiple function calls per turn are not supported)
+- The `answer` field must be a JSON string (with escaped quotes), not a JSON object
+
+## Conversation Turn Format
+
+Each turn in the conversation is an object with:
+- `role`: Either `"user"` or `"assistant"`
+- `content`: The text content of the message (empty string for assistant turns with tool calls)
+- `tool_calls`: (assistant only) An array containing exactly one tool call made by the assistant
+
+## job_description.json
+
+Multi-turn tool calling requires two fields: `task_description` and `tools`.
 
 ```json
 {
@@ -86,26 +106,10 @@ Use multi-turn tool calling when the model needs to generate function calls with
 - `task_description`: Describes the main task
 - `tools`: List of JSON Schemas describing available tools (follows OpenAI function calling format)
 
-### 2. train.csv (or train.jsonl)
+## Train/Test Data Examples
 
-| Column | Description |
-|--------|-------------|
-| `question` | A JSON array representing the conversation history with alternating user and assistant messages |
-| `answer` | The tool call to be invoked according to the provided schema |
+### JSONL format
 
-**Important:**
-- The `question` field contains a **stringified JSON array** representing the conversation
-- Each assistant turn must contain **exactly one function call** (multiple function calls per turn are not supported)
-- The `answer` field must be a JSON string (with escaped quotes), not a JSON object
-
-### Conversation Format
-
-Each turn in the conversation is an object with:
-- `role`: Either `"user"` or `"assistant"`
-- `content`: The text content of the message (empty string for assistant turns with tool calls)
-- `tool_calls`: (assistant only) An array containing exactly one tool call made by the assistant
-
-**JSONL format:**
 ```json
 {"question": "[{\"role\": \"user\", \"content\": \"Please list all the files in my current directory.\"}, {\"role\": \"assistant\", \"content\": \"\", \"tool_calls\": [{\"type\": \"function\", \"function\": {\"name\": \"ls\", \"arguments\": {}}}]}, {\"role\": \"user\", \"content\": \"Navigate to the backup directory.\"}, {\"role\": \"assistant\", \"content\": \"\", \"tool_calls\": [{\"type\": \"function\", \"function\": {\"name\": \"cd\", \"arguments\": {\"folder\": \"backup\"}}}]}, {\"role\": \"user\", \"content\": \"Show me what's inside config.txt.\"}]", "answer": "{\"name\": \"cat\", \"parameters\": {\"file_name\": \"config.txt\"}}"}
 {"question": "[{\"role\": \"user\", \"content\": \"Show me all files here including hidden ones.\"}, {\"role\": \"assistant\", \"content\": \"\", \"tool_calls\": [{\"type\": \"function\", \"function\": {\"name\": \"ls\", \"arguments\": {\"a\": true}}}]}, {\"role\": \"user\", \"content\": \"Change directory to research.\"}, {\"role\": \"assistant\", \"content\": \"\", \"tool_calls\": [{\"type\": \"function\", \"function\": {\"name\": \"cd\", \"arguments\": {\"folder\": \"research\"}}}]}, {\"role\": \"user\", \"content\": \"Create a file called experiment_log.txt.\"}]", "answer": "{\"name\": \"touch\", \"parameters\": {\"file_name\": \"experiment_log.txt\"}}"}
@@ -113,7 +117,7 @@ Each turn in the conversation is an object with:
 
 ### Understanding the Conversation Structure
 
-Here's an expanded view of what a single conversation looks like:
+Here is an expanded view of what a single conversation in the `question` field looks like when parsed from JSON:
 
 ```json
 [
@@ -160,7 +164,9 @@ Here's an expanded view of what a single conversation looks like:
 
 The model receives this conversation history and should output: `{"name": "cat", "parameters": {"file_name": "config.txt"}}`
 
-### Key Differences from Single-Turn Tool Calling
+**Requirements:** Minimum 20 examples. Include examples for all tools.
+
+## Key Differences from Single-Turn Tool Calling
 
 | Aspect | Single-Turn Tool Calling | Multi-Turn Tool Calling |
 |--------|--------------------------|-------------------------|
@@ -169,13 +175,9 @@ The model receives this conversation history and should output: `{"name": "cat",
 | Use case | One-shot function invocation | Conversational command sequences |
 | Training goal | Map query to function | Understand conversation to next function |
 
-### 3. test.csv (or test.jsonl)
+## config.yaml
 
-Same format as train data. Used for evaluation, not training.
-
-### 4. config.yaml
-
-The default configuration works well for most cases. You must specify the task and a compatible teacher model:
+You must specify the task and a compatible teacher model:
 
 ```yaml
 base:
@@ -183,19 +185,9 @@ base:
   teacher_model_name: openai.gpt-oss-120b
 ```
 
-**Important:** Multi-turn tool calling requires one of these teacher models:
-- `Qwen3-235B-A22B-Instruct-2507`
-- `openai.gpt-oss-120b`
+Required teacher: one of the 10-model allowlist. See `references/model-catalog.md` for the exact config strings.
 
-For advanced options (model selection, training parameters, etc.), see `config.md`.
-
-## Upload and Train
-
-```bash
-distil model upload-data <model-id> --data ./my-multi-turn-tool-calling-data
-distil model run-teacher-evaluation <model-id>
-distil model run-training <model-id>
-```
+**If training from traces** (not from a prepared dataset), also set `trace_processing.convert_to_single_turn: false`. The default (`true`) splits multi-turn conversations into isolated single-turn examples, which destroys the conversational context this task type relies on. See `references/tasks/upload-and-process-traces.md`.
 
 ## Using the Trained Model
 
@@ -220,10 +212,10 @@ if tool_call["name"] == "cd":
 
 ## Tips
 
-1. **Clear tool descriptions** — Make function descriptions unambiguous
-2. **Comprehensive parameter descriptions** — Help the model understand what each parameter expects
-3. **Varied conversation lengths** — Include examples with different numbers of turns
-4. **Valid JSON** — Ensure all question fields contain properly escaped JSON arrays and answer fields contain properly escaped JSON strings
-5. **Context-dependent examples** — Show cases where the next tool call depends on previous conversation context
-6. **Supported models** — Remember only Qwen3 and Llama 3-family student models are supported
-7. **Teacher model** — You must use one of the supported teacher models: `Qwen3-235B-A22B-Instruct-2507` or `openai.gpt-oss-120b`
+1. **Clear tool descriptions** -- Make function descriptions unambiguous.
+2. **Comprehensive parameter descriptions** -- Help the model understand what each parameter expects.
+3. **Varied conversation lengths** -- Include examples with different numbers of turns.
+4. **Valid JSON** -- Ensure all question fields contain properly escaped JSON arrays and answer fields contain properly escaped JSON strings.
+5. **Context-dependent examples** -- Show cases where the next tool call depends on previous conversation context.
+6. **Prefer JSONL over CSV** -- The `question` field is a stringified JSON array and the `answer` is a stringified JSON object. CSV double-escaping is a common source of malformed uploads.
+7. **Supported models** -- Only Qwen3 and Llama 3-family students. Teachers must be one of the 10-model allowlist. See `references/model-catalog.md`.

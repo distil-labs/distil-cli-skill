@@ -1,17 +1,27 @@
 # Classification Data Preparation
 
+Task type: `classification`
+
 Use classification when the model needs to analyze input text and assign it to one category from a fixed set of options. This task type is effective when you need deterministic categorization rather than open-ended generation.
 
-**Example use cases:**
+## Example Use Cases
+
 - Intent detection for customer service queries
 - Content moderation (toxic/safe, spam/not spam)
 - Sentiment analysis (positive/negative/neutral)
 - Topic categorization for knowledge bases
 - Triaging support tickets by department
 
-## Required Files
+## Data Columns
 
-### 1. job_description.json
+| Column | Description |
+|--------|-------------|
+| `question` | The input text to classify |
+| `answer` | The class label |
+
+## job_description.json
+
+Classification requires two fields: `task_description` and `classes_description`.
 
 ```json
 {
@@ -29,16 +39,12 @@ Use classification when the model needs to analyze input text and assign it to o
 
 **Fields:**
 - `task_description`: Describes the main classification task
-- `classes_description`: Map from class names to their descriptions
+- `classes_description`: Map from class names to their descriptions. Every class the model should predict must appear in this map.
 
-### 2. train.csv (or train.jsonl)
+## Train/Test Data Examples
 
-| Column | Description |
-|--------|-------------|
-| `question` | The input text to classify |
-| `answer` | The class label |
+### JSONL format
 
-**JSONL format:**
 ```json
 {"question": "Why is there a fee for getting cash?", "answer": "cash_withdrawal_charge"}
 {"question": "I was declined when I tried to take out cash!", "answer": "declined_cash_withdrawal"}
@@ -48,7 +54,7 @@ Use classification when the model needs to analyze input text and assign it to o
 {"question": "How do I know which payments I make will have additional fees?", "answer": "card_payment_fee_charged"}
 ```
 
-**CSV format:**
+### CSV format
 
 | question | answer |
 |----------|--------|
@@ -56,28 +62,21 @@ Use classification when the model needs to analyze input text and assign it to o
 | I was declined when I tried to take out cash! | declined_cash_withdrawal |
 | I deposited some money, but the balance has not changed. | balance_not_updated_after_cheque_or_cash_deposit |
 
-**Requirements:** Minimum 20 examples. Include examples for all classes.
+**Requirements:** Minimum 20 examples. Include examples for ALL classes defined in `classes_description`.
 
-### 3. test.csv (or test.jsonl)
-
-Same format as train data. Used for evaluation, not training.
-
-### 4. config.yaml
-
-The default configuration works well for most cases. You only need to specify the task:
+## config.yaml
 
 ```yaml
 base:
   task: classification
 ```
 
-For advanced options (model selection, training parameters, etc.), see `config.md`.
+## Unstructured Data (Optional)
 
-### 5. unstructured.csv (Optional)
+Unlabelled examples or domain documentation to guide synthetic data generation. Single column: `context`.
 
-Unlabelled examples or domain documentation to guide synthetic data generation. Single column: `context`
+### JSONL format
 
-**JSONL format:**
 ```json
 {"context": "Canceling my order is what I need to do right now."}
 {"context": "I swear that there are 2 payments on the app that I didn't make. Could my card be stolen?"}
@@ -86,17 +85,18 @@ Unlabelled examples or domain documentation to guide synthetic data generation. 
 {"context": "Why is my last cheque deposit taking so long?"}
 ```
 
-## Upload and Train
+### CSV format
 
-```bash
-distil model upload-data <model-id> --data ./my-classification-data
-distil model run-teacher-evaluation <model-id>
-distil model run-training <model-id>
-```
+| context |
+|---------|
+| Canceling my order is what I need to do right now. |
+| I swear that there are 2 payments on the app that I didn't make. Could my card be stolen? |
+| Too many charges on my card, how do I go about fixing that? |
 
 ## Tips
 
-1. **Balance your classes** — Include similar numbers of examples per class
-2. **Clear class boundaries** — Ensure classes don't overlap significantly
-3. **Descriptive class names** — Use clear names and descriptions in `classes_description`
-4. **Representative examples** — Cover the variety of inputs you expect in production
+1. **Balance your classes** -- Include similar numbers of examples per class.
+2. **Clear class boundaries** -- Ensure classes do not overlap significantly.
+3. **Descriptive class names** -- Use clear names and descriptions in `classes_description`.
+4. **Representative examples** -- Cover the variety of inputs you expect in production.
+5. **All classes represented** -- Every class in `classes_description` must have at least one example in the training data.
