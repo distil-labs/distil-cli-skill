@@ -6,6 +6,28 @@ The report is the basis for iteration decisions — it surfaces *patterns*, not 
 
 **Prerequisites:** Predictions downloaded as JSONL. See `references/tasks/retrieve-predictions.md` for how to download from teacher evaluation, training, or trace processing.
 
+## Inputs
+
+This task takes two inputs:
+
+1. **Working directory** — where the report and prediction files are read from and written to. For iterative work this is the current `iteration-<N>/` dir owned by `workflows/improving-a-model.md`'s Iteration Discipline section.
+2. **Model ID** — the distil model being analyzed.
+
+Predictions are read from the working directory if already there (downloaded in an earlier step). If not, download them using the snippet in `references/tasks/retrieve-predictions.md`, saving to the unsuffixed filenames below.
+
+Filenames inside the working dir are unsuffixed — the directory provides the scope:
+
+| File | Contents |
+|------|----------|
+| `teacher-eval-analysis.md` | Filled Teacher Evaluation Analysis Report |
+| `teacher-predictions.jsonl` | Per-example teacher predictions |
+| `training-analysis.md` | Filled Training Analysis Report |
+| `student-predictions.jsonl` | Per-example tuned-student predictions |
+| `original-model-analysis.md` | Filled Original Model Analysis Report (traces workflow) |
+| `original-model-predictions.jsonl` | Per-example original-model predictions (traces workflow) |
+
+This file does not decide where the report lives — it accepts a working directory and writes to it.
+
 ## Always Use `--output json` to Get Metrics
 
 The default text output of `distil model teacher-evaluation`, `distil model training`, etc. **omits some metrics** (notably LLM-as-a-Judge) and only surfaces the strict metrics like ROUGE and tool_call_equivalence. This has caused real iteration loops where users were ready to discard a fine model because the visible scores looked low — when LLM-as-a-Judge was actually passing.

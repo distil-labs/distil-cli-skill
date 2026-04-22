@@ -4,7 +4,43 @@ Use this workflow whenever results aren't good enough — either teacher evaluat
 
 This is a **single workflow** with two distinct entry points because the levers are largely the same. Read the matching section for your situation, but skim both — the levers overlap.
 
-**Iteration discipline (applies throughout):** change one thing at a time when possible. If you change the job description AND the data AND the teacher model simultaneously, you won't know what helped. After each change, re-run the analysis report from `references/tasks/analyze-predictions.md` with an iteration suffix (`teacher-eval-analysis-iter-2.md`) and tell the user: which iteration, what changed, the headline metric, and the verdict. Side-by-side comparison with the previous iteration is what makes iteration valuable.
+---
+
+## Iteration Discipline
+
+An **iteration** is one full cycle: prep data → upload → run {trace processing, teacher evaluation, training} → analyze. This file owns the `iteration-N/` convention; reference files (including `references/tasks/analyze-predictions.md`) just accept a working directory.
+
+### One `iteration-N/` directory per attempt
+
+Create a new `iteration-N/` directory at the project root before making any change. The directory scopes everything for that attempt, so filenames inside don't need iteration suffixes.
+
+```
+iteration-2/
+  README.md                    # "what's being tested" in 2-4 sentences
+  job_description.json         # only files that changed from iter-1
+  config.yaml
+  train.csv / test.csv / traces.jsonl
+  teacher-eval-analysis.md     # analyze-predictions writes here
+  teacher-predictions.jsonl
+  training-analysis.md         # after retune, if applicable
+  student-predictions.jsonl
+  upload-consistency.md        # if Analyze Uploads was run
+  original-model-analysis.md   # traces workflow, via test-set-approval
+```
+
+Any task that produces a report is **given** the iteration directory as its working-dir parameter — the task file does not decide where the report lives.
+
+### Change one lever at a time
+
+If you change the job description AND the data AND the teacher model simultaneously, you won't know what helped. Pull one lever per iteration. The `iteration-N/` directory only needs to contain the files that changed.
+
+### Append to the run log
+
+At the start of each iteration, append a "start" entry to `model-building-log-<name>.md` naming the lever being tested. At the end of the iteration (after the analysis report is written), append an "end" entry with the verdict delta from the prior iteration. See `references/tasks/maintain-run-log.md`.
+
+### Token-burn awareness
+
+At iteration #3 or later, remind the user that each iteration costs: re-upload credits + teacher-evaluation credits + Claude-side analysis tokens. Before starting iteration #3+, confirm the lever plan with the user rather than racing into another attempt.
 
 ---
 
@@ -69,14 +105,18 @@ Do not flip teachers as the first move. A stronger teacher won't fix a vague job
 After any change:
 
 ```bash
-# Capture current upload ID so we can confirm a new one is created
+# 1. Create the next iteration dir and drop in a README describing what's being tested.
+mkdir -p iteration-<N>
+# Write iteration-<N>/README.md with 2-4 sentences on the lever being pulled.
+
+# 2. Capture current upload ID so we can confirm a new one is created
 old_upload_id=$(distil model show <model-id> --output json | jq -r '.upload_ids[0] // "none"')
 
-# Re-upload — creates a new upload, doesn't overwrite
+# 3. Re-upload — creates a new upload, doesn't overwrite
 distil model upload-data <model-id> --data ./data-dir
 # (Or distil model upload-traces for the traces path.)
 
-# Confirm a NEW upload was created — if IDs match, re-upload didn't take
+# 4. Confirm a NEW upload was created — if IDs match, re-upload didn't take
 new_upload_id=$(distil model show <model-id> --output json | jq -r '.upload_ids[0]')
 if [ "$new_upload_id" = "$old_upload_id" ]; then
     echo "ERROR: upload ID unchanged. Re-upload didn't take. Stop and investigate."
@@ -84,13 +124,15 @@ if [ "$new_upload_id" = "$old_upload_id" ]; then
 fi
 echo "New upload: $new_upload_id (was $old_upload_id)"
 
-# Re-run teacher evaluation (uses the latest upload automatically)
+# 5. Re-run teacher evaluation (uses the latest upload automatically)
 distil model run-teacher-evaluation <model-id>
 ```
 
 The upload ID check matters because silent failures here are the worst kind — you'll re-run teacher evaluation against the *old* job description and get the *old* results, then waste time wondering why your changes had no effect.
 
-For the polling loop, see `references/tasks/polling-jobs.md`. Then go back to the workflow you came from (Step 4 in dataset-to-model, Step 6 in traces-to-model) and analyze the new results.
+Append a log entry (`references/tasks/maintain-run-log.md`) after the re-upload succeeds, recording which lever was pulled.
+
+For the polling loop, see `references/tasks/polling-jobs.md`. Then go back to the workflow you came from (Step 4 in dataset-to-model, Step 6 in traces-to-model) and analyze the new results — pass the current `iteration-<N>/` as the working directory to `references/tasks/analyze-predictions.md`.
 
 ### Trace-specific paths
 
@@ -99,6 +141,8 @@ If you're in the traces workflow, you have three re-upload options:
 - **`distil model upload-traces`** — re-runs full trace processing including committee relabeling. Slowest.
 - **`distil model reprocess-traces`** — skips re-uploading the trace files, just re-runs processing with new `trace_processing` params. Use this for processing-only changes.
 - **`distil model upload-data`** — upload a manually fixed dataset, e.g. after stripping markdown fences from relabeled answers.
+
+After any of the first two, re-run the test-set approval gate (`references/tasks/test-set-approval.md`) and re-offer the uploads deep dive (`references/tasks/analyze-uploads.md`) before returning to teacher evaluation.
 
 ---
 
@@ -133,6 +177,15 @@ Useful when the student is right-sized but underfit or overfit. See `references/
 - **Underfit** (tuned student barely beats base student) → increase `num_train_epochs`, consider enabling RLVR via `rlvr_dataset_size: 0.3`.
 - **Overfit** (tuned student regressed on examples base got right) → lower `num_train_epochs`, reduce `generation_target` so synthgen doesn't drown the real examples, or add diversity via mutations.
 
+**Tuning diagnostics — ask for training-job logs.** The CLI doesn't expose training-job logs (loss curves, per-epoch metrics) directly, but if the user can paste them into the conversation they usually reveal the cause of a bad run. Ask for them before picking a tuning-parameter change:
+
+| Symptom in logs | Likely cause | Lever |
+|-----------------|--------------|-------|
+| Loss drops to ~0 very quickly | Label leakage or near-duplicates in train | Fix upstream in data, not tuning — go back to Lever 2 |
+| Loss plateau, never drops | Learning rate too low, or not enough epochs | Raise `num_train_epochs`, try a different `learning_rate_scheduler` |
+| NaN loss mid-training | Numerical instability (often bf16 edge cases or bad examples) | Disable `bf16`, or re-check data for pathological inputs |
+| Val-loss rising while train-loss keeps falling | Overfitting | Lower `num_train_epochs`, add diversity via mutations |
+
 ### When to ESCALATE instead of retune
 
 If the tuned student barely beats the base student despite good teacher scores, retuning won't help — the distillation isn't transferring knowledge. Go back to Entry Point A and revisit task definition, data quality, and whether the task type itself is right.
@@ -152,3 +205,6 @@ If the tuned student barely beats the base student despite good teacher scores, 
 | Polling loop | `references/tasks/polling-jobs.md` |
 | Retune command | `references/cli-reference.md` (see `distil model retune`) |
 | Trace-specific gotchas | `references/tasks/upload-and-process-traces.md` |
+| Run log format and triggers | `references/tasks/maintain-run-log.md` |
+| Test-set approval (traces) | `references/tasks/test-set-approval.md` |
+| Uploads deep dive (optional) | `references/tasks/analyze-uploads.md` |

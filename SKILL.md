@@ -29,15 +29,16 @@ description: >
 
 If the user wants to train a model end-to-end (any phrasing — "help me train a model", "build me an SLM", "I want to fine-tune for X"), do NOT answer ad hoc from the reference files. Instead:
 
-1. Ask one disambiguating question: **"Do you have a labeled dataset to start from, or production traces from an existing LLM application?"**
-2. Load the matching workflow:
+1. **Initialize the run log.** If this is a model-building workflow (not a pure lookup / Q&A), create `model-building-log-<name>.md` at the project root and write the opening entry (`<name>` = a descriptive slug for this project, which we'll later also use for `distil model create`). See `references/tasks/maintain-run-log.md` for format and append triggers. This fires once per project regardless of which workflow branch (dataset vs. traces) the user ends up on — individual workflow Step 0s do not duplicate the init.
+2. Ask one disambiguating question: **"Do you have a labeled dataset to start from, or production traces from an existing LLM application?"**
+3. Load the matching workflow:
    - **Dataset** → `workflows/dataset-to-model.md`
    - **Traces** → `workflows/traces-to-model.md`
-3. Follow the workflow step-by-step. The workflow tells you which references to read at each step.
+4. Follow the workflow step-by-step. The workflow tells you which references to read at each step.
 
-The workflows encode the right sequence, decision points, and checkpoints (e.g., confirming config before kicking off a 6+ hour training job). Skipping the workflow and answering Q&A-style usually leads to skipped steps and missing analysis reports.
+The workflows encode the right sequence, decision points, and checkpoints (e.g., confirming config before kicking off a 6+ hour training job, approving a trace-generated test set). Skipping the workflow and answering Q&A-style usually leads to skipped steps and missing analysis reports.
 
-For specific lookup questions ("what's the API endpoint for X", "what does parameter Y mean", "how do I download predictions"), continue to use the routing table below — those don't need a workflow.
+For specific lookup questions ("what's the API endpoint for X", "what does parameter Y mean", "how do I download predictions"), continue to use the routing table below — those don't need a workflow and don't need a run log.
 
 ## Intent Detection
 
@@ -97,6 +98,9 @@ Always read `references/tasks/prepare-data/overview.md` first, then the task-spe
 | "distil login" / "Credit balance is too low" / 401 errors / "/login doesn't work for distil" | `references/tasks/verify-auth.md` |
 | "Download predictions" / "per-example results" / "inspect model outputs" | `references/tasks/retrieve-predictions.md` |
 | "Analyze predictions" / "write analysis report" / "compare teacher and student" | `references/tasks/analyze-predictions.md` |
+| "Log my work" / "track iterations" / "keep a history" / "log progress" | `references/tasks/maintain-run-log.md` |
+| "Approve the test set" / "review test set" / "is my test data good?" | `references/tasks/test-set-approval.md` |
+| "Check my upload" / "is my train/test consistent" / "data distribution" | `references/tasks/analyze-uploads.md` |
 | "How do I poll a long-running job?" / "Wait for training" / "grep status doesn't work" | `references/tasks/polling-jobs.md` |
 
 ### Configuration & Metrics
@@ -190,6 +194,8 @@ When helping users, exhaust all mechanical/lookup steps before engaging judgment
 ### When the User Wants to Improve a Model
 
 Read `workflows/improving-a-model.md`. It covers both iteration cases — teacher eval below thresholds, and training results that don't pass the DEPLOY bar — and consolidates the levers (job description, data, synthgen/mutations, student/teacher choice, tuning parameters, retune).
+
+It also owns the **`iteration-N/` directory convention** (one directory per attempt, reports written unsuffixed inside it) and the **token-burn awareness** rule for iteration #3+ (each iteration costs re-upload + teacher-eval credits + Claude analysis tokens — confirm the plan before racing into another attempt).
 
 ### Command Aliases
 

@@ -41,6 +41,8 @@ distil model create <descriptive-name>
 
 Capture the model ID from the output — it's used in every subsequent command.
 
+The run log (`model-building-log-<descriptive-name>.md`) should already have been initialized by the top-level router (`SKILL.md`). Append an entry for the `distil model create` step. See `references/tasks/maintain-run-log.md`.
+
 ---
 
 ## Step 2: Prepare Traces
@@ -160,38 +162,31 @@ Trace processing runs a multi-step pipeline:
 
 Poll until complete using the canonical pattern from `references/tasks/polling-jobs.md` (substitute `upload-status` as the status command, `sleep 60`). Trace processing typically takes several minutes. Do not proceed until status is `JOB_SUCCESS`.
 
+**Log:** append a log entry noting the upload (`references/tasks/maintain-run-log.md`).
+
 ---
 
-## Step 4: Analyze Original Model Performance
+## Step 4: Approve Test Set (hard gate)
 
-Trace processing produces a "ground truth" via committee relabeling. This step compares the original production model (whose outputs are in the traces) against that ground truth — telling you how much relabeling changed the data.
+**Skip this step if the user provided their own `test.jsonl` alongside the traces** — the test set is theirs, not generated, same as the dataset workflow. Continue to Step 4b (optional) or Step 5 (teacher evaluation).
 
-This step doesn't gate the workflow; it gives context for everything that follows.
+Trace processing produces a "ground truth" via committee relabeling — that test set will gate every downstream decision (teacher evaluation, training). The user must see it and approve it before the workflow continues.
 
-### 4a. Gather data
+This step also folds in the original production model's scores on that test set — you can't meaningfully approve a generated test set without seeing how the model that produced the traces performs on it.
 
-Download per-example predictions of the original model (see `references/tasks/retrieve-predictions.md` for full options):
+Follow `references/tasks/test-set-approval.md` — it pulls down the uploads object and original-model predictions, presents the test set plus scores and sampled example tables, and blocks until the user approves.
 
-```bash
-distil model download-traces-predictions <model-id> --file-name original-model-predictions.jsonl
-```
+**Log:** append a log entry after approval (`references/tasks/maintain-run-log.md`).
 
-Read the resulting JSONL into a dataframe.
+---
 
-### 4b. Produce the Original Model Analysis Report
+## Step 4b: Offer — Deep-Dive Uploads Object? (optional)
 
-Use the **Original Model Analysis Report** template from `references/tasks/analyze-predictions.md`. This is the single-model variant with INFORMATIONAL verdict (no gate).
+After the user approves the test set, ask if they want a deeper look at the full uploads object (train / test / unstructured). This is not a gate — if the user declines, continue to Step 5.
 
-Save the report (e.g., `original-model-analysis.md`). **After writing the report, tell the user**: the file path, the headline agreement metric, and the takeaway (high/moderate/low agreement). The user needs to see this to understand the baseline before continuing.
+If the user opts in, follow `references/tasks/analyze-uploads.md`. It downloads the upload with `distil model download-data`, runs quantitative and qualitative consistency checks, and produces an Upload Consistency Report at `iteration-<N>/upload-consistency.md`. The verdict is PROCEED or INVESTIGATE — INVESTIGATE only means "there may be data issues worth fixing before burning credits on teacher eval", not a hard block.
 
-### 4c. Decision point and data fixes
-
-Based on the report:
-
-- **High agreement (≥ 0.8)** → relabeling didn't change much; the production data is already high quality. Continue to Step 5.
-- **Moderate agreement (0.5–0.8)** → relabeling improved data quality. This is normal for noisy production traces. Continue to Step 5.
-- **Low agreement (< 0.5)** → relabeling significantly changed the data. Inspect the disagreement samples to confirm the relabeling is correct (not introducing noise). If correct, continue.
-- **Markdown fences in relabeled outputs** (when `output_is_json: true`) → committee models sometimes wrap JSON in ```` ```json ... ``` ````. Teacher eval will then fail. Fix by downloading the train/test, stripping fences from `answer` fields, and re-uploading via `distil model upload-data`. See gotcha #3 in `references/tasks/upload-and-process-traces.md`.
+**Log:** append a log entry with the verdict.
 
 ---
 
@@ -224,14 +219,17 @@ Same analysis pattern as the dataset workflow's Step 4. The goal is a structured
 
 ### 6a. Gather data
 
+Working directory for this step: the current `iteration-<N>/` (see `workflows/improving-a-model.md`'s Iteration Discipline section). Pass it as the working dir to `references/tasks/analyze-predictions.md`.
+
 1. Get aggregate metrics — **always use `--output json`**, the default text output omits LLM-as-a-Judge and other metrics:
 ```bash
 distil model teacher-evaluation <model-id> --output json | jq '.aggregateMetrics'
 ```
 
-2. Download per-example teacher predictions (see `references/tasks/retrieve-predictions.md` for full options):
+2. Download per-example teacher predictions into the iteration dir (see `references/tasks/retrieve-predictions.md` for full options):
 ```bash
-distil model download-teacher-evaluation-predictions <model-id> --file-name teacher-predictions-iter-1.jsonl
+distil model download-teacher-evaluation-predictions <model-id> \
+  --file-name iteration-<N>/teacher-predictions.jsonl
 ```
 
 Then load into a dataframe.
@@ -242,7 +240,9 @@ Then load into a dataframe.
 
 Use the **Teacher Evaluation Analysis Report** template from `references/tasks/analyze-predictions.md`. The report produces a verdict (PROCEED / ITERATE / RETHINK).
 
-Save the report with an iteration suffix (e.g., `teacher-eval-analysis-iter-1.md`) so subsequent iterations don't overwrite it. **After writing the report, tell the user**: the file path, the headline metric, and the verdict. Don't bury the report — it's the main output of this step and the user needs to see it to decide on next steps.
+Save the report as `iteration-<N>/teacher-eval-analysis.md`. **After writing the report, tell the user**: the file path, the headline metric, and the verdict. Don't bury the report — it's the main output of this step and the user needs to see it to decide on next steps.
+
+**Log:** append a log entry with the verdict and headline (`references/tasks/maintain-run-log.md`).
 
 ### 6c. Decision point
 
@@ -257,6 +257,8 @@ Save the report with an iteration suffix (e.g., `teacher-eval-analysis-iter-1.md
 ## Step 7: Iterate (return point)
 
 This is the return point from `workflows/improving-a-model.md`. After each iteration loop completes there, come back to Step 6 to analyze the new teacher evaluation results. Repeat until the verdict is `PROCEED`.
+
+Every `upload-traces` or `reprocess-traces` re-run re-triggers Step 4 (Approve Test Set, hard gate) and re-offers Step 4b (Deep-Dive Uploads). The new iteration always gets its own `iteration-<N>/` directory — see `workflows/improving-a-model.md`'s Iteration Discipline section.
 
 ---
 
@@ -303,14 +305,17 @@ Same analysis pattern as Step 6, but now comparing four models: the original pro
 
 ### 10a. Gather data
 
+Working directory for this step: the current `iteration-<N>/` (see `workflows/improving-a-model.md`'s Iteration Discipline section). Pass it as the working dir to `references/tasks/analyze-predictions.md`.
+
 1. Get aggregate metrics — **always use `--output json`**, the default text output omits LLM-as-a-Judge and other metrics:
 ```bash
 distil model training <model-id> --output json | jq '.aggregateMetrics'
 ```
 
-2. Download tuned student predictions via the CLI:
+2. Download tuned student predictions into the iteration dir:
 ```bash
-distil model download-training-predictions <model-id> --file-name student-predictions-iter-1.jsonl
+distil model download-training-predictions <model-id> \
+  --file-name iteration-<N>/student-predictions.jsonl
 ```
 
 3. Download base student predictions (only available via API — see `references/tasks/retrieve-predictions.md`):
@@ -323,8 +328,8 @@ base_predictions_url = response.json()["base_student_evaluation_predictions_down
 ```
 
 4. Also load:
-   - **Teacher predictions** saved in Step 6
-   - **Original model predictions** saved in Step 4
+   - **Teacher predictions** saved in Step 6 (`iteration-<N>/teacher-predictions.jsonl`)
+   - **Original model predictions** saved in Step 4 during test-set approval (`iteration-1/original-model-predictions.jsonl`, or whichever iteration last ran trace processing)
 
 You now have four sets of predictions: **original production model**, **base student** (untuned baseline), **teacher** (upper bound), and **tuned student** (the trained model).
 
@@ -332,7 +337,9 @@ You now have four sets of predictions: **original production model**, **base stu
 
 Use the **Training Analysis Report** template from `references/tasks/analyze-predictions.md`. Follow the **"Training from traces?"** note in Section 4 of the template — add an Original Model column to the metrics table. The most important comparison becomes Tuned vs. Original, since that's whether the trained student beats the production model it's meant to replace.
 
-Save with an iteration suffix (e.g., `training-analysis-iter-1.md`). **After writing the report, tell the user**: the file path, the headline metric (tuned student primary score), the deltas vs. teacher and original model, and the verdict. The user needs this to decide whether to deploy or retune.
+Save as `iteration-<N>/training-analysis.md`. **After writing the report, tell the user**: the file path, the headline metric (tuned student primary score), the deltas vs. teacher and original model, and the verdict. The user needs this to decide whether to deploy or retune.
+
+**Log:** append a log entry with the verdict and headline (`references/tasks/maintain-run-log.md`).
 
 ### 10c. Decision point
 
@@ -345,6 +352,8 @@ Save with an iteration suffix (e.g., `training-analysis-iter-1.md`). **After wri
 ## Step 11: Deploy
 
 Once satisfied with training results, deploy the model.
+
+**Log:** append a final entry noting deployment (`references/tasks/maintain-run-log.md`).
 
 ### Local deployment (recommended for testing)
 
@@ -381,7 +390,10 @@ This workflow draws on these reference files. Read them when you need details on
 | Predictions download | `references/tasks/retrieve-predictions.md` |
 | Analysis report templates | `references/tasks/analyze-predictions.md` |
 | Polling long-running jobs | `references/tasks/polling-jobs.md` |
-| Iteration (teacher eval or training) | `workflows/improving-a-model.md` |
+| Iteration (teacher eval or training) + `iteration-N/` convention | `workflows/improving-a-model.md` |
+| Run log format and triggers | `references/tasks/maintain-run-log.md` |
+| Test-set approval (Step 4) | `references/tasks/test-set-approval.md` |
+| Uploads deep dive (Step 4b, optional) | `references/tasks/analyze-uploads.md` |
 | API authentication | `references/api-reference.md` |
 | Training | `references/tasks/training.md` |
 | Deployment | `references/tasks/deployment-integration.md` |

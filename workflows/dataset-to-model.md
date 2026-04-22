@@ -39,6 +39,8 @@ distil model create <descriptive-name>
 
 Capture the model ID from the output — it's used in every subsequent command.
 
+The run log (`model-building-log-<descriptive-name>.md`) should already have been initialized by the top-level router (`SKILL.md`). Append an entry for the `distil model create` step. See `references/tasks/maintain-run-log.md`.
+
 ---
 
 ## Step 2: Prepare Data
@@ -171,6 +173,8 @@ Check upload status:
 distil model upload-status <model-id>
 ```
 
+**Log:** append a log entry noting the upload (`references/tasks/maintain-run-log.md`).
+
 ---
 
 ## Step 3: Run Teacher Evaluation
@@ -202,14 +206,17 @@ This is where the workflow produces its first major output. The goal is a struct
 
 ### 4a. Gather data
 
+Working directory for this step: the current `iteration-<N>/` (see `workflows/improving-a-model.md`'s Iteration Discipline section). Pass it as the working dir to `references/tasks/analyze-predictions.md`.
+
 1. Get aggregate metrics — **always use `--output json`**, the default text output omits LLM-as-a-Judge and other metrics:
 ```bash
 distil model teacher-evaluation <model-id> --output json | jq '.aggregateMetrics'
 ```
 
-2. Download per-example teacher predictions (see `references/tasks/retrieve-predictions.md` for full options):
+2. Download per-example teacher predictions into the iteration dir (see `references/tasks/retrieve-predictions.md` for full options):
 ```bash
-distil model download-teacher-evaluation-predictions <model-id> --file-name teacher-predictions-iter-1.jsonl
+distil model download-teacher-evaluation-predictions <model-id> \
+  --file-name iteration-<N>/teacher-predictions.jsonl
 ```
 
 Then load into a dataframe for analysis.
@@ -220,7 +227,9 @@ Then load into a dataframe for analysis.
 
 Use the **Teacher Evaluation Analysis Report** template from `references/tasks/analyze-predictions.md`. The report is the basis for all iteration decisions and produces a verdict (PROCEED / ITERATE / RETHINK).
 
-Save the report with an iteration suffix (e.g., `teacher-eval-analysis-iter-1.md`) so subsequent iterations don't overwrite it. **After writing the report, tell the user**: the file path, the headline metric, and the verdict. Don't bury the report — it's the main output of this step and the user needs to see it to decide on next steps.
+Save the report as `iteration-<N>/teacher-eval-analysis.md`. **After writing the report, tell the user**: the file path, the headline metric, and the verdict. Don't bury the report — it's the main output of this step and the user needs to see it to decide on next steps.
+
+**Log:** append a log entry with the verdict and headline (`references/tasks/maintain-run-log.md`).
 
 ### 4c. Decision point
 
@@ -283,14 +292,17 @@ Same analysis pattern as Step 4, but now comparing the trained student model aga
 
 ### 8a. Gather data
 
+Working directory for this step: the current `iteration-<N>/` (see `workflows/improving-a-model.md`'s Iteration Discipline section). Pass it as the working dir to `references/tasks/analyze-predictions.md`.
+
 1. Get aggregate metrics — **always use `--output json`**, the default text output omits LLM-as-a-Judge and other metrics:
 ```bash
 distil model training <model-id> --output json | jq '.aggregateMetrics'
 ```
 
-2. Download tuned (finetuned) student predictions via the CLI:
+2. Download tuned (finetuned) student predictions into the iteration dir:
 ```bash
-distil model download-training-predictions <model-id> --file-name student-predictions-iter-1.jsonl
+distil model download-training-predictions <model-id> \
+  --file-name iteration-<N>/student-predictions.jsonl
 ```
 
 3. Download base student predictions (only available via API — see `references/tasks/retrieve-predictions.md`):
@@ -302,13 +314,15 @@ response = requests.get(
 base_predictions_url = response.json()["base_student_evaluation_predictions_download_url"]
 ```
 
-4. Also load the teacher predictions saved in Step 4. You now have three sets of predictions to compare: **base student** (untuned baseline), **teacher** (upper bound), and **tuned student** (the trained model).
+4. Also load the teacher predictions saved in Step 4 (`iteration-<N>/teacher-predictions.jsonl`). You now have three sets of predictions to compare: **base student** (untuned baseline), **teacher** (upper bound), and **tuned student** (the trained model).
 
 ### 8b. Produce the Training Analysis Report
 
 Use the **Training Analysis Report** template from `references/tasks/analyze-predictions.md`. This is the three-way variant (Base Student / Teacher / Tuned Student) that produces a verdict (DEPLOY / RETUNE / ESCALATE).
 
-Save with an iteration suffix (e.g., `training-analysis-iter-1.md`). **After writing the report, tell the user**: the file path, the headline metric (tuned student primary score), the deltas vs. teacher and base, and the verdict. The user needs this to decide whether to deploy or retune.
+Save as `iteration-<N>/training-analysis.md`. **After writing the report, tell the user**: the file path, the headline metric (tuned student primary score), the deltas vs. teacher and base, and the verdict. The user needs this to decide whether to deploy or retune.
+
+**Log:** append a log entry with the verdict and headline (`references/tasks/maintain-run-log.md`).
 
 ### 8c. Decision point
 
@@ -321,6 +335,8 @@ Save with an iteration suffix (e.g., `training-analysis-iter-1.md`). **After wri
 ## Step 9: Deploy
 
 Once satisfied with training results, deploy the model.
+
+**Log:** append a final entry noting deployment (`references/tasks/maintain-run-log.md`).
 
 ### Local deployment (recommended for testing)
 
@@ -358,7 +374,8 @@ This workflow draws on these reference files. Read them when you need details on
 | Predictions download | `references/tasks/retrieve-predictions.md` |
 | Analysis report templates | `references/tasks/analyze-predictions.md` |
 | Polling long-running jobs | `references/tasks/polling-jobs.md` |
-| Iteration (teacher eval or training) | `workflows/improving-a-model.md` |
+| Iteration (teacher eval or training) + `iteration-N/` convention | `workflows/improving-a-model.md` |
+| Run log format and triggers | `references/tasks/maintain-run-log.md` |
 | API authentication | `references/api-reference.md` |
 | Training | `references/tasks/training.md` |
 | Deployment | `references/tasks/deployment-integration.md` |
