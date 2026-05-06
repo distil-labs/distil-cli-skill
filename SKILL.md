@@ -174,7 +174,7 @@ When helping users, exhaust all mechanical/lookup steps before engaging judgment
 - Always read `references/tasks/prepare-data/overview.md` before any task-specific data file. The overview contains shared requirements (directory structure, min examples, file formats) that the task files assume you know.
 - Ask the user what task type they need before preparing data. If unclear, read `references/task-selection-guide.md` and help them decide.
 - Ask what student and teacher models they want. If unsure, read `references/model-catalog.md`. Default recommendation: `Llama-3.2-1B-Instruct` as student, `openai.gpt-oss-120b` as teacher.
-- Before writing `job_description.json`, read `references/job-description-guide.md` for what makes each field good — `input_description` self-containment is the most common footgun.
+- Before writing `job_description.json`, read `references/job-description-guide.md` for what makes each field good and which fields apply to which task type. Note in particular that `input_description` is only used by `question-answering` — including it for other task types has no effect.
 
 ### In Claude Code
 

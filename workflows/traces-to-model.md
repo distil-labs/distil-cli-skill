@@ -97,14 +97,15 @@ The job description is the most important file — it shapes both teacher evalua
 ```json
 {
   "task_description": "<What the model should do. Be comprehensive: cover output format, edge cases, what to include and exclude.>",
-  "input_description": "<MUST be self-contained. The synthgen model does NOT see task_description — only input_description. Describe input structure, markers, sections, and give examples.>",
   "llm_as_a_judge_instructions": "<Specific pass/fail criteria. Be strict on deterministic fields (labels, scores), lenient on free-text fields (analysis, reasoning).>"
 }
 ```
 
 For task-specific fields (`classes_description` for classification, `tools` for tool calling), see the structure in `workflows/dataset-to-model.md` Step 2b — same format, different task type.
 
-**Judgment: what makes a good job description.** See `references/job-description-guide.md` for the full criteria. The load-bearing point for traces is that `input_description` must be self-contained: synthgen sees it without `task_description`, so if you only describe input structure in `task_description`, synthgen will produce poor data even when teacher evaluation looks fine.
+**If `task: question-answering`, also include `input_description`** — it's required for QA and synthgen reads it (not `task_description`) when generating new inputs. See `references/job-description-guide.md` for the field contract. For all other task types, `input_description` is unused by synthgen.
+
+**Judgment: what makes a good job description.** See `references/job-description-guide.md` for the full criteria.
 
 ### 2d. Write config.yaml
 

@@ -113,9 +113,12 @@ Create a directory (e.g., `./my-data`) containing the following files:
 
 ```json
 {
-  "task_description": "Extract the key dates mentioned in the input text and return them as a comma-separated list."
+  "task_description": "Extract the key dates mentioned in the input text and return them as a comma-separated list.",
+  "input_description": "Free-form text (e.g., contract clauses, emails, meeting notes) that may mention one or more dates in formats like 'Jan 3 2025', '2025-01-03', or '3rd of January, 2025'."
 }
 ```
+
+Note: `input_description` is required for `question-answering` only — the platform rejects QA uploads without it, and synthgen reads it (instead of `task_description`) to generate new inputs. Other task types use different fields (`classes_description`, `tools`, unstructured `context`); see `references/job-description-guide.md`.
 
 **config.yaml** -- specify the task, student model, and teacher model:
 

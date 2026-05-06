@@ -57,7 +57,7 @@ This step requires judgment. Read these reference files before starting:
 
 Before writing any files, ask and determine:
 
-1. **What does the input look like?** — Get 2-3 real examples of the text the model will process in production. This shapes the `question` column and `input_description`.
+1. **What does the input look like?** — Get 2-3 real examples of the text the model will process in production. This shapes the `question` column (and `input_description`, if the task is `question-answering` — that's the only task type where synthgen reads it).
 2. **What should the output look like?** — Get 2-3 examples of correct outputs. This shapes the `answer` column and `task_description`.
 3. **What makes an answer correct or wrong?** — Specific criteria, not vague quality. This shapes `llm_as_a_judge_instructions`.
 4. **What models to use?** — If the user hasn't specified, default to `Llama-3.2-1B-Instruct` (student) and `openai.gpt-oss-120b` (teacher). Only suggest alternatives if there's a concrete reason (tool calling → needs Qwen3/Llama, edge deployment → smaller model, etc.).
@@ -71,8 +71,8 @@ The job description is the most important file — it's the prompt that drives b
 For `question-answering`:
 ```json
 {
-  "task_description": "<What the model should do. Be comprehensive: cover output format, edge cases, what to include and exclude. More useful detail = better synthetic data.>",
-  "input_description": "<What the input data looks like. Cover formats, domains, variations, noise patterns.>",
+  "task_description": "<What the model should do. Be comprehensive: cover output format, edge cases, what to include and exclude.>",
+  "input_description": "<What the input data looks like — formats, domains, variations, noise patterns, with at least one concrete example. Required for QA, and must be self-contained: synthgen reads this (not task_description) when generating new inputs.>",
   "llm_as_a_judge_instructions": "<Specific pass/fail criteria. Define what 'correct' means precisely — vague instructions produce noisy evaluation.>"
 }
 ```

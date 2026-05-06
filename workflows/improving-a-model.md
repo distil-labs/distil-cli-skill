@@ -68,7 +68,7 @@ Work through the levers top-down. Most iterations end at Lever 1 or 2.
 Most common fix. Read `references/job-description-guide.md` for what makes each field good.
 
 - **Teacher misses entity type X** → add explicit handling to `task_description`.
-- **Synthgen produces poor data even though teacher eval looks fine** → `input_description` is incomplete. Move input structure out of `task_description` into `input_description`. Synthgen does NOT see `task_description`, only `input_description`.
+- **Synthgen produces poor inputs even though teacher eval looks fine** (`question-answering` only) → `input_description` is incomplete. Move input structure out of `task_description` into `input_description`. For QA, synthgen reads `input_description` not `task_description` when generating inputs. Does NOT apply to other task types — for them, synthgen ignores `input_description` entirely; look at unstructured data, train examples, or the task-specific schema (`classes_description` / `tools`) instead.
 - **Judge seems too strict** → relax `llm_as_a_judge_instructions` (ignore whitespace, casing, paraphrasing).
 - **Judge seems too lenient** → tighten judge criteria.
 

@@ -192,7 +192,7 @@ distil model run-training <model-id>
 
 3. **Markdown fences in relabeled JSON answers** — When `synthgen.output_is_json: true`, committee relabeling models sometimes wrap JSON in ```` ```json ... ``` ```` fences. Teacher evaluation will then fail JSON validation. Workaround: download the relabeled train/test, strip markdown fences from `answer` fields, validate every `answer` parses as JSON, and re-upload as a regular dataset with `distil model upload-data`. Then proceed to teacher evaluation.
 
-4. **`input_description` must be self-contained** — The synthgen model that generates training data does NOT see `task_description`. It only sees `input_description`. So `input_description` must fully describe the input structure on its own — markers, sections, examples, formatting. If you only put input details in `task_description`, synthgen will produce poor data even if teacher evaluation looks fine.
+4. **(`question-answering` only) `input_description` must be self-contained** — For the `question-answering` task type, the synthgen model that generates training inputs does NOT see `task_description`. It only sees `input_description`. So `input_description` must fully describe the input structure on its own — markers, sections, examples, formatting. If you only put input details in `task_description`, synthgen will produce poor inputs even if teacher evaluation looks fine. This does NOT apply to other task types (`classification`, tool calling, closed-book QA): synthgen does not read `input_description` for them — see `references/job-description-guide.md` for what synthgen reads per task.
 
 ## Tips
 
