@@ -51,40 +51,45 @@ curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
 
 ```
 distil-cli-skill/
-├── SKILL.md                          # Router + core instructions
-├── references/
-│   ├── getting-started.md            # Install CLI, auth, quickstart
-│   ├── platform-overview.md          # What Distil Labs is, concepts, value prop
-│   ├── cli-reference.md              # All CLI commands with args and flags
-│   ├── task-selection-guide.md       # Choosing the right task type
-│   ├── model-catalog.md              # Student + teacher models, compatibility, defaults
-│   ├── job-description-guide.md      # Writing job_description.json
-│   ├── configuration.md              # Full config.yaml reference
-│   ├── mutations-guide.md            # Controlling synthetic data diversity
-│   ├── evaluation-metrics.md         # Metrics reference + interpretation
-│   ├── api-reference.md              # REST API setup + endpoints
-│   └── tasks/
-│       ├── prepare-data/
-│       │   ├── overview.md
-│       │   ├── question-answering.md
-│       │   ├── classification.md
-│       │   ├── tool-calling.md
-│       │   ├── multi-turn-tool-calling.md
-│       │   ├── open-book-qa.md
-│       │   └── closed-book-qa.md
-│       ├── upload-dataset.md
-│       ├── upload-and-process-traces.md
-│       ├── teacher-evaluation.md      # Incl. canonical verdict thresholds
-│       ├── training.md
-│       ├── deployment-integration.md
-│       ├── retrieve-predictions.md
-│       ├── analyze-predictions.md
-│       ├── polling-jobs.md            # Canonical polling loop
-│       └── verify-auth.md
-└── workflows/
-    ├── dataset-to-model.md            # E2E: dataset → eval → train → deploy
-    ├── traces-to-model.md             # E2E: traces → process → eval → train → deploy
-    └── improving-a-model.md           # Iteration: ITERATE/RETHINK/RETUNE/ESCALATE
+├── .claude-plugin/
+│   ├── marketplace.json
+│   └── plugin.json
+└── skills/
+    └── distil-cli/
+        ├── SKILL.md                          # Router + core instructions
+        ├── references/
+        │   ├── getting-started.md            # Install CLI, auth, quickstart
+        │   ├── platform-overview.md          # What Distil Labs is, concepts, value prop
+        │   ├── cli-reference.md              # All CLI commands with args and flags
+        │   ├── task-selection-guide.md       # Choosing the right task type
+        │   ├── model-catalog.md              # Student + teacher models, compatibility, defaults
+        │   ├── job-description-guide.md      # Writing job_description.json
+        │   ├── configuration.md              # Full config.yaml reference
+        │   ├── mutations-guide.md            # Controlling synthetic data diversity
+        │   ├── evaluation-metrics.md         # Metrics reference + interpretation
+        │   ├── api-reference.md              # REST API setup + endpoints
+        │   └── tasks/
+        │       ├── prepare-data/
+        │       │   ├── overview.md
+        │       │   ├── question-answering.md
+        │       │   ├── classification.md
+        │       │   ├── tool-calling.md
+        │       │   ├── multi-turn-tool-calling.md
+        │       │   ├── open-book-qa.md
+        │       │   └── closed-book-qa.md
+        │       ├── upload-dataset.md
+        │       ├── upload-and-process-traces.md
+        │       ├── teacher-evaluation.md      # Incl. canonical verdict thresholds
+        │       ├── training.md
+        │       ├── deployment-integration.md
+        │       ├── retrieve-predictions.md
+        │       ├── analyze-predictions.md
+        │       ├── polling-jobs.md            # Canonical polling loop
+        │       └── verify-auth.md
+        └── workflows/
+            ├── dataset-to-model.md            # E2E: dataset → eval → train → deploy
+            ├── traces-to-model.md             # E2E: traces → process → eval → train → deploy
+            └── improving-a-model.md           # Iteration: ITERATE/RETHINK/RETUNE/ESCALATE
 ```
 
 ## Quick Start

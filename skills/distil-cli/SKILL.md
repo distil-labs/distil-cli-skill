@@ -1,6 +1,6 @@
 ---
 name: distil-cli
-version: 4.0.0
+version: 4.0.1
 description: >
   Train task-specific small language models (SLMs) using the Distil Labs CLI and platform.
   Activate this skill when the user asks about: distil labs, distil CLI, the distil command,
