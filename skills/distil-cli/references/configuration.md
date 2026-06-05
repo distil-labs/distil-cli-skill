@@ -72,6 +72,7 @@ General parameters for task and model selection.
 | `student_model_name` | `string` | `Llama-3.2-1B-Instruct` | Base model to fine-tune for the use case. |
 | `teacher_model_name` | `string` | `openai.gpt-oss-120b` | Teacher model used for synthetic data generation and knowledge distillation. |
 | `random_seed` | `integer \| null` | `123` | Random seed for reproducible sampling across the pipeline. |
+| `llm_num_parallel_requests` | `integer` | `4` | Maximum number of LLM requests sent in parallel across the teacher, synthgen, and judge pipelines. Set to 1 to disable parallelism. |
 
 ### Supported Task Types
 
@@ -110,6 +111,8 @@ Parameters controlling fine-tuning of the student model.
 | `train_eval_split` | `float` | `0.2` | Fraction of training data used for evaluation. Must be between 0 and 1 (exclusive). |
 | `gradient_accumulation_steps` | `integer` | `1` | Number of update steps to accumulate gradients before performing a backward/update pass. Effectively multiplies batch size by this factor without increasing memory usage. |
 | `num_few_shot_examples_student` | `integer` | `0` | Number of few-shot examples for student evaluation and tuning. If above 0, at least one example per class is used for classification tasks. |
+| `memory_optimized_training` | `boolean` | `false` | Enable activation offloading and gradient checkpointing to reduce GPU memory usage at the cost of significantly slower training. Only enable this if training runs out of GPU memory. |
+| `use_qlora` | `boolean` | `false` | Load the base model in 4-bit NF4 (QLoRA) during finetuning, then attach LoRA adapters in higher precision. Reduces base-model VRAM by roughly 3x at the cost of slightly slower training. Only takes effect when `use_lora` is true. Requires bitsandbytes (Linux only). |
 
 ### RLVR (Reinforcement Learning with Verifiable Rewards)
 
@@ -118,7 +121,7 @@ RLVR is an optional reinforcement learning stage that runs after SFT fine-tuning
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `rlvr_dataset_size` | `float` | `0.0` | Proportion of the dataset to use for the RLVR split. Must be between 0.0 and 1.0. `0.0` means RLVR is disabled. |
-| `rlvr_llm_as_a_judge_model_name` | `string` | `openai.gpt-oss-20b` | Model used for the LLM-as-a-judge reward signals in RLVR. |
+| `rlvr_llm_as_a_judge_model_name` | `string` | `openai.gpt-oss-120b` | Model used for the LLM-as-a-judge reward signals in RLVR. |
 | `rlvr_per_device_batch_size` | `integer` | `6` | Batch size per GPU/device for RLVR training and evaluation. Must be a multiple of `rlvr_num_generations`. |
 | `rlvr_num_generations` | `integer` | `6` | Number of generations per prompt during RLVR training. |
 | `rlvr_num_train_epochs` | `integer` | `1` | Number of training epochs for RLVR fine-tuning. |
@@ -134,7 +137,6 @@ Parameters used in teacher evaluation.
 | `num_few_shot_examples` | `integer` | `1` | Number of few-shot examples for teacher evaluation. If above 0, at least one example per class is used for classification tasks. |
 | `llm_as_a_judge_model_name` | `string` | `openai.gpt-oss-120b` | Model used to power the LLM-as-a-judge evaluation. |
 | `expand_tool_calling_turns` | `boolean` | `true` | If true, each line in multi-turn tool calling test files is expanded into multiple evaluation lines, each ending at a tool call. |
-| `batch_size` | `integer` | `4` | *(Deprecated)* Batch size for model evaluation. |
 
 ---
 
@@ -153,15 +155,13 @@ Parameters for fine-grained control over synthetic data generation.
 | `num_unlabelled_exemplars_per_generation` | `integer` | `2` | Number of unlabelled examples provided during each teacher invocation. |
 | `validation_max_total_length` | `integer` | `10000` | Maximum total length (input + output) of examples in characters. Applied to both uploaded traces/test data and generated synthetic data. Increase this if your production inputs are long (e.g., full documents, injected schemas). |
 | `validation_similarity_threshold` | `float` | `0.95` | Similarity threshold for deduplication. Generated data with similarity above this threshold to seed data are removed. |
-| `validation_max_answer_length` | `integer` | `8192` | *(Deprecated)* Use `validation_max_total_length` instead. |
 | `teacher_temperature` | `float` | `0.7` | Temperature for teacher output. Controls the balance between predictability and creativity. Must be between 0.0 and 1.0. |
-| `teacher_max_tokens` | `integer \| null` | `null` | Maximum tokens in the generated response. |
+| `teacher_max_tokens` | `integer` | `32000` | Maximum number of tokens in the generated response. Kept well below typical model context limits so the reserved output budget does not crowd out large (e.g. multi-image) prompts. |
 | `match_generated_distribution_to_seed` | `boolean` | `false` | Match generated data class distribution to seed data. Only used for classification tasks. |
 | `num_distractor_context_blocks` | `integer` | `0` | Number of distractor context blocks per example. Setting above zero enables [RAFT training](https://arxiv.org/pdf/2403.10131). |
 | `output_is_json` | `boolean` | `false` | Only generate synthetic data with valid JSON outputs. Only relevant for QA tasks. |
 | `basic_mutators_to_use` | `list[string]` | `["complexity"]` | List of basic mutators for data generation. Supported options: `complexity`, `length`, `specificity`. |
 | `mutation_topics` | `list[list[string]] \| list[string]` | `[]` | Topics to sample from to guide the generation process. |
-| `parallel_llm_calls` | `boolean` | `false` | If true, call the LLM in parallel during data generation and evaluation. |
 
 ---
 
@@ -172,19 +172,23 @@ Parameters for the trace processing pipeline, which converts production traces i
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `relabel` | `boolean` | `true` | If true, use a committee of models to relabel trace examples. If false, use the original labels from traces. |
-| `convert_to_single_turn` | `boolean` | `true` (but see note) | If true, split multi-turn conversations into independent single-turn examples, relabeling each turn separately. If false, keep conversations intact as multi-turn examples and rewrite them as a whole. **Task-specific default:** keep `true` for single-turn tasks (QA, classification, single-turn tool calling). Set to `false` when training a **multi-turn** task (`multi-turn-tool-calling-closed-book`) — otherwise you'd split the conversations you need to preserve as seed data into isolated single-turn examples. |
+| `relevance_filtering` | `boolean` | `true` | If true, score each trace with an LLM and drop those below the relevance / coherence thresholds. If false, relevance filtering is skipped entirely and every seed trace flows straight to the next step. |
 | `relevance_filtering_batch_size` | `integer` | `32` | Number of examples scored per batch during relevance filtering. |
+| `min_relevance_score` | `integer` | `4` | Minimum relevance score (1-5) for a trace to pass relevance filtering. |
+| `min_coherence_score` | `integer` | `3` | Minimum coherence score (1-5) for a trace to pass coherence filtering. Lower values allow more corrupted traces through for committee repair. |
 | `num_traces_as_training_base` | `integer` | `200` | Number of traces to use as the seed for generating training examples. Unused traces beyond this count are used as unstructured data. **Recommended:** set equal to `num_traces_as_testing_base`. Keep `min_generated_examples` low enough that the examples derived from this count aren't rejected by the floor. |
 | `num_traces_as_testing_base` | `integer` | `200` | Number of traces to use as the seed for generating testing examples. Unused traces beyond this count are used as unstructured data. Ignored if a test set is provided. **Recommended:** set equal to `num_traces_as_training_base` — keeping the two in sync avoids train/test distribution skew where one side is seeded from far more traces than the other. |
 | `min_generated_examples` | `integer` | `20` | Minimum number of examples that trace processing must produce. Raises an error if fewer are generated, to prevent training with too few examples. **Keep this low enough** that the examples produced from `num_traces_as_training_base` / `num_traces_as_testing_base` clear the floor — filtering and relabelling typically drop a significant fraction of traces, so setting `min_generated_examples` close to the trace count will cause spurious errors. |
 | `max_unstructured` | `integer` | `10000` | Maximum number of unstructured data examples to include. |
-| `observation_format` | `string` | `openai_messages` | Format of trace observations in `traces.jsonl`. Options: `langfuse` (Langfuse observation objects with id, input, output), `openai_messages` (objects with a `messages` array of chat completion messages), `unstructured_with_openai_messages` (unstructured data with OpenAI messages). |
-| `remove_system_prompt_from_traces` | `boolean` | `false` | If true, remove the system prompt from traces before converting them to unstructured data. Useful when the system prompt is very large and would dominate the unstructured context. |
+| `observation_format` | `string` | `openai_messages` | Format of trace observations in `traces.jsonl`. Options: `langfuse` (Langfuse observation objects with id, input, output), `openai_messages` (objects with a `messages` array of chat completion messages), `openai_messages_with_images` (OpenAI messages that may include images), `unstructured_with_openai_messages` (unstructured data with OpenAI messages). |
+| `remove_system_prompt_from_traces` | `boolean` | `true` | If true, strip leading system messages from traces (before unstructured export) and from processed examples. Defaults to true because the system prompt is typically captured by the job description, and keeping it in the conversation breaks the single-turn `[user, assistant]` shape expected at the training boundary. |
 | `compress_job_description` | `boolean` | `false` | If true, compress the job description using the teacher model before relevance filtering. Useful when the task description is very long and would overwhelm the filtering LLM. |
-| `teacher_model_name` | `string` | `openai.gpt-oss-120b` | Teacher model used for relevance filtering and picking the best relabelled answer from the committee. |
-| `relabelling_committee_models` | `list[string]` | See below | Models that produce candidate relabels. Each model generates an output for every example; the teacher then picks the best. Only used when `relabel` is true. |
+| `teacher_model_name` | `string` | `zai.glm-5` | Teacher model used for relevance filtering and picking the best relabelled answer from the committee. |
+| `relabelling_committee_models` | `list[string]` | `[]` | If the list is non-empty, models in the list are used to produce candidate relabels. Each model generates an output for every example and the trace processing teacher aggregates them into the final relabel. Only used when `relabel` is true. |
 
-**Default relabelling committee:** `["zai.glm-5", "Qwen3-235B-A22B-Instruct-2507", "openai.gpt-oss-120b-thinking", "deepseek.v3.2"]`
+**Default relabelling committee:** empty (`[]`). With no committee, the single `teacher_model_name` does the relabelling. Provide a list of teacher models to enable committee-based relabelling — each model produces a candidate relabel and the trace processing teacher aggregates them into the final label.
+
+> **All traces are processed as multi-turn conversations.** A simple single-exchange trace is just a two-turn conversation (one user message, one assistant message); longer conversations are preserved in full and rewritten as a whole. There is no single-turn/multi-turn conversion toggle.
 
 ---
 

@@ -105,15 +105,10 @@ Uploaded traces are transformed into train/test data by a four-stage pipeline. T
                    |
                    v
     +-------------------------------+
-    | 4. Multi-turn handling        |   convert_to_single_turn: true
-    |    true  -> split by          |     -> one example per assistant
-    |             assistant turn    |        turn (use for single-turn
-    |    false -> keep whole        |        tasks)
-    |             conversation,     |   convert_to_single_turn: false
-    |             rewrite as one    |     -> preserve conversation
-    |             example           |         (required for
-    |                               |          multi-turn-tool-calling-
-    |                               |          closed-book)
+    | 4. Validation & fixing        |   every trace is processed as a
+    |    validate against the task, |   multi-turn conversation and
+    |    LLM-repair where needed;   |   rewritten as a whole (a simple
+    |    conversations kept whole   |   exchange is just a 2-turn convo)
     +--------------+----------------+
                    |
                    v

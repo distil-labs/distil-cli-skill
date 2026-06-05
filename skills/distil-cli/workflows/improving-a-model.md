@@ -87,16 +87,16 @@ Only touch these after Levers 1 and 2 have plateaued. See `references/configurat
 - **Synthgen produces too many near-duplicates of seed data** → lower `synthgen.validation_similarity_threshold` (default 0.95 — try 0.90).
 - **Synthgen output length is wrong** → swap the built-in mutator in `basic_mutators_to_use` (default `["complexity"]` — try `["length"]` or `["specificity"]`). Use at most one built-in mutator at a time.
 - **Generating too few/too many examples** → adjust `generation_target` (default 10,000).
-- **Generation is slow** → set `parallel_llm_calls: true`.
+- **Generation is slow** → raise `base.llm_num_parallel_requests` above the default of 4 (e.g. 8).
 
 #### Lever 4 — Teacher model
 
 Try this when the teacher is consistently wrong on complex reasoning, not just finicky on formatting.
 
 See `references/model-catalog.md` for the teacher shortlist and constraints. Common moves:
-- General task → try `zai.glm-5` or `deepseek.v3.2`.
+- General task → try `zai.glm-5`.
 - Coding-heavy → try `Qwen3-480B-A35B-Coder`.
-- Multi-turn tool calling → teacher must be one of the 10 tested models (see `references/model-catalog.md`). Strong picks for quality: `zai.glm-5`, `deepseek.v3.2`, `Qwen3-235B-A22B-Instruct-2507`.
+- Multi-turn tool calling → teacher must be one from the tool-calling allowlist (see `references/model-catalog.md`). Strong picks for quality: `zai.glm-5`, `Qwen3-235B-A22B-Instruct-2507`.
 
 Do not flip teachers as the first move. A stronger teacher won't fix a vague job description.
 

@@ -6,7 +6,7 @@ Use tool calling when the model needs to select and invoke the appropriate funct
 
 ## Model Compatibility
 
-**Student models:** Only Qwen3 and Llama 3-family models. **Teachers:** restricted to the 10-model tool-calling allowlist — see `references/model-catalog.md` for the full compatibility matrix and the exact teacher config strings.
+**Student models:** Qwen3, Llama 3-family, LFM2/LFM2.5, and FunctionGemma models. **Teachers:** restricted to the tool-calling allowlist — see `references/model-catalog.md` for the full compatibility matrix and the exact teacher config strings.
 
 ## Example Use Cases
 
@@ -151,5 +151,5 @@ if tool_call["name"] == "get_weather":
 2. **Comprehensive parameter descriptions** -- Help the model understand what each parameter expects.
 3. **Varied examples** -- Show different ways users might request the same action.
 4. **Valid JSON** -- Ensure all answer fields contain properly escaped JSON strings.
-5. **Supported models** -- Only Qwen3 and Llama 3-family student models. See `references/model-catalog.md`.
+5. **Supported models** -- Qwen3, Llama 3-family, LFM2/LFM2.5, and FunctionGemma student models. See `references/model-catalog.md`.
 6. **`parameters` vs `arguments`** -- The training `answer` uses `{"name": ..., "parameters": ...}`. Conversation histories (in multi-turn tool calling) still use OpenAI's `{"function": {"name": ..., "arguments": ...}}`. Don't mix them.

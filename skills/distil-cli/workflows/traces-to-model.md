@@ -121,13 +121,11 @@ trace_processing:
   observation_format: openai_messages
   remove_system_prompt_from_traces: true   # if system prompt is large
   compress_job_description: true            # if task_description is long
-  # convert_to_single_turn: false          # REQUIRED when task is multi-turn-tool-calling-closed-book
-                                            # (default true works for all single-turn tasks)
 ```
 
 Add synthgen parameters only when you have a reason:
 - `output_is_json: true` — if outputs must be valid JSON
-- `parallel_llm_calls: true` — speed up synthetic data generation
+- `base.llm_num_parallel_requests: 8` — raise above the default (4) to speed up generation
 - `validation_max_total_length: 30000` — if your traces have long inputs (default 10,000 may be too tight)
 - `basic_mutators_to_use` / `mutation_topics` — not required on the first run, but worth setting upfront if the user named specific patterns, scenarios, or length characteristics the data should cover (e.g., "short/medium/long conversations"). Otherwise leave defaults and revisit during iteration (Step 7). See `references/mutations-guide.md`.
 - `generation_target` — revisit during iteration (Step 7) unless the user has an explicit reason to deviate from the default.

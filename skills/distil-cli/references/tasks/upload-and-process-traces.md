@@ -93,14 +93,14 @@ Unstructured data combined with OpenAI messages format. Use this when your trace
 
 ## Trace Processing Pipeline
 
-When you upload traces, the platform runs four stages:
+When you upload traces, the platform runs these stages:
 
-1. **Filtering** — drop traces not relevant to the task.
-2. **Relabelling** — a committee of teachers rewrites labels; the teacher picks the best.
-3. **Splitting** — split into train + test; leftover traces become unstructured context.
-4. **Multi-turn handling** — `convert_to_single_turn: true` splits by assistant turn; `false` preserves conversations.
+1. **Splitting** — deduplicate and split into train + test seed sets; leftover traces become unstructured context.
+2. **Filtering** — score each seed trace for relevance and coherence; drop low-scoring traces.
+3. **Relabelling** — a committee of teachers rewrites each conversation as a whole; the teacher picks the best.
+4. **Validation** — validate rewritten conversations against the task and repair where needed.
 
-For the end-to-end flow diagram and the `trace_processing` parameters gating each stage, see `references/platform-overview.md`. Per-parameter semantics live in the `Trace Processing Configuration` section below and in `references/configuration.md`.
+Every trace is processed as a multi-turn conversation — a simple single-exchange trace is just a two-turn conversation. For the end-to-end flow diagram and the `trace_processing` parameters gating each stage, see `references/platform-overview.md`. Per-parameter semantics live in the `Trace Processing Configuration` section below and in `references/configuration.md`.
 
 ## Test Set Behavior
 
@@ -122,7 +122,6 @@ base:
 
 trace_processing:
   relabel: true
-  convert_to_single_turn: true
   num_traces_as_training_base: 200
   num_traces_as_testing_base: 200
   observation_format: openai_messages
@@ -133,11 +132,10 @@ trace_processing:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `relabel` | `true` | Improve label quality via a committee of teacher models. |
-| `convert_to_single_turn` | `true` for single-turn tasks, `false` for multi-turn tasks | Splits multi-turn conversations into individual training examples. Keep `true` for single-turn tasks (QA, classification, single-turn tool calling). **Set to `false` for `multi-turn-tool-calling-closed-book`** — the model needs to see conversations whole, so splitting them into single-turn examples destroys the signal you want to train on. When `false`, conversations are preserved with committee-based rewriting. |
 | `num_traces_as_training_base` | `200` | Number of traces to use as the training base. Recommended: set equal to `num_traces_as_testing_base`. |
 | `num_traces_as_testing_base` | `200` | Number of traces to use as the testing base. Recommended: set equal to `num_traces_as_training_base` (keeps train/test seeded from comparable trace volumes). |
-| `observation_format` | `openai_messages` | Trace format: `openai_messages`, `langfuse`, or `unstructured_with_openai_messages`. |
-| `remove_system_prompt_from_traces` | `false` | Remove large system prompts from traces. |
+| `observation_format` | `openai_messages` | Trace format: `openai_messages`, `langfuse`, `openai_messages_with_images`, or `unstructured_with_openai_messages`. |
+| `remove_system_prompt_from_traces` | `true` | Strip leading system messages from traces and processed examples (default `true`). |
 | `compress_job_description` | `false` | Compress long job descriptions before relevance filtering. |
 
 ## Reprocessing Traces
@@ -199,8 +197,8 @@ distil model run-training <model-id>
 1. **Provide enough traces** -- Hundreds to thousands of traces is ideal for good results.
 2. **Keep relabelling enabled** -- Use `relabel: true` (the default) to improve label quality via a committee of teacher models. The committee approach produces more consistent and accurate labels than any single model.
 3. **Iterate with reprocess** -- If the processed data does not look right, use `reprocess-traces` to try different parameters without re-uploading.
-4. **Multi-turn conversations** -- Match `convert_to_single_turn` to the target task. For single-turn tasks (QA, classification, single-turn tool calling), keep `true` (the default) to convert multi-turn conversations into individual training examples. **For `multi-turn-tool-calling-closed-book`, set `convert_to_single_turn: false`** — preserving full conversations with committee-based rewriting is required to retain the conversational context the multi-turn model learns from.
+4. **Multi-turn conversations** -- Every trace is processed as a multi-turn conversation and rewritten as a whole; a simple single-exchange trace is just a two-turn conversation. Conversations are preserved automatically for tasks like `multi-turn-tool-calling-closed-book` — no configuration needed.
 5. **Cap large trace sets** -- Tune `num_traces_as_training_base` and `num_traces_as_testing_base` to control how many traces feed into seed generation. Unused traces become unstructured context. Set the two to the **same value** so train and test are seeded from comparable trace volumes; diverging them skews the train/test distribution.
-6. **Strip large system prompts** -- If your traces have very large system prompts, set `remove_system_prompt_from_traces: true` to prevent them from dominating the data.
+6. **Strip large system prompts** -- `remove_system_prompt_from_traces` is `true` by default, stripping leading system messages so large prompts don't dominate the data. Set it to `false` only if you need to keep system prompts.
 7. **Compress long job descriptions** -- If your job description is very long, set `compress_job_description: true` to compress it before relevance filtering.
 8. **Provide your own test set** -- If you have a curated test set, include `test.jsonl` or `test.csv` in your data directory (or pass it via `--test` with individual file flags) to use it instead of the automatically generated test split.
