@@ -96,7 +96,7 @@ Try this when the teacher is consistently wrong on complex reasoning, not just f
 See `references/model-catalog.md` for the teacher shortlist and constraints. Common moves:
 - General task → try `zai.glm-5`.
 - Coding-heavy → try `Qwen3-480B-A35B-Coder`.
-- Multi-turn tool calling → teacher must be one from the tool-calling allowlist (see `references/model-catalog.md`). Strong picks for quality: `zai.glm-5`, `Qwen3-235B-A22B-Instruct-2507`.
+- Multi-turn tool calling → most teachers support tool calling; a few are excluded (see `references/model-catalog.md`). Strong picks for quality: `zai.glm-5`, `Qwen3-235B-A22B-Instruct-2507`.
 
 Do not flip teachers as the first move. A stronger teacher won't fix a vague job description.
 

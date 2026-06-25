@@ -6,7 +6,7 @@ Use multi-turn tool calling when the model needs to generate function calls with
 
 ## Model Compatibility
 
-**Students:** Qwen3, Llama 3-family, LFM2/LFM2.5, and FunctionGemma. **Teachers:** restricted to the tool-calling allowlist — `openai.gpt-oss-20b`, `openai.gpt-oss-120b`, `openai.gpt-oss-120b-thinking`, `Qwen3-235B-A22B-Instruct-2507`, `zai.glm-5`, `zai.glm-5-thinking`, `moonshotai.kimi-k2-thinking`, `moonshotai.kimi-k2.5`, `minimax.minimax-m2-thinking`. No other teachers work for this task type.
+**Students:** Qwen3, Qwen3.5, Llama 3-family, LFM2/LFM2.5, FunctionGemma, and Gemma 4. **Teachers:** any teacher except `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3.1`, `Qwen3-480B-A35B-Coder`, and `Qwen2.5-VL-72B-Instruct`.
 
 See `references/model-catalog.md` for the full catalog and the authoritative constraint list.
 
@@ -185,7 +185,7 @@ base:
   teacher_model_name: openai.gpt-oss-120b
 ```
 
-Required teacher: one from the tool-calling allowlist. See `references/model-catalog.md` for the exact config strings.
+Required teacher: any except `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3.1`, `Qwen3-480B-A35B-Coder`, and `Qwen2.5-VL-72B-Instruct`. See `references/model-catalog.md` for the exact config strings.
 
 **If training from traces** (not from a prepared dataset), no extra configuration is needed — the platform processes every trace as a multi-turn conversation and rewrites it as a whole, preserving the conversational context this task type relies on. See `references/tasks/upload-and-process-traces.md`.
 
@@ -218,4 +218,4 @@ if tool_call["name"] == "cd":
 4. **Valid JSON** -- Ensure all question fields contain properly escaped JSON arrays and answer fields contain properly escaped JSON strings.
 5. **Context-dependent examples** -- Show cases where the next tool call depends on previous conversation context.
 6. **Prefer JSONL over CSV** -- The `question` field is a stringified JSON array and the `answer` is a stringified JSON object. CSV double-escaping is a common source of malformed uploads.
-7. **Supported models** -- Qwen3, Llama 3-family, LFM2/LFM2.5, and FunctionGemma students. Teachers must be one from the tool-calling allowlist. See `references/model-catalog.md`.
+7. **Supported models** -- Qwen3, Qwen3.5, Llama 3-family, LFM2/LFM2.5, FunctionGemma, and Gemma 4 students. Any teacher works except `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3.1`, `Qwen3-480B-A35B-Coder`, and `Qwen2.5-VL-72B-Instruct`. See `references/model-catalog.md`.

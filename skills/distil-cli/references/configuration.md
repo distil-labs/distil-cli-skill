@@ -29,7 +29,7 @@ With a custom student model:
 ```yaml
 base:
   task: question-answering
-  student_model_name: Llama-3.2-3B-Instruct
+  student_model_name: Qwen3.5-2B
 ```
 
 With a custom teacher model:
@@ -37,7 +37,7 @@ With a custom teacher model:
 ```yaml
 base:
   task: question-answering
-  student_model_name: Llama-3.2-3B-Instruct
+  student_model_name: Qwen3.5-2B
   teacher_model_name: openai.gpt-oss-120b
 ```
 
@@ -69,7 +69,7 @@ General parameters for task and model selection.
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `task` | `string` | *required* | Type of NLP task to solve. See supported task types below. |
-| `student_model_name` | `string` | `Llama-3.2-1B-Instruct` | Base model to fine-tune for the use case. |
+| `student_model_name` | `string` | `Qwen3.5-2B` | Base model to fine-tune for the use case. |
 | `teacher_model_name` | `string` | `openai.gpt-oss-120b` | Teacher model used for synthetic data generation and knowledge distillation. |
 | `random_seed` | `integer \| null` | `123` | Random seed for reproducible sampling across the pipeline. |
 | `llm_num_parallel_requests` | `integer` | `4` | Maximum number of LLM requests sent in parallel across the teacher, synthgen, and judge pipelines. Set to 1 to disable parallelism. |

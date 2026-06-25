@@ -87,10 +87,10 @@ Context passages for synthetic data generation. Single column: `context`.
 
 ## Using the Trained Model
 
-For RAG tasks, provide context when querying:
+For RAG tasks, provide context by wrapping it in a `<context>` tag inside the first user message:
 
 ```bash
-python model_client.py --question "What is the refund policy?" --context "Refunds are available within 30 days..."
+python model_client.py --conversation '[{"role": "user", "content": "<context>Refunds are available within 30 days...</context>What is the refund policy?"}]'
 ```
 
 Or via API:

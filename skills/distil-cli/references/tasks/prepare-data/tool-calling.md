@@ -6,7 +6,7 @@ Use tool calling when the model needs to select and invoke the appropriate funct
 
 ## Model Compatibility
 
-**Student models:** Qwen3, Llama 3-family, LFM2/LFM2.5, and FunctionGemma models. **Teachers:** restricted to the tool-calling allowlist — see `references/model-catalog.md` for the full compatibility matrix and the exact teacher config strings.
+**Student models:** Qwen3, Qwen3.5, Llama 3-family, LFM2/LFM2.5, FunctionGemma, and Gemma 4 models. **Teachers:** any teacher except `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3.1`, `Qwen3-480B-A35B-Coder`, and `Qwen2.5-VL-72B-Instruct` — see `references/model-catalog.md` for the full compatibility matrix and the exact teacher config strings.
 
 ## Example Use Cases
 
@@ -117,7 +117,7 @@ base:
   task: tool-calling-closed-book
 ```
 
-**Note:** Tool calling only supports Qwen3 and Llama 3-family student models. See `references/model-catalog.md` for the shortlist.
+**Note:** Tool calling only supports Qwen3, Qwen3.5, Llama 3-family, LFM2/LFM2.5, FunctionGemma, and Gemma 4 student models. See `references/model-catalog.md` for the shortlist.
 
 ## Unstructured Data (Optional)
 
@@ -151,5 +151,5 @@ if tool_call["name"] == "get_weather":
 2. **Comprehensive parameter descriptions** -- Help the model understand what each parameter expects.
 3. **Varied examples** -- Show different ways users might request the same action.
 4. **Valid JSON** -- Ensure all answer fields contain properly escaped JSON strings.
-5. **Supported models** -- Qwen3, Llama 3-family, LFM2/LFM2.5, and FunctionGemma student models. See `references/model-catalog.md`.
+5. **Supported models** -- Qwen3, Qwen3.5, Llama 3-family, LFM2/LFM2.5, FunctionGemma, and Gemma 4 student models. See `references/model-catalog.md`.
 6. **`parameters` vs `arguments`** -- The training `answer` uses `{"name": ..., "parameters": ...}`. Conversation histories (in multi-turn tool calling) still use OpenAI's `{"function": {"name": ..., "arguments": ...}}`. Don't mix them.

@@ -126,7 +126,7 @@ Maps natural language to structured function calls with correct parameters. The 
 - Workflow automation: requests to appropriate microservices
 - Command interfaces: user input to system commands
 
-**Model constraints:** Only Qwen3, Llama 3-family, LFM2/LFM2.5, and FunctionGemma student models. Teachers restricted to the tool-calling allowlist. See `references/model-catalog.md`.
+**Model constraints:** Only Qwen3, Qwen3.5, Llama 3-family, LFM2/LFM2.5, FunctionGemma, and Gemma 4 student models. Most teachers support tool calling (a few are excluded). See `references/model-catalog.md`.
 
 **Data format:** `question` (plain text) and `answer` (JSON string of the tool call with `name` and `parameters`). Tools are defined in `job_description.json`.
 
@@ -150,7 +150,7 @@ Generates function calls within a conversational context. Unlike single-turn too
 - Customer service bots: handle multi-step service requests in dialogue
 - IDE assistants: execute code operations through conversational commands
 
-**Model constraints:** Students must be Qwen3, Llama 3-family, LFM2/LFM2.5, or FunctionGemma. Teachers are restricted to the tool-calling allowlist (GPT OSS 20B, 120B and 120B-thinking, Qwen3 235B, GLM 5 and GLM 5-thinking, Kimi K2-thinking and Kimi K2.5, MiniMax M2-thinking). See `references/model-catalog.md` for the exact config strings.
+**Model constraints:** Students must be Qwen3, Qwen3.5, Llama 3-family, LFM2/LFM2.5, FunctionGemma, or Gemma 4. Any teacher works except `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3.1`, `Qwen3-480B-A35B-Coder`, and `Qwen2.5-VL-72B-Instruct`. See `references/model-catalog.md` for the exact config strings.
 
 **Data format:** `question` (JSON array of conversation turns with alternating user/assistant messages) and `answer` (JSON string of the next tool call). Tools are defined in `job_description.json`.
 

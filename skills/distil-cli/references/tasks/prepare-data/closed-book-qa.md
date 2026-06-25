@@ -94,7 +94,7 @@ Single column: `context`.
 For closed-book tasks, just ask questions directly -- no context needed:
 
 ```bash
-python model_client.py --question "What is your refund policy?"
+python model_client.py --conversation '[{"role": "user", "content": "What is your refund policy?"}]'
 ```
 
 Or via API:

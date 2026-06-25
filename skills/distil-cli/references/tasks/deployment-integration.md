@@ -18,7 +18,6 @@ The download contains everything needed to run your model:
 |----------------|-------------|
 | `model/` | Model weights. |
 | `model-adapters/` | LoRA adapters. |
-| `Modelfile` | Model configuration file. |
 | `model_client.py` | Inference client script. |
 | `README.md` | Usage instructions. |
 
@@ -89,10 +88,10 @@ distil model invoke <model-id>
 This outputs a `uv run` command pointing to a client script. Copy and run it directly:
 
 ```bash
-uv run $PATH_TO_CLIENT --question "Your question here"
+uv run $PATH_TO_CLIENT --conversation '[{"role": "user", "content": "Your question here"}]'
 
-# For QA tasks with context
-uv run $PATH_TO_CLIENT --question "Your question here" --context "Your context here"
+# For QA tasks with context, wrap it in a <context> tag inside the first user message
+uv run $PATH_TO_CLIENT --conversation '[{"role": "user", "content": "<context>Your context here</context>Your question here"}]'
 ```
 
 ### Using the Provided Client Script
@@ -100,10 +99,10 @@ uv run $PATH_TO_CLIENT --question "Your question here" --context "Your context h
 The downloaded model includes `model_client.py`. Run it directly:
 
 ```bash
-python model_client.py --question "Your question here"
+python model_client.py --conversation '[{"role": "user", "content": "Your question here"}]'
 
-# For QA tasks with context
-python model_client.py --question "Your question here" --context "Your context here"
+# For QA tasks with context, wrap it in a <context> tag inside the first user message
+python model_client.py --conversation '[{"role": "user", "content": "<context>Your context here</context>Your question here"}]'
 ```
 
 **Important:** Use the correct system prompt and message formatting when querying your SLM. SLMs are specialized and expect exactly the same format as seen during training. Using a different system prompt or formatting will result in poor performance.
