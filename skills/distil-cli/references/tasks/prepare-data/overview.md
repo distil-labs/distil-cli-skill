@@ -115,6 +115,8 @@ Run these deterministic checks before uploading. In Claude Code, verify these pr
 - [ ] For tool calling: every `answer` value parses as valid JSON
 - [ ] For multi-turn tool calling: every `question` value parses as a valid JSON array
 - [ ] File extension matches format (`.csv` for CSV, `.jsonl` for JSONL)
+- [ ] No example's combined input + output length exceeds `synthgen.validation_max_total_length` (default 10,000 characters — see `references/configuration.md`). Report the max length found; if the tail approaches the limit, tell the user now rather than letting generation drop those examples silently later.
+- [ ] No train/test leakage: no row in the test file duplicates (or near-duplicates, e.g. differs only in whitespace/casing) a row in the train file. Leakage inflates teacher-evaluation and training scores, making every downstream verdict unreliable. Report any overlapping rows and remove them from one split before uploading.
 - [ ] `job_description.json` is valid JSON
 - [ ] `config.yaml` is valid YAML with at least `base.task` set
 

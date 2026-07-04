@@ -157,12 +157,24 @@ After writing the files, verify mechanically (read each file and check):
 - [ ] No empty values in required columns
 - [ ] For classification: every class in `classes_description` appears in train data
 - [ ] For tool calling: every `answer` parses as valid JSON
+- [ ] No example's combined input + output length exceeds `synthgen.validation_max_total_length` (default 10,000 chars — see `references/configuration.md`)
+- [ ] No train/test leakage: no test row duplicates or near-duplicates a train row (leakage inflates every downstream score)
 - [ ] `job_description.json` is valid JSON
 - [ ] `config.yaml` is valid YAML with `base.task` set
 
 If you write a validation script (Python, jq pipeline, etc.) and it raises an exception, that's a failure — read the traceback, fix the underlying issue, and re-run. Do not declare data "correct" because the script "ran without producing a checklist failure" — an unhandled exception means the checks weren't completed. See `references/tasks/prepare-data/overview.md` for more.
 
-### 2e. Upload data
+### 2e. Data consistency analysis
+
+Before uploading, run the quantitative analysis from `references/tasks/analyze-uploads.md` against the local train/test files (in the dataset workflow the data is local — no download needed):
+
+- Label/class distribution train vs. test (flag classes below 5% of either split, or present in one split but missing from the other; for QA, answer-length quartiles per split)
+- Field-length percentiles (p10/p50/p90/max) per split, checked against `synthgen.validation_max_total_length`
+- Train/test overlap (leakage) count
+
+Summarize the findings for the user in 3-5 lines. If anything is flagged, fix it before uploading — teacher evaluation costs credits, and a distribution problem found now is one iteration saved later. Offer the qualitative deep dive (categorical axes + job-description cross-check) from the same file; if the user declines, continue.
+
+### 2f. Upload data
 
 ```bash
 distil model upload-data <model-id> --data ./data-dir
@@ -368,6 +380,7 @@ This workflow draws on these reference files. Read them when you need details on
 | Job description authoring | `references/job-description-guide.md` |
 | Data format | `references/tasks/prepare-data/overview.md` + task-specific file |
 | Configuration | `references/configuration.md` |
+| Data consistency analysis (Step 2e) | `references/tasks/analyze-uploads.md` |
 | Upload | `references/tasks/upload-dataset.md` |
 | Teacher evaluation | `references/tasks/teacher-evaluation.md` |
 | Metrics interpretation | `references/evaluation-metrics.md` |

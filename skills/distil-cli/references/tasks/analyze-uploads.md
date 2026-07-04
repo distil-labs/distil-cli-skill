@@ -1,12 +1,17 @@
 # Analyze Uploads
 
-Optional, user-opt-in deep dive into the full uploads object (train / test / unstructured) after trace processing. Informational — does not gate the workflow.
+Deep dive into the data splits (train / test / unstructured) before spending credits on teacher evaluation. Informational — does not gate the workflow.
 
-The traces workflow offers this right after test-set approval. The dataset workflow may also offer the quantitative section on demand if the user wants an extra consistency check on their own data, but it is not a standard step there.
+Both workflows use this file:
 
-## When to Offer
+- **Traces workflow:** optional, user-opt-in, offered right after test-set approval (Step 4b).
+- **Dataset workflow:** the **quantitative section is a standard step** (Step 2e) run against the user's local files before upload; the qualitative section is offered as an opt-in extra.
 
-After `upload-traces` or `reprocess-traces` completes **and** the user has approved the test set. Ask the user verbatim:
+## When to Run
+
+**Dataset workflow:** run the quantitative section as part of Step 2e, before `upload-data`. Then offer the qualitative section; if the user declines, continue to upload.
+
+**Traces workflow:** after `upload-traces` or `reprocess-traces` completes **and** the user has approved the test set. Ask the user verbatim:
 
 ```
 Want a deeper look at the full uploads object (train / test / unstructured), beyond just the test set? This pulls the upload down and analyzes cross-split consistency and categorical coverage. Reply 'yes' to run it, otherwise we continue.
@@ -17,7 +22,9 @@ If the user declines, skip this step entirely and continue to teacher evaluation
 ## Inputs
 
 - **Working directory:** the current `iteration-N/` directory (see `workflows/improving-a-model.md`'s Iteration Discipline section).
-- **Data source:** `distil model download-data <model-id>` — downloads the processed train / test / unstructured files locally. See `references/tasks/upload-dataset.md`.
+- **Data source:**
+  - Dataset workflow: the user's local train / test / unstructured files — no download needed.
+  - Traces workflow: `distil model download-data <model-id>` — downloads the processed train / test / unstructured files locally. See `references/tasks/upload-dataset.md`.
 
 ## Token-Burn Guard
 
@@ -30,6 +37,7 @@ The qualitative section reads many examples and produces a categorical breakdown
 - **Schema conformance:**
   - Tool calling → every `answer` parses as valid JSON; record the count that failed, if any.
   - Classification → every class named in `classes_description` appears in train; flag missing classes.
+- **Train/test leakage:** count test rows that duplicate (or near-duplicate — differ only in whitespace, casing, or trivial punctuation) a train row. Any overlap inflates teacher-evaluation and training scores and makes downstream verdicts unreliable; report the offending rows so the user can remove them from one split.
 - **Unstructured split coverage:** does it span the same input-structure space as train/test? Compare input-length and (where detectable) structural markers.
 
 ## Qualitative Section (Claude-side judgment)
@@ -58,6 +66,7 @@ Save the report to `<iteration-N>/upload-consistency.md`. Use this template:
 - **Label / class distribution:** <summary + any flags>
 - **Field-length percentiles:** <summary + any tails flagged>
 - **Schema conformance:** <pass | N failures of type X>
+- **Train/test leakage:** <none | N overlapping rows listed>
 - **Unstructured coverage:** <aligned | diverges on X>
 
 ## 3. Qualitative Breakdown
