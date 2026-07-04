@@ -2,7 +2,7 @@
   "name": "distil-cli-skill",
   "owner": {
     "name": "Distil Labs",
-    "email": "support@distillabs.ai"
+    "email": "contact@distillabs.ai"
   },
   "metadata": {
     "description": "Claude skill for training task-specific small language models using the Distil Labs CLI",
