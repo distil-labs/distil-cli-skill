@@ -25,7 +25,7 @@ The qualitative section reads many examples and produces a categorical breakdown
 ## Quantitative Section (mechanical)
 
 - **Label / class distribution train vs. test.** Flag any class below 5% of either split, or any class present in train but missing from test (or vice versa). For QA, report answer-length quartiles per split.
-- **Field-length percentiles (p10 / p50 / p90 / max) per split** for `question`, `context`, `answer`. Flag tails that approach or exceed `synthgen.validation_max_total_length` (default 10,000 chars — see `references/configuration.md`).
+- **Field-length percentiles (p10 / p50 / p90 / max) per split** for `question`, `context`, `answer`. The platform **silently truncates** examples above its length limits (structured and unstructured data have different caps, see `references/configuration.md`) with no warning, so surface the longest examples and confirm with the user before uploading rather than letting content be cut silently.
 - **Schema conformance:**
   - Tool calling → every `answer` parses as valid JSON; record the count that failed, if any.
   - Classification → every class named in `classes_description` appears in train; flag missing classes.
