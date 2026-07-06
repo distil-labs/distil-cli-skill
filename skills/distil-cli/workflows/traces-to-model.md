@@ -138,6 +138,7 @@ Verify mechanically before uploading:
 - [ ] `traces.jsonl` exists and every line is valid JSON
 - [ ] `messages` array present in every line
 - [ ] No control characters or Unicode line separators (`U+2028`, `U+2029`) in content
+- [ ] No trace's combined message content exceeds `synthgen.validation_max_total_length` (default 10,000 chars; raise it in `config.yaml` for long traces, see 2d)
 - [ ] `job_description.json` is valid JSON
 - [ ] `config.yaml` is valid YAML with `base.task` set
 - [ ] Task type is NOT `question-answering-open-book` (not supported via traces)

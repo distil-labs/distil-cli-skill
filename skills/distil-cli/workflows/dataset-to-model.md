@@ -157,8 +157,8 @@ After writing the files, verify mechanically (read each file and check):
 - [ ] No empty values in required columns
 - [ ] For classification: every class in `classes_description` appears in train data
 - [ ] For tool calling: every `answer` parses as valid JSON
-- [ ] No example's combined input + output length exceeds `synthgen.validation_max_total_length` (default 10,000 chars — see `references/configuration.md`)
-- [ ] No train/test leakage: no test row duplicates or near-duplicates a train row (leakage inflates every downstream score)
+- [ ] No example's combined input + output length exceeds `synthgen.validation_max_total_length` (default 10,000 chars, see `references/configuration.md`)
+- [ ] No train/test leakage: no test row duplicates or near-duplicates a train row (near-duplicate: differs only in whitespace, casing, or trivial punctuation)
 - [ ] `job_description.json` is valid JSON
 - [ ] `config.yaml` is valid YAML with `base.task` set
 
@@ -166,13 +166,9 @@ If you write a validation script (Python, jq pipeline, etc.) and it raises an ex
 
 ### 2e. Data consistency analysis
 
-Before uploading, run the quantitative analysis from `references/tasks/analyze-uploads.md` against the local train/test files (in the dataset workflow the data is local — no download needed):
+Before uploading, run the quantitative analysis from `references/tasks/analyze-uploads.md` against the local train/test files (the data is local, so no download is needed). That file's Quantitative Section is the authoritative check list; reuse the length and leakage numbers you already computed for the Step 2d checklist rather than recomputing them.
 
-- Label/class distribution train vs. test (flag classes below 5% of either split, or present in one split but missing from the other; for QA, answer-length quartiles per split)
-- Field-length percentiles (p10/p50/p90/max) per split, checked against `synthgen.validation_max_total_length`
-- Train/test overlap (leakage) count
-
-Summarize the findings for the user in 3-5 lines. If anything is flagged, fix it before uploading — teacher evaluation costs credits, and a distribution problem found now is one iteration saved later. Offer the qualitative deep dive (categorical axes + job-description cross-check) from the same file; if the user declines, continue.
+This is a pre-upload run: no report file is needed. Summarize the findings for the user in 3-5 lines. If anything is flagged, fix it before uploading; teacher evaluation costs credits, and a distribution problem found now is one iteration saved later. Then offer the qualitative deep dive (categorical axes + job-description cross-check) from the same file; if the user declines, continue.
 
 ### 2f. Upload data
 
