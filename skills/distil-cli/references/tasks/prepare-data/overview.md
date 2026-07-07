@@ -115,6 +115,8 @@ Run these deterministic checks before uploading. In Claude Code, verify these pr
 - [ ] For tool calling: every `answer` value parses as valid JSON
 - [ ] For multi-turn tool calling: every `question` value parses as a valid JSON array
 - [ ] File extension matches format (`.csv` for CSV, `.jsonl` for JSONL)
+- [ ] Over-length examples surfaced and confirmed with the user: the platform **silently truncates** data that exceeds its length limits (structured and unstructured data have different caps, see `references/configuration.md`) with no warning, so report the longest examples per field and confirm with the user before uploading rather than letting content be cut silently
+- [ ] No train/test leakage: no test row duplicates or near-duplicates a train row (near-duplicate: differs only in whitespace, casing, or trivial punctuation); leakage inflates every downstream score, so remove overlaps from one split before uploading
 - [ ] `job_description.json` is valid JSON
 - [ ] `config.yaml` is valid YAML with at least `base.task` set
 

@@ -1,6 +1,6 @@
 ---
 name: distil-cli
-version: 4.1.0
+version: 4.2.0
 description: >
   Train task-specific small language models (SLMs) using the Distil Labs CLI and platform.
   Activate this skill when the user asks about: distil labs, distil CLI, the distil command,
@@ -145,7 +145,7 @@ distil model run-teacher-evaluation <model-id>
 distil model teacher-evaluation <model-id>  # Check results
 # Status values: JOB_NOT_STARTED, JOB_PENDING, JOB_RUNNING, JOB_SUCCESS, JOB_FAILURE, JOB_STOPPED
 
-# 6. Train (long-running — confirm config with user before starting)
+# 6. Train (long-running; never auto-start: get the user's explicit go-ahead first)
 distil model run-training <model-id>
 distil model training <model-id>  # Check status
 
@@ -179,6 +179,7 @@ When helping users, exhaust all mechanical/lookup steps before engaging judgment
 ### In Claude Code
 
 - Run CLI commands directly. Do not just tell the user what to run.
+- **Exception: never auto-start training.** Do NOT run `distil model run-training` or `distil model retune` on your own initiative, not even when teacher evaluation clears the PROCEED threshold. Both start multi-hour, credit-burning jobs whose credits are hard to refund. Present the teacher-evaluation results and the final config, then wait for the user's explicit go-ahead (the workflows' "Confirm Before Training" step owns this gate; honor it even when the user asked you to "run the commands" generally). When in doubt, ask.
 - After running `distil model create`, capture the model ID and use it in subsequent commands.
 - Check status commands (`upload-status`, `teacher-evaluation`, `training`) to monitor progress.
 - When training or evaluation is running, tell the user approximately how long it takes and suggest checking back.

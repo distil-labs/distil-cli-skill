@@ -1,12 +1,9 @@
 # Analyze Uploads
 
-Optional, user-opt-in deep dive into the full uploads object (train / test / unstructured) after trace processing. Informational — does not gate the workflow.
+Deep dive into the data splits (train / test / unstructured) before spending credits on teacher evaluation. How each workflow uses this file:
 
-The traces workflow offers this right after test-set approval. The dataset workflow may also offer the quantitative section on demand if the user wants an extra consistency check on their own data, but it is not a standard step there.
-
-## When to Offer
-
-After `upload-traces` or `reprocess-traces` completes **and** the user has approved the test set. Ask the user verbatim:
+- **Dataset workflow (standard, pre-upload):** run the Quantitative Section against the user's local files during the "Data consistency analysis" step of `workflows/dataset-to-model.md`, before `upload-data`. For this workflow the findings DO gate the upload: flagged issues should be fixed before uploading. The Qualitative Section is an opt-in extra.
+- **Traces workflow (opt-in, post-approval):** offered right after test-set approval in `workflows/traces-to-model.md`, once `upload-traces` or `reprocess-traces` has completed and the user has approved the test set. Informational only; it does not gate the workflow. Ask the user verbatim:
 
 ```
 Want a deeper look at the full uploads object (train / test / unstructured), beyond just the test set? This pulls the upload down and analyzes cross-split consistency and categorical coverage. Reply 'yes' to run it, otherwise we continue.
@@ -16,8 +13,10 @@ If the user declines, skip this step entirely and continue to teacher evaluation
 
 ## Inputs
 
-- **Working directory:** the current `iteration-N/` directory (see `workflows/improving-a-model.md`'s Iteration Discipline section).
-- **Data source:** `distil model download-data <model-id>` — downloads the processed train / test / unstructured files locally. See `references/tasks/upload-dataset.md`.
+- **Working directory:** the current `iteration-N/` directory when one exists (see `workflows/improving-a-model.md`'s Iteration Discipline section). On a first dataset-workflow pass no iteration directory exists yet; work from the project root and do not create `iteration-1/` early (that convention belongs to the iteration loop).
+- **Data source:**
+  - Dataset workflow: the user's local train / test / unstructured files; no download needed. If no unstructured file was provided, skip the unstructured-coverage check.
+  - Traces workflow: `distil model download-data <model-id>` downloads the processed train / test / unstructured files locally. See `references/tasks/upload-dataset.md`.
 
 ## Token-Burn Guard
 
@@ -26,10 +25,11 @@ The qualitative section reads many examples and produces a categorical breakdown
 ## Quantitative Section (mechanical)
 
 - **Label / class distribution train vs. test.** Flag any class below 5% of either split, or any class present in train but missing from test (or vice versa). For QA, report answer-length quartiles per split.
-- **Field-length percentiles (p10 / p50 / p90 / max) per split** for `question`, `context`, `answer`. Flag tails that approach or exceed `synthgen.validation_max_total_length` (default 10,000 chars — see `references/configuration.md`).
+- **Field-length percentiles (p10 / p50 / p90 / max) per split** for `question`, `context`, `answer`. The platform **silently truncates** examples above its length limits (structured and unstructured data have different caps, see `references/configuration.md`) with no warning, so surface the longest examples and confirm with the user before uploading rather than letting content be cut silently.
 - **Schema conformance:**
   - Tool calling → every `answer` parses as valid JSON; record the count that failed, if any.
   - Classification → every class named in `classes_description` appears in train; flag missing classes.
+- **Train/test leakage:** count test rows that duplicate a train row exactly or near-duplicate one (near-duplicate: differs only in whitespace, casing, or trivial punctuation). Any overlap inflates teacher-evaluation and training scores and makes downstream verdicts unreliable; report the offending rows so the user can remove them from one split.
 - **Unstructured split coverage:** does it span the same input-structure space as train/test? Compare input-length and (where detectable) structural markers.
 
 ## Qualitative Section (Claude-side judgment)
@@ -43,21 +43,26 @@ The qualitative section reads many examples and produces a categorical breakdown
 
 ## Output
 
-Save the report to `<iteration-N>/upload-consistency.md`. Use this template:
+**Dataset workflow, pre-upload run:** report the quantitative findings inline in 3-5 lines; no report file is required. Write the full report below only if the user opts into the qualitative deep dive, saving it to the current `iteration-N/` if one exists, otherwise to the project root as `upload-consistency.md`.
+
+**Traces workflow (and any run inside the iteration loop):** save the report to `<iteration-N>/upload-consistency.md`.
+
+Report template:
 
 ```markdown
 # Upload Consistency Report
 
 ## 1. Overview
 - **Model ID:** <model-id>
-- **Iteration:** <N>
-- **Splits inspected:** train (<N>), test (<N>), unstructured (<N>)
+- **Iteration:** <N | pre-upload>
+- **Splits inspected:** train (<N>), test (<N>), unstructured (<N | not provided>)
 - **Sampling:** <whole split | first 200 per split | stratified sample of 200 per split>
 
 ## 2. Quantitative Findings
 - **Label / class distribution:** <summary + any flags>
 - **Field-length percentiles:** <summary + any tails flagged>
 - **Schema conformance:** <pass | N failures of type X>
+- **Train/test leakage:** <none | N overlapping rows listed>
 - **Unstructured coverage:** <aligned | diverges on X>
 
 ## 3. Qualitative Breakdown
@@ -74,10 +79,11 @@ Axes derived from the data:
 
 **Verdict:** <PROCEED | INVESTIGATE>
 
-If INVESTIGATE, concrete next moves:
-- Edit `job_description.json` to <specific gap> and re-run `distil model upload-traces` (see `workflows/traces-to-model.md`).
-- Add `synthgen.mutation_topics` targeting <missing scenario> — see `references/mutations-guide.md`.
-- Adjust `trace_processing` params (e.g., `num_traces_as_training_base`) and run `distil model reprocess-traces` — see `references/tasks/upload-and-process-traces.md`.
+If INVESTIGATE, concrete next moves (pick the ones that match the workflow):
+- Dataset workflow: edit the local train/test files or `job_description.json` to close <specific gap>, re-run the validation checklist, then upload with `distil model upload-data`.
+- Either workflow: add `synthgen.mutation_topics` targeting <missing scenario> (see `references/mutations-guide.md`).
+- Traces workflow: edit `job_description.json` to <specific gap> and re-run `distil model upload-traces` (see `workflows/traces-to-model.md`).
+- Traces workflow: adjust `trace_processing` params (e.g., `num_traces_as_training_base`) and run `distil model reprocess-traces` (see `references/tasks/upload-and-process-traces.md`).
 ```
 
 ## Log

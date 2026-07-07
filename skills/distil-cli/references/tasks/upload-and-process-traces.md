@@ -180,7 +180,7 @@ distil model run-training <model-id>
 
 ## Common Gotchas
 
-1. **`validation_max_total_length` applies to traces too** — The default limit of 10,000 characters applies to both uploaded traces/test data and generated synthetic data, not just synthgen output. If your production traces contain long inputs (e.g., full documents, injected schemas), you will hit this limit during trace processing. Increase it in your config:
+1. **`validation_max_total_length` applies to traces too** — The default limit of 10,000 characters applies to both uploaded traces/test data and generated synthetic data, not just synthgen output. Over-length content is **silently truncated, not rejected**, so long traces lose content with no warning; surface long traces to the user before uploading. If your production traces contain long inputs (e.g., full documents, injected schemas), increase it in your config:
    ```yaml
    synthgen:
      validation_max_total_length: 30000

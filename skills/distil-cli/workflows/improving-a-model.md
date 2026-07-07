@@ -156,6 +156,8 @@ The three levers from Entry Point A still apply (they require re-training from s
 
 Retune creates a new model based on the synthetic data from a prior training run — no re-upload or re-generation needed. This is the most effective lever when the student is close to but below the teacher.
 
+Retune starts a new credit-consuming training run. Never run it on your own initiative: confirm the chosen student and parameters with the user first, exactly as the "Confirm Before Training" gate requires for `run-training`.
+
 See `references/model-catalog.md` for sizing and compatibility. Common escalations:
 - Student was 1B and task needs more capacity → try 3B or 4B.
 - Need tool calling → student family must be Qwen3 or Llama 3.
@@ -207,4 +209,4 @@ If the tuned student barely beats the base student despite good teacher scores, 
 | Trace-specific gotchas | `references/tasks/upload-and-process-traces.md` |
 | Run log format and triggers | `references/tasks/maintain-run-log.md` |
 | Test-set approval (traces) | `references/tasks/test-set-approval.md` |
-| Uploads deep dive (optional) | `references/tasks/analyze-uploads.md` |
+| Uploads / data consistency analysis | `references/tasks/analyze-uploads.md` |

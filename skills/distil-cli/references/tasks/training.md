@@ -10,6 +10,8 @@ After teacher evaluation confirms satisfactory performance, start training:
 distil model run-training <model-id>
 ```
 
+**Requires explicit user confirmation.** Training is a multi-hour, credit-consuming job. In Claude Code, never run this command on your own initiative: show the user the final config and the student/teacher models, then wait for their go-ahead (see the "Confirm Before Training" step in the workflows).
+
 ## Monitor Progress
 
 Training typically takes several hours. Check the current status:
@@ -49,6 +51,8 @@ If the SLM performance is significantly below the teacher model, switch to `work
 ## Retuning
 
 If you want to try a different student model or different tuning parameters without re-uploading data and re-running the full pipeline, use the retune command. This creates a new model based on the synthetic data already generated from a previous training run.
+
+Retune starts a new credit-consuming training run, so the same confirmation rule applies: get the user's explicit go-ahead before running it.
 
 **Using a tuning parameters file:**
 

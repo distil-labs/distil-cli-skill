@@ -157,12 +157,20 @@ After writing the files, verify mechanically (read each file and check):
 - [ ] No empty values in required columns
 - [ ] For classification: every class in `classes_description` appears in train data
 - [ ] For tool calling: every `answer` parses as valid JSON
+- [ ] Over-length examples surfaced and confirmed with the user: the platform silently truncates data above its length limits (structured and unstructured differ, see `references/configuration.md`), so flag the longest examples and confirm before uploading
+- [ ] No train/test leakage: no test row duplicates or near-duplicates a train row (near-duplicate: differs only in whitespace, casing, or trivial punctuation)
 - [ ] `job_description.json` is valid JSON
 - [ ] `config.yaml` is valid YAML with `base.task` set
 
 If you write a validation script (Python, jq pipeline, etc.) and it raises an exception, that's a failure — read the traceback, fix the underlying issue, and re-run. Do not declare data "correct" because the script "ran without producing a checklist failure" — an unhandled exception means the checks weren't completed. See `references/tasks/prepare-data/overview.md` for more.
 
-### 2e. Upload data
+### 2e. Data consistency analysis
+
+Before uploading, run the quantitative analysis from `references/tasks/analyze-uploads.md` against the local train/test files (the data is local, so no download is needed). That file's Quantitative Section is the authoritative check list; reuse the length and leakage numbers you already computed for the Step 2d checklist rather than recomputing them.
+
+This is a pre-upload run: no report file is needed. Summarize the findings for the user in 3-5 lines. If anything is flagged, fix it before uploading; teacher evaluation costs credits, and a distribution problem found now is one iteration saved later. In particular, if any example is long enough to risk truncation, confirm with the user before uploading rather than letting the platform cut it silently. Then offer the qualitative deep dive (categorical axes + job-description cross-check) from the same file; if the user declines, continue.
+
+### 2f. Upload data
 
 ```bash
 distil model upload-data <model-id> --data ./data-dir
@@ -368,6 +376,7 @@ This workflow draws on these reference files. Read them when you need details on
 | Job description authoring | `references/job-description-guide.md` |
 | Data format | `references/tasks/prepare-data/overview.md` + task-specific file |
 | Configuration | `references/configuration.md` |
+| Data consistency analysis (Step 2e) | `references/tasks/analyze-uploads.md` |
 | Upload | `references/tasks/upload-dataset.md` |
 | Teacher evaluation | `references/tasks/teacher-evaluation.md` |
 | Metrics interpretation | `references/evaluation-metrics.md` |
