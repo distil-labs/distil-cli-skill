@@ -81,7 +81,7 @@ Output: <one-line description of the output, JSON schema with field descriptions
 ## 2. Test Set Statistics
 - **Total examples:** <N>
 - **Label distribution:** <for classification: count per class; for QA: answer length distribution>
-- **Field lengths:** <min/median/max character length for question, answer, and context columns>
+- **Field lengths:** <min/median/max character length for the user turn content, assistant turn content, and context field>
 - **Provenance:** <how many examples came from traces vs. user-provided test set>
 
 ## 3. Trace Processing Configuration
@@ -154,7 +154,7 @@ Output: <one-line description of the output to the model, JSON schema with field
 ## 2. Test Set Statistics
 - **Total examples:** <N>
 - **Label distribution:** <for classification: count per class; for QA: answer length distribution>
-- **Field lengths:** <min/median/max character length for question, answer, and context columns>
+- **Field lengths:** <min/median/max character length for the user turn content, assistant turn content, and context field>
 
 ## 3. Configuration Summary
 - **Task:** <task-type>
@@ -228,7 +228,7 @@ Output: <one-line description of the output, JSON schema with field descriptions
 ## 2. Test Set Statistics
 - **Total examples:** <N>
 - **Label distribution:** <for classification: count per class; for QA: answer length distribution>
-- **Field lengths:** <min/median/max character length for question, answer, and context columns>
+- **Field lengths:** <min/median/max character length for the user turn content, assistant turn content, and context field>
 
 ## 3. Configuration Summary
 - **Task:** <task-type>

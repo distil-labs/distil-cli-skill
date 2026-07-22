@@ -16,14 +16,15 @@ Use tool calling when the model needs to select and invoke the appropriate funct
 - **Workflow automation** -- Route requests to appropriate microservices
 - **Command interfaces** -- Parse user input into system commands
 
-## Data Columns
+## Data Format
 
-| Column | Description |
-|--------|-------------|
-| `question` | The input containing the user request or current state |
-| `answer` | The tool call as a JSON string (with escaped quotes) |
+Each example is a `messages` conversation with a `user` turn (the request) and an `assistant` turn whose `tool_calls` array holds the expected call.
 
-**Important:** The `answer` field must be a JSON **string** (with escaped quotes), not a JSON object.
+| Field | Description |
+|-------|-------------|
+| `messages` | A `user` turn holding the request and an `assistant` turn holding the tool call in its `tool_calls` array |
+
+**Important:** Tool calls use the **HuggingFace format** — `arguments` is a JSON **object**, not a JSON-encoded string. This differs from OpenAI's chat-completions format, where `arguments` is a stringified JSON blob. The assistant turn that makes a tool call omits `content` (an empty string `""` is also accepted). The tool *schemas* in `job_description.json` still use the OpenAI function format shown below — only the emitted call changes.
 
 ## job_description.json
 
@@ -92,21 +93,23 @@ Tool calling requires two fields: `task_description` and `tools`.
 
 ## Train/Test Data Examples
 
-> **Prefer JSONL over CSV for tool calling.** The `answer` field is a JSON string with nested escaped quotes — CSV double-escaping is a common source of malformed uploads. JSONL handles the escaping cleanly.
+> **Prefer JSONL over CSV for tool calling.** The `messages` array contains a nested tool call — in CSV it must be a single quoted column with doubled quotes, a common source of malformed uploads. JSONL handles the nesting cleanly.
 
 ### JSONL format (recommended)
 
 ```json
-{"question": "What's the weather like in New York?", "answer": "{\"name\":\"get_weather\",\"parameters\":{\"location\":\"New York, NY\",\"unit\":\"fahrenheit\"}}"}
-{"question": "Send an email to john@example.com saying the meeting is confirmed", "answer": "{\"name\":\"send_email\",\"parameters\":{\"to\":\"john@example.com\",\"subject\":\"Meeting Confirmation\",\"body\":\"The meeting is confirmed.\"}}"}
+{"messages": [{"role": "user", "content": "What's the weather like in New York?"}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "get_weather", "arguments": {"location": "New York, NY", "unit": "fahrenheit"}}}]}]}
+{"messages": [{"role": "user", "content": "Send an email to john@example.com saying the meeting is confirmed"}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "send_email", "arguments": {"to": "john@example.com", "subject": "Meeting Confirmation", "body": "The meeting is confirmed."}}}]}]}
 ```
 
 ### CSV format (works but error-prone)
 
-| question | answer |
-|----------|--------|
-| What's the weather like in New York? | `"{\"name\":\"get_weather\",\"parameters\":{\"location\":\"New York, NY\",\"unit\":\"fahrenheit\"}}"` |
-| Send an email to john@example.com saying the meeting is confirmed | `"{\"name\":\"send_email\",\"parameters\":{\"to\":\"john@example.com\",\"subject\":\"Meeting Confirmation\",\"body\":\"The meeting is confirmed.\"}}"` |
+CSV uses a single `messages` column; each cell holds the same JSON array as the JSONL line above, quoted per CSV rules (double quotes inside the value are doubled).
+
+```csv
+messages
+"[{""role"": ""user"", ""content"": ""What's the weather like in New York?""}, {""role"": ""assistant"", ""tool_calls"": [{""type"": ""function"", ""function"": {""name"": ""get_weather"", ""arguments"": {""location"": ""New York, NY"", ""unit"": ""fahrenheit""}}}]}]"
+```
 
 **Requirements:** Minimum 20 examples. Include examples for all tools.
 
@@ -131,25 +134,11 @@ Domain-specific scenarios to guide synthetic data generation. Single column: `co
 {"context": "User is scheduling a meeting with the engineering team for tomorrow."}
 ```
 
-## Using the Trained Model
-
-The model outputs JSON tool calls. Parse and execute:
-
-```python
-import json
-
-response = model.generate("What's the weather in Tokyo?")
-tool_call = json.loads(response)
-
-if tool_call["name"] == "get_weather":
-    result = get_weather(**tool_call["parameters"])
-```
-
 ## Tips
 
 1. **Clear tool descriptions** -- Make function descriptions unambiguous.
 2. **Comprehensive parameter descriptions** -- Help the model understand what each parameter expects.
 3. **Varied examples** -- Show different ways users might request the same action.
-4. **Valid JSON** -- Ensure all answer fields contain properly escaped JSON strings.
+4. **Valid JSON** -- Ensure every `arguments` object is valid JSON and matches the tool schema.
 5. **Supported models** -- Qwen3, Qwen3.5, Llama 3-family, LFM2/LFM2.5, FunctionGemma, and Gemma 4 student models. See `references/model-catalog.md`.
-6. **`parameters` vs `arguments`** -- The training `answer` uses `{"name": ..., "parameters": ...}`. Conversation histories (in multi-turn tool calling) still use OpenAI's `{"function": {"name": ..., "arguments": ...}}`. Don't mix them.
+6. **Use `arguments`, not `parameters`** -- Tool calls (single-turn and multi-turn) use the HuggingFace shape `{"type": "function", "function": {"name": ..., "arguments": {...}}}` with `arguments` as a JSON object. The old `{"name": ..., "parameters": ...}` stringified form is no longer used.

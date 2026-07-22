@@ -2,7 +2,7 @@
 
 Task type: `multi-turn-tool-calling-closed-book`
 
-Use multi-turn tool calling when the model needs to generate function calls within a conversational context. Unlike single-turn tool calling where each input is independent, multi-turn tool calling takes a conversation history (alternating user and assistant messages) and generates the next appropriate function call based on the full context.
+Use multi-turn tool calling when the model needs to generate function calls within a conversational context. Unlike single-turn tool calling where each input is independent, multi-turn tool calling takes a conversation history (user and assistant turns, optionally with tool results) and generates the next appropriate function call based on the full context.
 
 ## Model Compatibility
 
@@ -19,24 +19,28 @@ See `references/model-catalog.md` for the full catalog and the authoritative con
 - **Customer service bots** -- Handle multi-step service requests in dialogue
 - **IDE assistants** -- Execute code operations through conversational commands
 
-## Data Columns
+## Data Format
 
-| Column | Description |
-|--------|-------------|
-| `question` | A JSON array (as a string) representing the conversation history with alternating user and assistant messages |
-| `answer` | The tool call to be invoked according to the provided schema |
+Each example is a single `messages` array holding the whole conversation — the user/assistant turns (optionally with `tool` result turns) *and* the final assistant tool call the model should learn to produce.
+
+| Field | Description |
+|-------|-------------|
+| `messages` | The full conversation: alternating `user` and `assistant` turns (optionally with `tool` result turns), ending with the target `assistant` tool call |
 
 **Important:**
-- The `question` field contains a **stringified JSON array** representing the conversation
-- Each assistant turn must contain **exactly one function call** (multiple function calls per turn are not supported)
-- The `answer` field must be a JSON string (with escaped quotes), not a JSON object
+- The whole conversation, including the target tool call, lives in one `messages` array — there is no separate `answer`.
+- Each assistant turn must contain **exactly one function call** (multiple function calls per turn are not supported).
+- Tool calls use the **HuggingFace format**: `arguments` is a JSON object, not a stringified JSON blob.
 
 ## Conversation Turn Format
 
 Each turn in the conversation is an object with:
-- `role`: Either `"user"` or `"assistant"`
-- `content`: The text content of the message (empty string for assistant turns with tool calls)
+- `role`: `"user"`, `"assistant"`, or `"tool"` (a tool-result turn)
+- `content`: The text content of the message. Assistant turns that make a tool call omit `content` (an empty string `""` is also accepted).
 - `tool_calls`: (assistant only) An array containing exactly one tool call made by the assistant
+- `tool_call_id`: (tool only, optional) The `id` of the assistant tool call this result answers. Only needed to disambiguate; it can be omitted when each tool result directly follows the assistant turn that requested it.
+
+`tool` turns are optional — they carry the output of the preceding assistant tool call in `content` and can be followed by either the next `user` turn or the next `assistant` tool call. The first message must be a `user` turn and the last must be the target `assistant` tool call.
 
 ## job_description.json
 
@@ -111,13 +115,19 @@ Multi-turn tool calling requires two fields: `task_description` and `tools`.
 ### JSONL format
 
 ```json
-{"question": "[{\"role\": \"user\", \"content\": \"Please list all the files in my current directory.\"}, {\"role\": \"assistant\", \"content\": \"\", \"tool_calls\": [{\"type\": \"function\", \"function\": {\"name\": \"ls\", \"arguments\": {}}}]}, {\"role\": \"user\", \"content\": \"Navigate to the backup directory.\"}, {\"role\": \"assistant\", \"content\": \"\", \"tool_calls\": [{\"type\": \"function\", \"function\": {\"name\": \"cd\", \"arguments\": {\"folder\": \"backup\"}}}]}, {\"role\": \"user\", \"content\": \"Show me what's inside config.txt.\"}]", "answer": "{\"name\": \"cat\", \"parameters\": {\"file_name\": \"config.txt\"}}"}
-{"question": "[{\"role\": \"user\", \"content\": \"Show me all files here including hidden ones.\"}, {\"role\": \"assistant\", \"content\": \"\", \"tool_calls\": [{\"type\": \"function\", \"function\": {\"name\": \"ls\", \"arguments\": {\"a\": true}}}]}, {\"role\": \"user\", \"content\": \"Change directory to research.\"}, {\"role\": \"assistant\", \"content\": \"\", \"tool_calls\": [{\"type\": \"function\", \"function\": {\"name\": \"cd\", \"arguments\": {\"folder\": \"research\"}}}]}, {\"role\": \"user\", \"content\": \"Create a file called experiment_log.txt.\"}]", "answer": "{\"name\": \"touch\", \"parameters\": {\"file_name\": \"experiment_log.txt\"}}"}
+{"messages": [{"role": "user", "content": "Please list all the files in my current directory."}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "ls", "arguments": {}}}]}, {"role": "user", "content": "Navigate to the backup directory."}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "cd", "arguments": {"folder": "backup"}}}]}, {"role": "user", "content": "Show me what's inside config.txt."}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "cat", "arguments": {"file_name": "config.txt"}}}]}]}
+{"messages": [{"role": "user", "content": "Show me all files here including hidden ones."}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "ls", "arguments": {"a": true}}}]}, {"role": "user", "content": "Change directory to research."}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "cd", "arguments": {"folder": "research"}}}]}, {"role": "user", "content": "Create a file called experiment_log.txt."}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "touch", "arguments": {"file_name": "experiment_log.txt"}}}]}]}
+```
+
+A conversation may also include `tool` turns carrying the result of the preceding tool call:
+
+```json
+{"messages": [{"role": "user", "content": "Show me what's inside notes.txt."}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "cat", "arguments": {"file_name": "notes.txt"}}}]}, {"role": "tool", "content": "Buy milk. Call the plumber."}, {"role": "user", "content": "Now delete the file."}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "rm", "arguments": {"file_name": "notes.txt"}}}]}]}
 ```
 
 ### Understanding the Conversation Structure
 
-Here is an expanded view of what a single conversation in the `question` field looks like when parsed from JSON:
+Here is an expanded view of what a single `messages` array looks like. The earlier turns are the conversation history; the final assistant turn is the tool call the model is trained to produce:
 
 ```json
 [
@@ -127,7 +137,6 @@ Here is an expanded view of what a single conversation in the `question` field l
   },
   {
     "role": "assistant",
-    "content": "",
     "tool_calls": [
       {
         "type": "function",
@@ -144,7 +153,6 @@ Here is an expanded view of what a single conversation in the `question` field l
   },
   {
     "role": "assistant",
-    "content": "",
     "tool_calls": [
       {
         "type": "function",
@@ -158,11 +166,27 @@ Here is an expanded view of what a single conversation in the `question` field l
   {
     "role": "user",
     "content": "Show me what's inside config.txt."
+  },
+  {
+    "role": "assistant",
+    "tool_calls": [
+      {
+        "type": "function",
+        "function": {
+          "name": "cat",
+          "arguments": {"file_name": "config.txt"}
+        }
+      }
+    ]
   }
 ]
 ```
 
-The model receives this conversation history and should output: `{"name": "cat", "parameters": {"file_name": "config.txt"}}`
+Given the history through the last user turn, the model learns to produce the final assistant tool call: `{"type": "function", "function": {"name": "cat", "arguments": {"file_name": "config.txt"}}}`.
+
+### CSV format
+
+CSV uses a single `messages` column whose cell is the same JSON array as the JSONL line above, quoted per CSV rules. **JSONL is strongly recommended** — CSV escaping of a nested conversation array is a common source of malformed uploads.
 
 **Requirements:** Minimum 20 examples. Include examples for all tools.
 
@@ -189,33 +213,13 @@ Required teacher: any except `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3
 
 **If training from traces** (not from a prepared dataset), no extra configuration is needed — the platform processes every trace as a multi-turn conversation and rewrites it as a whole, preserving the conversational context this task type relies on. See `references/tasks/upload-and-process-traces.md`.
 
-## Using the Trained Model
-
-The model outputs JSON tool calls. Parse and execute:
-
-```python
-import json
-
-# Build conversation history
-conversation = [
-    {"role": "user", "content": "List files here"},
-    {"role": "assistant", "content": "", "tool_calls": [{"type": "function", "function": {"name": "ls", "arguments": {}}}]},
-    {"role": "user", "content": "Go to the documents folder"}
-]
-
-response = model.generate(json.dumps(conversation))
-tool_call = json.loads(response)
-
-if tool_call["name"] == "cd":
-    result = cd(**tool_call["parameters"])
-```
 
 ## Tips
 
 1. **Clear tool descriptions** -- Make function descriptions unambiguous.
 2. **Comprehensive parameter descriptions** -- Help the model understand what each parameter expects.
 3. **Varied conversation lengths** -- Include examples with different numbers of turns.
-4. **Valid JSON** -- Ensure all question fields contain properly escaped JSON arrays and answer fields contain properly escaped JSON strings.
+4. **Valid JSON** -- Ensure every `messages` array is valid JSON and each `arguments` object matches the tool schema.
 5. **Context-dependent examples** -- Show cases where the next tool call depends on previous conversation context.
-6. **Prefer JSONL over CSV** -- The `question` field is a stringified JSON array and the `answer` is a stringified JSON object. CSV double-escaping is a common source of malformed uploads.
+6. **Prefer JSONL over CSV** -- The `messages` array is a nested conversation with tool calls. In CSV it must be a single quoted column with doubled quotes, a common source of malformed uploads. JSONL handles the nesting cleanly.
 7. **Supported models** -- Qwen3, Qwen3.5, Llama 3-family, LFM2/LFM2.5, FunctionGemma, and Gemma 4 students. Any teacher works except `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3.1`, `Qwen3-480B-A35B-Coder`, and `Qwen2.5-VL-72B-Instruct`. See `references/model-catalog.md`.

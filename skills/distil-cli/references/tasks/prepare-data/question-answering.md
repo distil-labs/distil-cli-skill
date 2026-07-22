@@ -12,12 +12,13 @@ Use question answering when the model needs to extract or generate precise answe
 - **Meeting Minutes** -- "What decisions were made?" or "Who owns the follow-up actions?"
 - **IT Helpdesk Tickets** -- "What's the reported issue?" or "What troubleshooting was attempted?"
 
-## Data Columns
+## Data Format
 
-| Column | Description |
-|--------|-------------|
-| `question` | The input text or question the model must process |
-| `answer` | The expected output or answer |
+Each example is a `messages` conversation with one `user` turn (the input) and one `assistant` turn (the expected answer).
+
+| Field | Description |
+|-------|-------------|
+| `messages` | A `user` turn holding the input/question and an `assistant` turn holding the expected answer |
 
 ## job_description.json
 
@@ -39,18 +40,21 @@ Use question answering when the model needs to extract or generate precise answe
 ### JSONL format
 
 ```json
-{"question": "Invoice #1234 from Acme Corp dated 2024-01-15. Items: Widget x10 at $50 each. Subtotal: $500. Tax: $40. Total: $540. What is the total amount?", "answer": "$540"}
-{"question": "Invoice #1234 from Acme Corp dated 2024-01-15. Items: Widget x10 at $50 each. Subtotal: $500. Tax: $40. Total: $540. What is the invoice number?", "answer": "1234"}
-{"question": "Invoice #1234 from Acme Corp dated 2024-01-15. Items: Widget x10 at $50 each. Subtotal: $500. Tax: $40. Total: $540. Who is the vendor?", "answer": "Acme Corp"}
-{"question": "Invoice #5678 from Global Services dated 2024-02-20. Items: Consulting 8hrs at $150/hr. Subtotal: $1200. Tax: $0. Total: $1200. What is the invoice date?", "answer": "2024-02-20"}
+{"messages": [{"role": "user", "content": "Invoice #1234 from Acme Corp dated 2024-01-15. Items: Widget x10 at $50 each. Subtotal: $500. Tax: $40. Total: $540. What is the total amount?"}, {"role": "assistant", "content": "$540"}]}
+{"messages": [{"role": "user", "content": "Invoice #1234 from Acme Corp dated 2024-01-15. Items: Widget x10 at $50 each. Subtotal: $500. Tax: $40. Total: $540. What is the invoice number?"}, {"role": "assistant", "content": "1234"}]}
+{"messages": [{"role": "user", "content": "Invoice #1234 from Acme Corp dated 2024-01-15. Items: Widget x10 at $50 each. Subtotal: $500. Tax: $40. Total: $540. Who is the vendor?"}, {"role": "assistant", "content": "Acme Corp"}]}
+{"messages": [{"role": "user", "content": "Invoice #5678 from Global Services dated 2024-02-20. Items: Consulting 8hrs at $150/hr. Subtotal: $1200. Tax: $0. Total: $1200. What is the invoice date?"}, {"role": "assistant", "content": "2024-02-20"}]}
 ```
 
 ### CSV format
 
-| question | answer |
-|----------|--------|
-| Invoice #1234 from Acme Corp dated 2024-01-15. Items: Widget x10 at $50 each. Subtotal: $500. Tax: $40. Total: $540. What is the total amount? | $540 |
-| Invoice #1234 from Acme Corp dated 2024-01-15. Items: Widget x10 at $50 each. Subtotal: $500. Tax: $40. Total: $540. What is the invoice number? | 1234 |
+CSV uses a single `messages` column; each cell holds the same JSON array as the JSONL line above, quoted per CSV rules (double quotes inside the value are doubled). JSONL is recommended — CSV escaping of the nested JSON is error-prone.
+
+```csv
+messages
+"[{""role"": ""user"", ""content"": ""Invoice #1234 from Acme Corp... What is the total amount?""}, {""role"": ""assistant"", ""content"": ""$540""}]"
+"[{""role"": ""user"", ""content"": ""Invoice #1234 from Acme Corp... What is the invoice number?""}, {""role"": ""assistant"", ""content"": ""1234""}]"
+```
 
 **Requirements:** Minimum 20 examples for both train and test sets.
 
@@ -79,24 +83,18 @@ Sample documents for synthetic data generation. Single column: `context`.
 | Invoice #9012 from Tech Solutions Inc dated 2024-03-10. Items: Software License x1 at $299. Subtotal: $299. Tax: $24. Total: $323. |
 | Invoice #3456 from Office Supplies Co dated 2024-03-15. Items: Paper 10 reams at $8 each, Pens box x5 at $12 each. Subtotal: $140. Tax: $11. Total: $151. |
 
-## How Columns Map to Model Input
+## How the Data Maps to Model Input
 
-At training, evaluation, and inference time, the platform sends the `question` field as the user message content. The model sees:
+Your examples are already in the format the model sees: the `user` turn is the input, the `assistant` turn is the expected output. The `user` content should contain **everything** the model needs to answer — both the source document/context and the specific question, exactly as you would send it in production.
 
-```json
-{"role": "user", "content": "<value of question column>"}
-```
-
-This means the `question` field should contain **everything** the model needs to answer — both the source document/context and the specific question, exactly as you would send it in production. The `answer` field is the expected model output.
-
-When querying the deployed model, send the same format:
+When querying the deployed model, send the same shape:
 ```python
 messages = [{"role": "user", "content": "Invoice #1234 from Acme Corp... What is the total amount?"}]
 ```
 
 ## Tips
 
-1. **Include full context in question** -- The question field should contain both the source document and the specific question.
+1. **Include full context in the user turn** -- The `user` content should contain both the source document and the specific question.
 2. **Precise answers** -- Answers should be exact values, not explanations.
 3. **Diverse question types** -- Include different types of questions (what, when, who, how much).
 4. **Representative documents** -- Use input documents that resemble what the model will encounter in production.

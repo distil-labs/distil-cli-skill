@@ -90,8 +90,8 @@ This outputs a `uv run` command pointing to a client script. Copy and run it dir
 ```bash
 uv run $PATH_TO_CLIENT --conversation '[{"role": "user", "content": "Your question here"}]'
 
-# For QA tasks with context, wrap it in a <context> tag inside the first user message
-uv run $PATH_TO_CLIENT --conversation '[{"role": "user", "content": "<context>Your context here</context>Your question here"}]'
+# For QA tasks with context, wrap it in a <context> tag (followed by a newline) inside the first user message
+uv run $PATH_TO_CLIENT --conversation '[{"role": "user", "content": "<context>Your context here</context>\nYour question here"}]'
 ```
 
 ### Using the Provided Client Script
@@ -101,8 +101,8 @@ The downloaded model includes `model_client.py`. Run it directly:
 ```bash
 python model_client.py --conversation '[{"role": "user", "content": "Your question here"}]'
 
-# For QA tasks with context, wrap it in a <context> tag inside the first user message
-python model_client.py --conversation '[{"role": "user", "content": "<context>Your context here</context>Your question here"}]'
+# For QA tasks with context, wrap it in a <context> tag (followed by a newline) inside the first user message
+python model_client.py --conversation '[{"role": "user", "content": "<context>Your context here</context>\nYour question here"}]'
 ```
 
 **Important:** Use the correct system prompt and message formatting when querying your SLM. SLMs are specialized and expect exactly the same format as seen during training. Using a different system prompt or formatting will result in poor performance.

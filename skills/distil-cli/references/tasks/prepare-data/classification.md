@@ -12,12 +12,13 @@ Use classification when the model needs to analyze input text and assign it to o
 - Topic categorization for knowledge bases
 - Triaging support tickets by department
 
-## Data Columns
+## Data Format
 
-| Column | Description |
-|--------|-------------|
-| `question` | The input text to classify |
-| `answer` | The class label |
+Each example is a `messages` conversation with one `user` turn (the input to classify) and one `assistant` turn (the class label).
+
+| Field | Description |
+|-------|-------------|
+| `messages` | A `user` turn holding the input text and an `assistant` turn holding the class label |
 
 ## job_description.json
 
@@ -46,21 +47,23 @@ Classification requires two fields: `task_description` and `classes_description`
 ### JSONL format
 
 ```json
-{"question": "Why is there a fee for getting cash?", "answer": "cash_withdrawal_charge"}
-{"question": "I was declined when I tried to take out cash!", "answer": "declined_cash_withdrawal"}
-{"question": "I deposited some money, but the balance has not changed.", "answer": "balance_not_updated_after_cheque_or_cash_deposit"}
-{"question": "It has been a couple of hours but I do not see my balance updated, can you help?", "answer": "balance_not_updated_after_bank_transfer"}
-{"question": "There is a payment showing on my app that I didn't do. Will you please cancel this payment?", "answer": "direct_debit_payment_not_recognised"}
-{"question": "How do I know which payments I make will have additional fees?", "answer": "card_payment_fee_charged"}
+{"messages": [{"role": "user", "content": "Why is there a fee for getting cash?"}, {"role": "assistant", "content": "cash_withdrawal_charge"}]}
+{"messages": [{"role": "user", "content": "I was declined when I tried to take out cash!"}, {"role": "assistant", "content": "declined_cash_withdrawal"}]}
+{"messages": [{"role": "user", "content": "I deposited some money, but the balance has not changed."}, {"role": "assistant", "content": "balance_not_updated_after_cheque_or_cash_deposit"}]}
+{"messages": [{"role": "user", "content": "It has been a couple of hours but I do not see my balance updated, can you help?"}, {"role": "assistant", "content": "balance_not_updated_after_bank_transfer"}]}
+{"messages": [{"role": "user", "content": "There is a payment showing on my app that I didn't do. Will you please cancel this payment?"}, {"role": "assistant", "content": "direct_debit_payment_not_recognised"}]}
+{"messages": [{"role": "user", "content": "How do I know which payments I make will have additional fees?"}, {"role": "assistant", "content": "card_payment_fee_charged"}]}
 ```
 
 ### CSV format
 
-| question | answer |
-|----------|--------|
-| Why is there a fee for getting cash? | cash_withdrawal_charge |
-| I was declined when I tried to take out cash! | declined_cash_withdrawal |
-| I deposited some money, but the balance has not changed. | balance_not_updated_after_cheque_or_cash_deposit |
+CSV uses a single `messages` column; each cell holds the same JSON array as the JSONL line above, quoted per CSV rules (double quotes inside the value are doubled). JSONL is recommended — CSV escaping of the nested JSON is error-prone.
+
+```csv
+messages
+"[{""role"": ""user"", ""content"": ""Why is there a fee for getting cash?""}, {""role"": ""assistant"", ""content"": ""cash_withdrawal_charge""}]"
+"[{""role"": ""user"", ""content"": ""I was declined when I tried to take out cash!""}, {""role"": ""assistant"", ""content"": ""declined_cash_withdrawal""}]"
+```
 
 **Requirements:** Minimum 20 examples. Include examples for ALL classes defined in `classes_description`.
 

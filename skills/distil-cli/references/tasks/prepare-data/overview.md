@@ -101,6 +101,8 @@ Once your directory structure is ready, follow the task-specific guide for your 
 | Open Book QA (RAG) | `question-answering-open-book` | [open-book-qa.md](./open-book-qa.md) |
 | Closed Book QA | `question-answering-closed-book` | [closed-book-qa.md](./closed-book-qa.md) |
 
+Migrating datasets from the previous `question`/`answer` column layout? See [legacy-format.md](./legacy-format.md).
+
 ## Validation Checklist
 
 Run these deterministic checks before uploading. In Claude Code, verify these programmatically by reading the files.
@@ -109,11 +111,12 @@ Run these deterministic checks before uploading. In Claude Code, verify these pr
 
 - [ ] Train file has ≥ 20 rows
 - [ ] Test file has ≥ 20 rows
-- [ ] All required columns present (check the task-specific guide for column names)
-- [ ] No empty values in required columns
+- [ ] Every row has a `messages` array with a `user` turn and an `assistant` turn (plus a `context` field for open-book QA)
+- [ ] No empty values in required fields
 - [ ] For classification: every class in `classes_description` appears at least once in train data
-- [ ] For tool calling: every `answer` value parses as valid JSON
-- [ ] For multi-turn tool calling: every `question` value parses as a valid JSON array
+- [ ] For tool calling: every assistant `tool_calls[].function.arguments` is a valid JSON object (HuggingFace format, not a stringified blob)
+- [ ] For tool calling: only one tool call per assistant message, no content
+- [ ] For multi-turn tool calling: the whole conversation, including the target tool call, is a single `messages` array
 - [ ] File extension matches format (`.csv` for CSV, `.jsonl` for JSONL)
 - [ ] Over-length examples surfaced and confirmed with the user: the platform **silently truncates** data that exceeds its length limits (structured and unstructured data have different caps, see `references/configuration.md`) with no warning, so report the longest examples per field and confirm with the user before uploading rather than letting content be cut silently
 - [ ] No train/test leakage: no test row duplicates or near-duplicates a train row (near-duplicate: differs only in whitespace, casing, or trivial punctuation); leakage inflates every downstream score, so remove overlaps from one split before uploading

@@ -57,8 +57,8 @@ This step requires judgment. Read these reference files before starting:
 
 Before writing any files, ask and determine:
 
-1. **What does the input look like?** — Get 2-3 real examples of the text the model will process in production. This shapes the `question` column (and `input_description`, if the task is `question-answering` — that's the only task type where synthgen reads it).
-2. **What should the output look like?** — Get 2-3 examples of correct outputs. This shapes the `answer` column and `task_description`.
+1. **What does the input look like?** — Get 2-3 real examples of the text the model will process in production. This shapes the `user` turns (and `input_description`, if the task is `question-answering` — that's the only task type where synthgen reads it).
+2. **What should the output look like?** — Get 2-3 examples of correct outputs. This shapes the `assistant` turns and `task_description`.
 3. **What makes an answer correct or wrong?** — Specific criteria, not vague quality. This shapes `llm_as_a_judge_instructions`.
 4. **What models to use?** — If the user hasn't specified, default to `Llama-3.2-1B-Instruct` (student) and `openai.gpt-oss-120b` (teacher). Only suggest alternatives if there's a concrete reason (tool calling → needs Qwen3/Llama, edge deployment → smaller model, etc.).
 
@@ -153,10 +153,10 @@ If the user has raw data, transform it into the task-specific format. If the use
 After writing the files, verify mechanically (read each file and check):
 - [ ] train file has ≥ 20 rows
 - [ ] test file has ≥ 20 rows
-- [ ] All required columns present for the task type
-- [ ] No empty values in required columns
+- [ ] Every row has a `messages` array with a `user` turn and an `assistant` turn (plus a `context` field for open-book QA)
+- [ ] No empty values in required fields
 - [ ] For classification: every class in `classes_description` appears in train data
-- [ ] For tool calling: every `answer` parses as valid JSON
+- [ ] For tool calling: every assistant `tool_calls[].function.arguments` is a valid JSON object (HuggingFace format, not a stringified blob)
 - [ ] Over-length examples surfaced and confirmed with the user: the platform silently truncates data above its length limits (structured and unstructured differ, see `references/configuration.md`), so flag the longest examples and confirm before uploading
 - [ ] No train/test leakage: no test row duplicates or near-duplicates a train row (near-duplicate: differs only in whitespace, casing, or trivial punctuation)
 - [ ] `job_description.json` is valid JSON

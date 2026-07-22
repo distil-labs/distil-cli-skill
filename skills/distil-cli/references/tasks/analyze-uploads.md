@@ -25,9 +25,9 @@ The qualitative section reads many examples and produces a categorical breakdown
 ## Quantitative Section (mechanical)
 
 - **Label / class distribution train vs. test.** Flag any class below 5% of either split, or any class present in train but missing from test (or vice versa). For QA, report answer-length quartiles per split.
-- **Field-length percentiles (p10 / p50 / p90 / max) per split** for `question`, `context`, `answer`. The platform **silently truncates** examples above its length limits (structured and unstructured data have different caps, see `references/configuration.md`) with no warning, so surface the longest examples and confirm with the user before uploading rather than letting content be cut silently.
+- **Field-length percentiles (p10 / p50 / p90 / max) per split** for the `user` turn content, the `assistant` turn content (or tool call), and `context` (if present). The platform **silently truncates** examples above its length limits (structured and unstructured data have different caps, see `references/configuration.md`) with no warning, so surface the longest examples and confirm with the user before uploading rather than letting content be cut silently.
 - **Schema conformance:**
-  - Tool calling → every `answer` parses as valid JSON; record the count that failed, if any.
+  - Tool calling → every assistant `tool_calls[].function.arguments` is a valid JSON object matching the tool schema; record the count that failed, if any.
   - Classification → every class named in `classes_description` appears in train; flag missing classes.
 - **Train/test leakage:** count test rows that duplicate a train row exactly or near-duplicate one (near-duplicate: differs only in whitespace, casing, or trivial punctuation). Any overlap inflates teacher-evaluation and training scores and makes downstream verdicts unreliable; report the offending rows so the user can remove them from one split.
 - **Unstructured split coverage:** does it span the same input-structure space as train/test? Compare input-length and (where detectable) structural markers.

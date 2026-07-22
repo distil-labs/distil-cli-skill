@@ -179,7 +179,7 @@ distil model upload-traces <model-id> \
 | `--traces` | Yes* | Path to traces file (`.jsonl`). |
 | `--job-description` | Yes* | Path to job description file (`.json`). |
 | `--config` | Yes* | Path to config file (`.json` or `.yaml`). |
-| `--test` | No | Path to a curated test data file (`.jsonl` or `.csv`). |
+| `--test` | No | Path to a curated test data file (`.jsonl` only). |
 
 \* Provide either `--data` or all three individual file flags (`--traces`, `--job-description`, `--config`), but not both.
 

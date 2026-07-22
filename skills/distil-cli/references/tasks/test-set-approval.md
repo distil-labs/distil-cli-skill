@@ -23,7 +23,7 @@ Present the two blocks below in one message, then ask for approval. Keep it scan
   - Classification → count per class
   - QA → answer-length distribution (min / median / max chars)
   - Tool calling → distribution across tool names
-- **Field-length percentiles (p10 / p50 / p90 / max):** for `question`, `context` (if present), `answer`
+- **Field-length percentiles (p10 / p50 / p90 / max):** for the `user` turn content, the `assistant` turn content (or tool call), and `context` (if present)
 - **Edge-case coverage:** does every class / tool / scenario named in `job_description.json` appear at least once? List any that do not.
 - **Provenance:** how many examples came from relabeled traces vs. any user-provided `test.jsonl`.
 

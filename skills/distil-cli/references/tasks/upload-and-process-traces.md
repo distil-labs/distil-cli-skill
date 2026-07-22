@@ -23,7 +23,7 @@ Trace processing does **not** support contextual (open-book) tasks. The followin
 | `tool-calling-closed-book` | Yes |
 | `multi-turn-tool-calling-closed-book` | Yes |
 | `question-answering-closed-book` | Yes |
-| `question-answering-open-book` | **No** — trace processing cannot separate context from question automatically. If your production traces contain RAG-style prompts where the retrieved context is embedded in the user message, use `question-answering` instead and put the full prompt (context + question) in the `question` field. |
+| `question-answering-open-book` | **No** — trace processing cannot separate context from question automatically. If your production traces contain RAG-style prompts where the retrieved context is embedded in the user message, use `question-answering` instead and keep the full prompt (context + question) in the `user` turn's content. |
 
 ## Upload Traces
 
@@ -40,7 +40,7 @@ The directory should contain:
 | `traces.jsonl` | Yes | Production traces in JSONL format |
 | `job_description.json` | Yes | Task objectives and configuration |
 | `config.yaml` or `config.json` | Yes | Training and trace processing parameters |
-| `test.jsonl` or `test.csv` | No | Optional curated test set |
+| `test.jsonl` | No | Optional curated test set (JSONL only — CSV is not supported on the traces path) |
 
 ### Individual File Flags
 
@@ -60,7 +60,7 @@ distil model upload-traces <model-id> \
 | `--traces` | Yes* | Path to traces file (`.jsonl`). |
 | `--job-description` | Yes* | Path to job description file (`.json`). |
 | `--config` | Yes* | Path to config file (`.json` or `.yaml`). |
-| `--test` | No | Path to a curated test data file (`.jsonl` or `.csv`). |
+| `--test` | No | Path to a curated test data file (`.jsonl` only). |
 
 \* Provide either `--data` or all three individual file flags (`--traces`, `--job-description`, `--config`), but not both.
 
@@ -106,7 +106,7 @@ Every trace is processed as a multi-turn conversation — a simple single-exchan
 
 There are two options for the test set used in evaluation:
 
-**Option 1: Provide your own test set.** Include a `test.jsonl` or `test.csv` file in your upload directory (or pass via `--test`). This test set is used as-is for teacher evaluation and training evaluation, without any processing.
+**Option 1: Provide your own test set.** Include a `test.jsonl` file in your upload directory (or pass via `--test`). Only JSONL is supported on the traces path — convert a CSV test set to JSONL before uploading. This test set is used as-is for teacher evaluation and training evaluation, without any processing.
 
 **Option 2: Let the platform create one (default).** If you do not provide a test set, the platform creates one automatically as part of trace processing. It selects traces, runs them through the same filtering and relabelling pipeline, and uses the result as the test set. The platform also evaluates the original model (the one that generated the traces) on this test set, giving you a baseline to compare against your trained SLM.
 
@@ -188,7 +188,7 @@ distil model run-training <model-id>
 
 2. **Updating `job_description.json` requires re-uploading** — There is no way to update the job description in place. If you need to change it (e.g., to add a missing required field), you must re-run `upload-traces`, which triggers full trace processing including committee relabelling. Plan your job description carefully before uploading.
 
-3. **Markdown fences in relabeled JSON answers** — When `synthgen.output_is_json: true`, committee relabeling models sometimes wrap JSON in ```` ```json ... ``` ```` fences. Teacher evaluation will then fail JSON validation. Workaround: download the relabeled train/test, strip markdown fences from `answer` fields, validate every `answer` parses as JSON, and re-upload as a regular dataset with `distil model upload-data`. Then proceed to teacher evaluation.
+3. **Markdown fences in relabeled JSON answers** — When `synthgen.output_is_json: true`, committee relabeling models sometimes wrap JSON in ```` ```json ... ``` ```` fences. Teacher evaluation will then fail JSON validation. Workaround: download the relabeled train/test, strip markdown fences from the `assistant` turns' content, validate every `assistant` content parses as JSON, and re-upload as a regular dataset with `distil model upload-data`. Then proceed to teacher evaluation.
 
 4. **(`question-answering` only) `input_description` must be self-contained** — For the `question-answering` task type, the synthgen model that generates training inputs does NOT see `task_description`. It only sees `input_description`. So `input_description` must fully describe the input structure on its own — markers, sections, examples, formatting. If you only put input details in `task_description`, synthgen will produce poor inputs even if teacher evaluation looks fine. This does NOT apply to other task types (`classification`, tool calling, closed-book QA): synthgen does not read `input_description` for them — see `references/job-description-guide.md` for what synthgen reads per task.
 
@@ -201,4 +201,4 @@ distil model run-training <model-id>
 5. **Cap large trace sets** -- Tune `num_traces_as_training_base` and `num_traces_as_testing_base` to control how many traces feed into seed generation. Unused traces become unstructured context. Set the two to the **same value** so train and test are seeded from comparable trace volumes; diverging them skews the train/test distribution.
 6. **Strip large system prompts** -- `remove_system_prompt_from_traces` is `true` by default, stripping leading system messages so large prompts don't dominate the data. Set it to `false` only if you need to keep system prompts.
 7. **Compress long job descriptions** -- If your job description is very long, set `compress_job_description: true` to compress it before relevance filtering.
-8. **Provide your own test set** -- If you have a curated test set, include `test.jsonl` or `test.csv` in your data directory (or pass it via `--test` with individual file flags) to use it instead of the automatically generated test split.
+8. **Provide your own test set** -- If you have a curated test set, include `test.jsonl` in your data directory (or pass it via `--test` with individual file flags) to use it instead of the automatically generated test split. JSONL only — convert CSV to JSONL first.

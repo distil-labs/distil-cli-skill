@@ -15,7 +15,7 @@ The directory should contain files with these standard names:
 | File | Required | Description |
 |------|----------|-------------|
 | `job_description.json` | Yes | Task objectives and configuration |
-| `train.csv` or `train.jsonl` | Yes | 20+ labeled (question, answer) pairs |
+| `train.csv` or `train.jsonl` | Yes | 20+ labeled examples, each a `messages` conversation |
 | `test.csv` or `test.jsonl` | Yes | Held-out evaluation set |
 | `config.yaml` | Yes | Task type, student model, teacher model, and training parameters |
 | `unstructured.csv` | No | Domain text for synthetic data generation |
@@ -90,7 +90,7 @@ When using directory mode, the directory must contain `job_description.json` and
 Training requires a minimum of 20 examples in the training set. If you have fewer, the platform will reject the upload. Add more labeled examples before uploading.
 
 ### Data does not match task type
-The columns and fields in your data files must match what the selected task type expects. For example, classification tasks require a `question` and `answer` column, while open book QA tasks also require a `context` column. See the data preparation guide for your specific task type.
+The fields in your data files must match what the selected task type expects. Every task type requires a `messages` conversation per example; open book QA additionally requires a sibling `context` field (a second CSV column). See the data preparation guide for your specific task type.
 
 ### Inconsistent labels
 For classification tasks, make sure the labels in your training data match the classes described in `job_description.json`. Mismatches between the data and the job description will lead to poor teacher evaluation results.

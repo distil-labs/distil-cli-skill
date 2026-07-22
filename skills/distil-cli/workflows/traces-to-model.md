@@ -9,7 +9,7 @@ This is the right workflow when the user already has an LLM-powered application 
 This workflow adapts based on what the user provides:
 
 - **USE_CASE** — what the model should do (e.g., "extract structured data from support tickets", "classify customer intent")
-- **TASK_TYPE** — one of the supported task types. **Note:** `question-answering-open-book` is not supported via traces. If the user has RAG-style traces with context embedded in the user message, use `question-answering` and put the full prompt in the `question` field (see `references/tasks/upload-and-process-traces.md`).
+- **TASK_TYPE** — one of the supported task types. **Note:** `question-answering-open-book` is not supported via traces. If the user has RAG-style traces with context embedded in the user message, use `question-answering` and keep the full prompt in the `user` turn's content (see `references/tasks/upload-and-process-traces.md`).
 - **TRACES_LOCATION** — where the raw production logs live (e.g. Langfuse export, OpenAI logs)
 - **MODEL_ID** — created in Step 1, used throughout
 

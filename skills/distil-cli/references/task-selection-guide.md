@@ -85,7 +85,7 @@ The most general task type. The model takes text input and produces text output 
 - IT helpdesk: "What troubleshooting was attempted?"
 - Data reformatting: "Reformat this data as JSON"
 
-**Data format:** `question` and `answer` columns in train/test CSV or JSONL.
+**Data format:** each train/test example (JSONL or CSV) is a `messages` conversation with a `user` turn (the input) and an `assistant` turn (the expected answer).
 
 ---
 
@@ -105,7 +105,7 @@ Assigns input text to exactly one category from a predefined set. Produces deter
 - Topic categorization for knowledge bases
 - Support ticket triage by department
 
-**Data format:** `question` and `answer` columns, where `answer` is one of the predefined class labels. Classes are defined in `job_description.json` via `classes_description`.
+**Data format:** each example is a `messages` conversation with a `user` turn (the input text) and an `assistant` turn whose content is one of the predefined class labels. Classes are defined in `job_description.json` via `classes_description`.
 
 ---
 
@@ -128,7 +128,7 @@ Maps natural language to structured function calls with correct parameters. The 
 
 **Model constraints:** Only Qwen3, Qwen3.5, Llama 3-family, LFM2/LFM2.5, FunctionGemma, and Gemma 4 student models. Most teachers support tool calling (a few are excluded). See `references/model-catalog.md`.
 
-**Data format:** `question` (plain text) and `answer` (JSON string of the tool call with `name` and `parameters`). Tools are defined in `job_description.json`.
+**Data format:** each example is a `messages` conversation with a `user` turn (the request) and an `assistant` turn carrying the expected call in its `tool_calls` array (HuggingFace format — `arguments` is a JSON object). Tools are defined in `job_description.json`.
 
 ---
 
@@ -152,7 +152,7 @@ Generates function calls within a conversational context. Unlike single-turn too
 
 **Model constraints:** Students must be Qwen3, Qwen3.5, Llama 3-family, LFM2/LFM2.5, FunctionGemma, or Gemma 4. Any teacher works except `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3.1`, `Qwen3-480B-A35B-Coder`, and `Qwen2.5-VL-72B-Instruct`. See `references/model-catalog.md` for the exact config strings.
 
-**Data format:** `question` (JSON array of conversation turns with alternating user/assistant messages) and `answer` (JSON string of the next tool call). Tools are defined in `job_description.json`.
+**Data format:** each example is a single `messages` array holding the whole conversation — the user/assistant (and optional tool-result) turns, ending with the target `assistant` tool call as the final message. Tools are defined in `job_description.json`.
 
 ---
 
@@ -178,7 +178,7 @@ Answers questions using provided context passages. The model generates answers g
 - Knowledge base or FAQ automation
 - Research assistants answering from specific papers
 
-**Data format:** `question`, `context`, and `answer` columns. The `context` column provides the passage the model should use.
+**Data format:** each example is a `messages` conversation (a `user` question and an `assistant` answer) plus a sibling `context` field providing the passage the model should use.
 
 ---
 
@@ -198,7 +198,7 @@ The model learns facts and knowledge from unstructured data during training. At 
 - Information retrieval from arbitrary contexts
 - Customer support without a retrieval pipeline
 
-**Data format:** `question` and `answer` columns for train/test data, plus a required `unstructured.csv` (or `.jsonl`) containing the domain text the model should learn from.
+**Data format:** each train/test example is a `messages` conversation (a `user` question and an `assistant` answer), plus a required `unstructured.csv` (or `.jsonl`) containing the domain text the model should learn from.
 
 ---
 
