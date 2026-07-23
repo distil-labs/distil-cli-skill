@@ -17,7 +17,7 @@ This workflow adapts based on what the user provides:
 
 Two quick checks before doing anything else:
 
-**1. Verify Distil CLI authentication.** Follow `references/tasks/verify-auth.md` — run `distil whoami` and, if needed, instruct the user to run `! distil login` in their shell. `/login` in Claude Code is *not* the same as `distil login`.
+**1. Verify Distil CLI authentication.** Follow `references/tasks/verify-auth.md` — run `distil whoami` and, if needed, instruct the user to run `! distil auth` in their shell. `/login` in Claude Code is *not* the same as `distil auth`.
 
 **2. Update the CLI.** The platform evolves quickly and recent commands may be missing on older versions:
 

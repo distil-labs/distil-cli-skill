@@ -1,8 +1,8 @@
 # Verify Distil CLI Authentication
 
-A common source of confusion is that **`/login` (Claude Code) and `distil login` (Distil CLI) are different things**. They authenticate different sessions. The Distil CLI uses its own credentials independent of Claude.
+A common source of confusion is that **`/login` (Claude Code) and `distil auth` (Distil CLI) are different things**. They authenticate different sessions. The Distil CLI uses its own credentials independent of Claude.
 
-If a `distil` command fails with "Credit balance is too low", a 401-style error, or simply returns no user from `distil whoami`, the CLI session is missing or expired. The fix is `distil login` — *not* `/login`.
+If a `distil` command fails with "Credit balance is too low", a 401-style error, or simply returns no user from `distil whoami`, the CLI session is missing or expired. The fix is `distil auth` (or its alias `distil login`) — *not* `/login`.
 
 ## Verify
 
@@ -19,7 +19,7 @@ If this returns a user, you're authenticated and can proceed. Move on.
 If `distil whoami` errors or returns no user, the user needs to authenticate the CLI in their own shell. From a Claude Code prompt, the `!` prefix runs the command in the user's shell rather than as a tool call:
 
 ```
-! distil login
+! distil auth
 ```
 
 This opens a browser flow for them to log in. Once complete, re-run `distil whoami` to confirm.

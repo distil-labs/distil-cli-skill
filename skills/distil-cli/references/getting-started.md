@@ -21,28 +21,28 @@ Verify the installation by running `distil` with no arguments. The CLI should pr
 
 ## Create an Account
 
-Register a new account using the CLI:
+Sign up using the CLI:
 
 ```bash
-distil register
+distil signup
 ```
 
-Alternatively, sign up through the web app at [app.distillabs.ai/sign-up](https://app.distillabs.ai/sign-up).
+This opens your browser to sign up. Once you finish, you are logged in — there is no separate login step. Alternatively, sign up through the web app at [app.distillabs.ai/sign-up](https://app.distillabs.ai/sign-up).
 
 ## Log In
 
-Authenticate with the platform:
+If you already have an account, authenticate with:
 
 ```bash
-distil login
+distil auth
 ```
 
-This opens a browser for login. Enter the username and password created during registration.
+This opens your browser to sign in, then hands the session back to the CLI (`distil login` is an alias). For headless environments, pass credentials directly with `distil auth --email <email> --password <password>` to skip the browser.
 
-> **`/login` (Claude Code) is NOT `distil login`.** The `/login` slash command in Claude Code authenticates your Claude session. It does NOT authenticate the Distil CLI. If you see "Credit balance is too low" or 401-style errors from `distil` commands, your Distil session has expired. Re-authenticate from a Claude Code prompt with the bang prefix so the command runs in your shell:
+> **`/login` (Claude Code) is NOT `distil auth`.** The `/login` slash command in Claude Code authenticates your Claude session. It does NOT authenticate the Distil CLI. If you see "Credit balance is too low" or 401-style errors from `distil` commands, your Distil session has expired. Re-authenticate from a Claude Code prompt with the bang prefix so the command runs in your shell:
 >
 > ```
-> ! distil login
+> ! distil auth
 > ```
 
 Verify the currently authenticated user:

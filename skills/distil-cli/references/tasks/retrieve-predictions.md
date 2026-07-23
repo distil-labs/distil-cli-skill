@@ -4,7 +4,7 @@ Download per-example predictions from trace processing, teacher evaluation, and 
 
 **This is the canonical guide.** Workflows and other tasks should reference this file rather than re-documenting the commands.
 
-**Prerequisites:** For API-based downloads, see `references/api-reference.md` for the `distil_bearer_token()` implementation and auth header setup. CLI commands work as long as you're logged in (`distil login`).
+**Prerequisites:** For API-based downloads, see `references/api-reference.md` for the `distil_bearer_token()` implementation and auth header setup. CLI commands work as long as you're logged in (`distil auth`).
 
 ---
 

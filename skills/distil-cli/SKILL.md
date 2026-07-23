@@ -1,6 +1,6 @@
 ---
 name: distil-cli
-version: 4.2.0
+version: 4.3.0
 description: >
   Train task-specific small language models (SLMs) using the Distil Labs CLI and platform.
   Activate this skill when the user asks about: distil labs, distil CLI, the distil command,
@@ -9,7 +9,7 @@ description: >
   deploying trained SLMs, model evaluation metrics, task-specific model training,
   classification/QA/tool-calling model training, synthetic data generation for training,
   or any question about the distil platform, its configuration, or its workflows.
-  Also activate when the user mentions: distil model, distil login, distil register,
+  Also activate when the user mentions: distil model, distil auth, distil login, distil register,
   uploading training data, teacher evaluation, model retuning, model deployment with llama-cpp or vLLM,
   or when working with config.yaml / job_description.json / train.csv files for model training.
 ---
@@ -95,7 +95,7 @@ Always read `references/tasks/prepare-data/overview.md` first, then the task-spe
 | "How do I run teacher evaluation?" / "Is my task feasible?" | `references/tasks/teacher-evaluation.md` |
 | "How do I train?" / "Start training" / "Training status" | `references/tasks/training.md` |
 | "How do I deploy?" / "Download model" / "Run inference" | `references/tasks/deployment-integration.md` |
-| "distil login" / "Credit balance is too low" / 401 errors / "/login doesn't work for distil" | `references/tasks/verify-auth.md` |
+| "distil auth" / "distil login" / "Credit balance is too low" / 401 errors / "/login doesn't work for distil" | `references/tasks/verify-auth.md` |
 | "Download predictions" / "per-example results" / "inspect model outputs" | `references/tasks/retrieve-predictions.md` |
 | "Analyze predictions" / "write analysis report" / "compare teacher and student" | `references/tasks/analyze-predictions.md` |
 | "Log my work" / "track iterations" / "keep a history" / "log progress" | `references/tasks/maintain-run-log.md` |
@@ -125,7 +125,7 @@ Minimum steps to go from zero to a trained model. Read the relevant reference fi
 # 1. Install / update and authenticate
 curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh   # first-time install
 distil update                                                  # if already installed — the platform evolves quickly
-distil login
+distil auth                                                    # opens your browser to log in (alias: distil login)
 
 # 2. Create a model
 distil model create my-model-name

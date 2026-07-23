@@ -10,20 +10,27 @@ Async commands (upload, teacher evaluation, training, trace processing) return a
 
 ## Authentication
 
-### distil login
+### distil auth
 
-Authenticate with the Distil Labs platform. Opens a browser for login.
+Authenticate with the Distil Labs platform. Opens your browser to sign in, then hands the session back to the CLI. `distil login` is an alias.
 
 ```bash
-distil login
+distil auth
 ```
 
-### distil register
-
-Create a new Distil Labs account.
+For headless environments (CI, no browser), pass credentials directly to skip the browser:
 
 ```bash
-distil register
+distil auth --email you@example.com --password "$DISTIL_PASSWORD"
+# short flags: -e / -p
+```
+
+### distil signup
+
+Open your browser to create a new Distil Labs account. Once you finish signing up you are logged in — no separate `distil auth` step is needed. Aliases: `distil register`, `distil join`.
+
+```bash
+distil signup
 ```
 
 ### distil whoami
