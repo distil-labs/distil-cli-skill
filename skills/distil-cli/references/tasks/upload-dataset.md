@@ -15,10 +15,10 @@ The directory should contain files with these standard names:
 | File | Required | Description |
 |------|----------|-------------|
 | `job_description.json` | Yes | Task objectives and configuration |
-| `train.csv` or `train.jsonl` | Yes | 20+ labeled examples, each a `messages` conversation |
-| `test.csv` or `test.jsonl` | Yes | Held-out evaluation set |
+| `train.jsonl` | Yes | 20+ labeled examples, each a `messages` conversation |
+| `test.jsonl` | Yes | Held-out evaluation set |
 | `config.yaml` | Yes | Task type, student model, teacher model, and training parameters |
-| `unstructured.csv` | No | Domain text for synthetic data generation |
+| `unstructured.jsonl` | No | Domain text for synthetic data generation |
 
 ### Individual File Flags
 
@@ -37,10 +37,10 @@ distil model upload-data <model-id> \
 |------|----------|-------------|
 | `--data` | Yes* | Directory containing data files. |
 | `--job-description` | Yes* | Path to job description file (`.json`). |
-| `--train` | Yes* | Path to training data file (`.csv` or `.jsonl`). |
-| `--test` | Yes* | Path to test data file (`.csv` or `.jsonl`). |
-| `--config` | No | Path to config file (`.yaml` or `.json`). |
-| `--unstructured` | No | Path to unstructured data file (`.csv`) for synthetic data generation. |
+| `--train` | Yes* | Path to training data file (`.jsonl`). |
+| `--test` | Yes* | Path to test data file (`.jsonl`). |
+| `--config` | No | Path to config file (`.yaml` or `.yml`). |
+| `--unstructured` | No | Path to unstructured data file (`.jsonl`) for synthetic data generation. |
 
 \* Provide either `--data` or the individual file flags (`--job-description`, `--train`, `--test`), but not both.
 
@@ -81,7 +81,7 @@ This is useful for confirming the correct files were sent, especially when debug
 ## Common Issues
 
 ### Wrong file format
-The platform expects CSV (`.csv`) or JSONL (`.jsonl`) for train and test files, JSON (`.json`) for job descriptions, and YAML (`.yaml`) or JSON (`.json`) for config. Uploading files in other formats will cause validation errors.
+The platform expects JSONL (`.jsonl`) for train and test files, JSON (`.json`) for job descriptions, and YAML (`.yaml`) or JSON (`.json`) for config. Uploading files in other formats will cause validation errors.
 
 ### Missing required files
 When using directory mode, the directory must contain `job_description.json` and training/test data files. When using individual flags, you must provide at least `--job-description`, `--train`, and `--test`.
@@ -90,7 +90,7 @@ When using directory mode, the directory must contain `job_description.json` and
 Training requires a minimum of 20 examples in the training set. If you have fewer, the platform will reject the upload. Add more labeled examples before uploading.
 
 ### Data does not match task type
-The fields in your data files must match what the selected task type expects. Every task type requires a `messages` conversation per example; open book QA additionally requires a sibling `context` field (a second CSV column). See the data preparation guide for your specific task type.
+The fields in your data files must match what the selected task type expects. Every task type requires a `messages` conversation per example; open book QA additionally requires a sibling `context` field. See the data preparation guide for your specific task type.
 
 ### Inconsistent labels
 For classification tasks, make sure the labels in your training data match the classes described in `job_description.json`. Mismatches between the data and the job description will lead to poor teacher evaluation results.

@@ -136,7 +136,7 @@ Add synthgen parameters only when you have a reason:
 - `generation_target` — if the default 10,000 is too many or too few
 - `basic_mutators_to_use` / `mutation_topics` — not required on the first run, but worth setting upfront if the user named specific patterns, scenarios, or length characteristics the data should cover (e.g., "short/medium/long conversations", a list of domains). Otherwise leave defaults and revisit during iteration (Step 5). See `references/mutations-guide.md`.
 
-### 2d. Write train.csv and test.csv
+### 2d. Write train.jsonl and test.jsonl
 
 If the user has raw data, transform it into the task-specific format. If the user has no data, help them write examples from scratch.
 

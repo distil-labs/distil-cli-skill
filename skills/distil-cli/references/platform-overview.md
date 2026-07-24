@@ -51,7 +51,7 @@ The platform supports six task types. For model compatibility constraints (which
 
 ## Two Data Paths
 
-**Structured dataset upload.** Prepare labeled files manually (`job_description.json`, `train.csv`, `test.csv`, `config.yaml`, optional `unstructured.csv`) and upload with:
+**Structured dataset upload.** Prepare labeled files manually (`job_description.json`, `train.jsonl`, `test.jsonl`, `config.yaml`, optional `unstructured.jsonl`) and upload with:
 
 ```bash
 distil model upload-data <model-id> --data ./my-data-folder

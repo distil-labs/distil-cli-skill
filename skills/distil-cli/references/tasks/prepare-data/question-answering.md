@@ -37,23 +37,11 @@ Each example is a `messages` conversation with one `user` turn (the input) and o
 
 ## Train/Test Data Examples
 
-### JSONL format
-
 ```json
 {"messages": [{"role": "user", "content": "Invoice #1234 from Acme Corp dated 2024-01-15. Items: Widget x10 at $50 each. Subtotal: $500. Tax: $40. Total: $540. What is the total amount?"}, {"role": "assistant", "content": "$540"}]}
 {"messages": [{"role": "user", "content": "Invoice #1234 from Acme Corp dated 2024-01-15. Items: Widget x10 at $50 each. Subtotal: $500. Tax: $40. Total: $540. What is the invoice number?"}, {"role": "assistant", "content": "1234"}]}
 {"messages": [{"role": "user", "content": "Invoice #1234 from Acme Corp dated 2024-01-15. Items: Widget x10 at $50 each. Subtotal: $500. Tax: $40. Total: $540. Who is the vendor?"}, {"role": "assistant", "content": "Acme Corp"}]}
 {"messages": [{"role": "user", "content": "Invoice #5678 from Global Services dated 2024-02-20. Items: Consulting 8hrs at $150/hr. Subtotal: $1200. Tax: $0. Total: $1200. What is the invoice date?"}, {"role": "assistant", "content": "2024-02-20"}]}
-```
-
-### CSV format
-
-CSV uses a single `messages` column; each cell holds the same JSON array as the JSONL line above, quoted per CSV rules (double quotes inside the value are doubled). JSONL is recommended — CSV escaping of the nested JSON is error-prone.
-
-```csv
-messages
-"[{""role"": ""user"", ""content"": ""Invoice #1234 from Acme Corp... What is the total amount?""}, {""role"": ""assistant"", ""content"": ""$540""}]"
-"[{""role"": ""user"", ""content"": ""Invoice #1234 from Acme Corp... What is the invoice number?""}, {""role"": ""assistant"", ""content"": ""1234""}]"
 ```
 
 **Requirements:** Minimum 20 examples for both train and test sets.
@@ -67,21 +55,12 @@ base:
 
 ## Unstructured Data (Optional)
 
-Sample documents for synthetic data generation. Single column: `context`.
-
-### JSONL format
+Sample documents for synthetic data generation. Single field: `context`.
 
 ```json
 {"context": "Invoice #9012 from Tech Solutions Inc dated 2024-03-10. Items: Software License x1 at $299. Subtotal: $299. Tax: $24. Total: $323."}
 {"context": "Invoice #3456 from Office Supplies Co dated 2024-03-15. Items: Paper 10 reams at $8 each, Pens box x5 at $12 each. Subtotal: $140. Tax: $11. Total: $151."}
 ```
-
-### CSV format
-
-| context |
-|---------|
-| Invoice #9012 from Tech Solutions Inc dated 2024-03-10. Items: Software License x1 at $299. Subtotal: $299. Tax: $24. Total: $323. |
-| Invoice #3456 from Office Supplies Co dated 2024-03-15. Items: Paper 10 reams at $8 each, Pens box x5 at $12 each. Subtotal: $140. Tax: $11. Total: $151. |
 
 ## How the Data Maps to Model Input
 

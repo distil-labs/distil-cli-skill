@@ -9,7 +9,6 @@ Prepared train/test datasets used to be flat rows with `question`, `answer`, and
 - **One `messages` array per example.** The old `question` and `answer` columns are replaced by a conversation: a `user` turn (the input) and an `assistant` turn (the expected output).
 - **Open book QA keeps `context`** as a sibling field alongside `messages`, rather than a third column.
 - **Tool calls use the HuggingFace format.** The call lives in the assistant turn's `tool_calls` array, and `arguments` is a real JSON object — not the old stringified `answer` with a `parameters` key, and not OpenAI's stringified `arguments`.
-- **CSV still works**, but now with a single `messages` column (plus `context` for open book QA), each cell holding the JSON array as a quoted string. JSONL is recommended.
 
 ## Question Answering, Classification, Closed Book QA
 
@@ -74,14 +73,5 @@ The conversation history that used to be a stringified JSON array in `question`,
 ```
 
 In the old multi-turn format the assistant turns *inside* the conversation history already used `arguments` (a JSON object), while the separate `answer` used `parameters` (a stringified object). The new format uses `arguments` consistently everywhere, in one array.
-
-## CSV Migration
-
-CSV keeps working. Replace the old columns with a single `messages` column whose cell holds the JSON array, quoted per CSV rules (double quotes inside the value are doubled). Open book QA keeps a second `context` column.
-
-```csv
-messages
-"[{""role"": ""user"", ""content"": ""What is the total amount due?""}, {""role"": ""assistant"", ""content"": ""$540""}]"
-```
 
 For the full per-task specification, see `overview.md` and the task-specific guides in this directory.

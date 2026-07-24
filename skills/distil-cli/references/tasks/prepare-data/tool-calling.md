@@ -93,22 +93,11 @@ Tool calling requires two fields: `task_description` and `tools`.
 
 ## Train/Test Data Examples
 
-> **Prefer JSONL over CSV for tool calling.** The `messages` array contains a nested tool call — in CSV it must be a single quoted column with doubled quotes, a common source of malformed uploads. JSONL handles the nesting cleanly.
-
-### JSONL format (recommended)
+The `messages` array contains a nested tool call, and JSONL handles that nesting cleanly.
 
 ```json
 {"messages": [{"role": "user", "content": "What's the weather like in New York?"}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "get_weather", "arguments": {"location": "New York, NY", "unit": "fahrenheit"}}}]}]}
 {"messages": [{"role": "user", "content": "Send an email to john@example.com saying the meeting is confirmed"}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "send_email", "arguments": {"to": "john@example.com", "subject": "Meeting Confirmation", "body": "The meeting is confirmed."}}}]}]}
-```
-
-### CSV format (works but error-prone)
-
-CSV uses a single `messages` column; each cell holds the same JSON array as the JSONL line above, quoted per CSV rules (double quotes inside the value are doubled).
-
-```csv
-messages
-"[{""role"": ""user"", ""content"": ""What's the weather like in New York?""}, {""role"": ""assistant"", ""tool_calls"": [{""type"": ""function"", ""function"": {""name"": ""get_weather"", ""arguments"": {""location"": ""New York, NY"", ""unit"": ""fahrenheit""}}}]}]"
 ```
 
 **Requirements:** Minimum 20 examples. Include examples for all tools.
@@ -124,9 +113,7 @@ base:
 
 ## Unstructured Data (Optional)
 
-Domain-specific scenarios to guide synthetic data generation. Single column: `context`.
-
-### JSONL format
+Domain-specific scenarios to guide synthetic data generation. Single field: `context`.
 
 ```json
 {"context": "User wants to check weather before their trip to Paris next week."}

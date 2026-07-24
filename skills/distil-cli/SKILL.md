@@ -11,7 +11,7 @@ description: >
   or any question about the distil platform, its configuration, or its workflows.
   Also activate when the user mentions: distil model, distil auth, distil login, distil register,
   uploading training data, teacher evaluation, model retuning, model deployment with llama-cpp or vLLM,
-  or when working with config.yaml / job_description.json / train.csv files for model training.
+  or when working with config.yaml / job_description.json / train.jsonl files for model training.
 ---
 
 # Distil CLI
@@ -51,7 +51,7 @@ Route the user to the right reference file based on their intent. Read the refer
 | User intent | Read this file |
 |---|---|
 | "Help me train a model" / "I want to build an SLM" / "Train a model for X" / "Fine-tune for Y" | First ask: dataset or traces? Then load the matching workflow below. |
-| "Train from a dataset" / "dataset to model" / end-to-end with CSV data | `workflows/dataset-to-model.md` |
+| "Train from a dataset" / "dataset to model" / end-to-end from a dataset | `workflows/dataset-to-model.md` |
 | "Train from production traces" / "traces to model" / end-to-end with traces | `workflows/traces-to-model.md` |
 | "Model isn't good enough" / "How do I improve?" / "Retune" / iteration / "Teacher eval scored too low" | `workflows/improving-a-model.md` |
 
@@ -134,8 +134,8 @@ distil model create my-model-name
 # 3. Prepare data files in a directory:
 #    - job_description.json  (task objectives)
 #    - config.yaml           (task type, student model, teacher model)
-#    - train.csv             (20+ labeled examples)
-#    - test.csv              (held-out evaluation set)
+#    - train.jsonl           (20+ labeled examples)
+#    - test.jsonl            (held-out evaluation set)
 
 # 4. Upload data
 distil model upload-data <model-id> --data ./my-data-dir
@@ -188,7 +188,7 @@ When helping users, exhaust all mechanical/lookup steps before engaging judgment
 
 ### In Claude.ai (Browser)
 
-- Provide complete, copy-pasteable file contents (job_description.json, config.yaml, train.csv, test.csv).
+- Provide complete, copy-pasteable file contents (job_description.json, config.yaml, train.jsonl, test.jsonl).
 - List the CLI commands the user should run in order, with their model ID placeholder.
 - Explain what each command does and what to look for in the output.
 

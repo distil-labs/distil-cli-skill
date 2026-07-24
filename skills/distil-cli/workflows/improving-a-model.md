@@ -19,7 +19,7 @@ iteration-2/
   README.md                    # "what's being tested" in 2-4 sentences
   job_description.json         # only files that changed from iter-1
   config.yaml
-  train.csv / test.csv / traces.jsonl
+  train.jsonl / test.jsonl / traces.jsonl
   teacher-eval-analysis.md     # analyze-predictions writes here
   teacher-predictions.jsonl
   training-analysis.md         # after retune, if applicable

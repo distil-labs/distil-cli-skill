@@ -44,22 +44,10 @@ Each example is a `messages` conversation (one `user` turn with the question, on
 
 ## Train/Test Data Examples
 
-### JSONL format
-
 ```json
 {"messages": [{"role": "user", "content": "What does it mean when currencies are left to \"float?\""}, {"role": "assistant", "content": "rise and fall according to market demand"}], "context": "On August 15, 1971, the United States unilaterally pulled out of the Bretton Woods Accord. The US abandoned the Gold Exchange Standard whereby the value of the dollar had been pegged to the price of gold and all other currencies were pegged to the dollar, whose value was left to \"float\" (rise and fall according to market demand)."}
 {"messages": [{"role": "user", "content": "How many species of insects are known in the region?"}, {"role": "assistant", "content": "2.5 million"}], "context": "The region is home to about 2.5 million insect species, tens of thousands of plants, and some 2,000 birds and mammals. To date, at least 40,000 plant species have been scientifically classified in the region."}
 {"messages": [{"role": "user", "content": "How many students signed up for the university's professional schools in fall 2014?"}, {"role": "assistant", "content": "5,984"}], "context": "In the fall quarter of 2014, the University of Chicago enrolled 5,792 students in the College, 3,468 students in its four graduate divisions, 5,984 students in its professional schools, and 15,244 students overall."}
-```
-
-### CSV format
-
-CSV uses two columns: a `messages` column (whose cell is the same JSON array as the JSONL line above, quoted per CSV rules) and a `context` column. JSONL is recommended — CSV escaping of the nested JSON is error-prone.
-
-```csv
-messages,context
-"[{""role"": ""user"", ""content"": ""What does it mean when currencies are left to \""float?\""""}, {""role"": ""assistant"", ""content"": ""rise and fall according to market demand""}]","On August 15, 1971, the United States unilaterally pulled out of the Bretton Woods Accord..."
-"[{""role"": ""user"", ""content"": ""How many species of insects are known in the region?""}, {""role"": ""assistant"", ""content"": ""2.5 million""}]","The region is home to about 2.5 million insect species..."
 ```
 
 **Requirements:** Minimum 20 examples for both train and test sets.
@@ -73,21 +61,12 @@ base:
 
 ## Unstructured Data (Optional)
 
-Context passages for synthetic data generation. Single column: `context`.
-
-### JSONL format
+Context passages for synthetic data generation. Single field: `context`.
 
 ```json
 {"context": "For months each side had been building forward rifle pits and defensive positions. On 5 September, another French bombardment was followed by an assault resulting in the capture of the Malakoff by the French."}
 {"context": "The Premier League sells its television rights on a collective basis. The money is divided into three parts: half is divided equally between the clubs; one quarter is awarded on a merit basis based on final league position."}
 ```
-
-### CSV format
-
-| context |
-|---------|
-| For months each side had been building forward rifle pits and defensive positions. On 5 September, another French bombardment was followed by an assault resulting in the capture of the Malakoff by the French. |
-| The Premier League sells its television rights on a collective basis. The money is divided into three parts: half is divided equally between the clubs; one quarter is awarded on a merit basis based on final league position. |
 
 ## How the Data Maps to Model Input
 

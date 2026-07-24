@@ -104,10 +104,10 @@ Create a directory (e.g., `./my-data`) containing the following files:
 | File                   | Required | Description                                   |
 |------------------------|----------|-----------------------------------------------|
 | `job_description.json` | Yes      | Task objectives and configuration              |
-| `train.csv`            | Yes      | 20+ labeled examples, each a `messages` conversation |
-| `test.csv`             | Yes      | Held-out evaluation set                        |
+| `train.jsonl`          | Yes      | 20+ labeled examples, each a `messages` conversation |
+| `test.jsonl`           | Yes      | Held-out evaluation set                        |
 | `config.yaml`          | Yes      | Task type, student model, and teacher model    |
-| `unstructured.csv`     | No       | Domain text for synthetic data generation      |
+| `unstructured.jsonl`   | No       | Domain text for synthetic data generation      |
 
 **job_description.json** -- describe the task clearly:
 
@@ -135,7 +135,7 @@ base:
 {"messages": [{"role": "user", "content": "The contract was signed on Jan 3 2025 and expires Dec 31 2025."}, {"role": "assistant", "content": "Jan 3 2025, Dec 31 2025"}]}
 ```
 
-CSV also works, using a single `messages` column whose cell holds the same JSON array quoted per CSV rules. Include at least 20 examples in the train file and a separate set in the test file.
+Include at least 20 examples in the train file and a separate set in the test file.
 
 ### 4. Upload Data
 

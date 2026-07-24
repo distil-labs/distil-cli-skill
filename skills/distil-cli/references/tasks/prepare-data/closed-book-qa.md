@@ -42,22 +42,10 @@ Closed-book QA needs minimal configuration -- just a task description.
 
 ## Train/Test Data Examples
 
-### JSONL format
-
 ```json
 {"messages": [{"role": "user", "content": "Where did Sands and Chopin take shelter after the locals in Majorca became inhospitable?"}, {"role": "assistant", "content": "a former Carthusian monastery"}]}
 {"messages": [{"role": "user", "content": "When did the Computer Emergency Readiness Team investigate 79 hacking incidents at energy companies?"}, {"role": "assistant", "content": "2014"}]}
 {"messages": [{"role": "user", "content": "How is the final quarter of the Premier League's television rights revenue distributed?"}, {"role": "assistant", "content": "paid out as facilities fees for games shown on television, with the top clubs receiving the largest shares"}]}
-```
-
-### CSV format
-
-CSV uses a single `messages` column; each cell holds the same JSON array as the JSONL line above, quoted per CSV rules (double quotes inside the value are doubled). JSONL is recommended — CSV escaping of the nested JSON is error-prone.
-
-```csv
-messages
-"[{""role"": ""user"", ""content"": ""Where did Sands and Chopin take shelter after the locals in Majorca became inhospitable?""}, {""role"": ""assistant"", ""content"": ""a former Carthusian monastery""}]"
-"[{""role"": ""user"", ""content"": ""When did the Computer Emergency Readiness Team investigate 79 hacking incidents at energy companies?""}, {""role"": ""assistant"", ""content"": ""2014""}]"
 ```
 
 **Requirements:** Minimum 20 examples for both train and test sets.
@@ -75,23 +63,13 @@ The unstructured data is **crucial** for closed-book QA. This is where you provi
 
 **Interaction with `generation_target`:** For closed-book QA, the total number of synthetic examples is calculated as `len(unstructured_data) * generation_per_unstructured_context` when `generation_per_unstructured_context` is set — it *overwrites* `generation_target`. So the total dataset size is a function of how much unstructured context you provide and how many examples you want per context. See `references/configuration.md` §4.
 
-Single column: `context`.
-
-### JSONL format
+Single field: `context`.
 
 ```json
 {"context": "In June 1837 Chopin visited London incognito in the company of the piano manufacturer Camille Pleyel. The two spent a miserable winter on Majorca (8 November 1838 to 13 February 1839). After discovering that the couple were not married, the deeply traditional Catholic people of Majorca became inhospitable, making accommodation difficult to find. This compelled the group to take lodgings in a former Carthusian monastery in Valldemossa."}
 {"context": "The Premier League sells its television rights on a collective basis. The money is divided into three parts: half is divided equally between the clubs; one quarter is awarded on a merit basis based on final league position; the final quarter is paid out as facilities fees for games that are shown on television, with the top clubs generally receiving the largest shares."}
 {"context": "Computers control functions at many utilities, including coordination of telecommunications, the power grid, and nuclear power plants. In 2014, the Computer Emergency Readiness Team, a division of the Department of Homeland Security, investigated 79 hacking incidents at energy companies."}
 ```
-
-### CSV format
-
-| context |
-|---------|
-| In June 1837 Chopin visited London incognito in the company of the piano manufacturer Camille Pleyel. The two spent a miserable winter on Majorca (8 November 1838 to 13 February 1839). After discovering that the couple were not married, the deeply traditional Catholic people of Majorca became inhospitable, making accommodation difficult to find. This compelled the group to take lodgings in a former Carthusian monastery in Valldemossa. |
-| The Premier League sells its television rights on a collective basis. The money is divided into three parts: half is divided equally between the clubs; one quarter is awarded on a merit basis based on final league position; the final quarter is paid out as facilities fees for games that are shown on television, with the top clubs generally receiving the largest shares. |
-| Computers control functions at many utilities, including coordination of telecommunications, the power grid, and nuclear power plants. In 2014, the Computer Emergency Readiness Team, a division of the Department of Homeland Security, investigated 79 hacking incidents at energy companies. |
 
 ## Tips
 

@@ -4,7 +4,7 @@ Keep a single human-readable log of every step taken while building a model. The
 
 ## File
 
-- **Path:** project root (the same directory as `job_description.json`, `config.yaml`, `train.csv`, `iteration-N/`).
+- **Path:** project root (the same directory as `job_description.json`, `config.yaml`, `train.jsonl`, `iteration-N/`).
 - **Name:** `model-building-log-<name>.md` where `<name>` is a descriptive slug for the project (human-readable, not the model ID) — typically the same slug the user will pass to `distil model create`.
 - **Format:** markdown. Reverse-chronological — newest entry at the top. One `##` heading per entry.
 

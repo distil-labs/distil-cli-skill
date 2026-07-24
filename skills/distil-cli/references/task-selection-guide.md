@@ -85,7 +85,7 @@ The most general task type. The model takes text input and produces text output 
 - IT helpdesk: "What troubleshooting was attempted?"
 - Data reformatting: "Reformat this data as JSON"
 
-**Data format:** each train/test example (JSONL or CSV) is a `messages` conversation with a `user` turn (the input) and an `assistant` turn (the expected answer).
+**Data format:** each train/test example (JSONL) is a `messages` conversation with a `user` turn (the input) and an `assistant` turn (the expected answer).
 
 ---
 
@@ -198,7 +198,7 @@ The model learns facts and knowledge from unstructured data during training. At 
 - Information retrieval from arbitrary contexts
 - Customer support without a retrieval pipeline
 
-**Data format:** each train/test example is a `messages` conversation (a `user` question and an `assistant` answer), plus a required `unstructured.csv` (or `.jsonl`) containing the domain text the model should learn from.
+**Data format:** each train/test example is a `messages` conversation (a `user` question and an `assistant` answer), plus a required `unstructured.jsonl` containing the domain text the model should learn from.
 
 ---
 

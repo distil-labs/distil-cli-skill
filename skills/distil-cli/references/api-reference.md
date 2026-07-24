@@ -97,9 +97,9 @@ response = requests.get(
 ```python
 data = {
     "job_description": {"type": "json", "content": open("data/job_description.json").read()},
-    "train_data": {"type": "csv", "content": open("data/train.csv").read()},
-    "test_data": {"type": "csv", "content": open("data/test.csv").read()},
-    "unstructured_data": {"type": "csv", "content": open("data/unstructured.csv").read()},
+    "train_data": {"type": "jsonl", "content": open("data/train.jsonl").read()},
+    "test_data": {"type": "jsonl", "content": open("data/test.jsonl").read()},
+    "unstructured_data": {"type": "jsonl", "content": open("data/unstructured.jsonl").read()},
     "config": {"type": "yaml", "content": open("data/config.yaml").read()},
 }
 response = requests.post(

@@ -112,8 +112,6 @@ Multi-turn tool calling requires two fields: `task_description` and `tools`.
 
 ## Train/Test Data Examples
 
-### JSONL format
-
 ```json
 {"messages": [{"role": "user", "content": "Please list all the files in my current directory."}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "ls", "arguments": {}}}]}, {"role": "user", "content": "Navigate to the backup directory."}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "cd", "arguments": {"folder": "backup"}}}]}, {"role": "user", "content": "Show me what's inside config.txt."}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "cat", "arguments": {"file_name": "config.txt"}}}]}]}
 {"messages": [{"role": "user", "content": "Show me all files here including hidden ones."}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "ls", "arguments": {"a": true}}}]}, {"role": "user", "content": "Change directory to research."}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "cd", "arguments": {"folder": "research"}}}]}, {"role": "user", "content": "Create a file called experiment_log.txt."}, {"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "touch", "arguments": {"file_name": "experiment_log.txt"}}}]}]}
@@ -184,10 +182,6 @@ Here is an expanded view of what a single `messages` array looks like. The earli
 
 Given the history through the last user turn, the model learns to produce the final assistant tool call: `{"type": "function", "function": {"name": "cat", "arguments": {"file_name": "config.txt"}}}`.
 
-### CSV format
-
-CSV uses a single `messages` column whose cell is the same JSON array as the JSONL line above, quoted per CSV rules. **JSONL is strongly recommended** — CSV escaping of a nested conversation array is a common source of malformed uploads.
-
 **Requirements:** Minimum 20 examples. Include examples for all tools.
 
 ## Key Differences from Single-Turn Tool Calling
@@ -221,5 +215,5 @@ Required teacher: any except `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3
 3. **Varied conversation lengths** -- Include examples with different numbers of turns.
 4. **Valid JSON** -- Ensure every `messages` array is valid JSON and each `arguments` object matches the tool schema.
 5. **Context-dependent examples** -- Show cases where the next tool call depends on previous conversation context.
-6. **Prefer JSONL over CSV** -- The `messages` array is a nested conversation with tool calls. In CSV it must be a single quoted column with doubled quotes, a common source of malformed uploads. JSONL handles the nesting cleanly.
+6. **Use JSONL** -- The `messages` array is a nested conversation with tool calls, and JSONL handles that nesting cleanly.
 7. **Supported models** -- Qwen3, Qwen3.5, Llama 3-family, LFM2/LFM2.5, FunctionGemma, and Gemma 4 students. Any teacher works except `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3.1`, `Qwen3-480B-A35B-Coder`, and `Qwen2.5-VL-72B-Instruct`. See `references/model-catalog.md`.

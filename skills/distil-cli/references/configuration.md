@@ -14,8 +14,7 @@ When preparing `config.yaml` for a user, only include parameters from the tier t
 
 ## File Format
 
-- **CLI**: YAML format (`config.yaml`)
-- **Webapp**: JSON format (`config.json`)
+Config files use YAML format (`config.yaml`).
 
 ## Minimal Configuration
 

@@ -132,7 +132,7 @@ distil model show <model-id> --output json | jq -r '.training_status'
 
 Upload training data for a model. Use either directory mode or individual file flags.
 
-**Directory mode** -- expects standard filenames (`job_description.json`, `train.csv`, `test.csv`, `config.yaml`) in the directory:
+**Directory mode** -- expects standard filenames (`job_description.json`, `train.jsonl`, `test.jsonl`, `config.yaml`) in the directory:
 
 ```bash
 distil model upload-data <model-id> --data <directory>
@@ -153,10 +153,10 @@ distil model upload-data <model-id> \
 |------|----------|-------------|
 | `--data` | Yes* | Directory containing data files. |
 | `--job-description` | Yes* | Path to job description file (`.json`). |
-| `--train` | Yes* | Path to training data file (`.csv` or `.jsonl`). |
-| `--test` | Yes* | Path to test data file (`.csv` or `.jsonl`). |
-| `--config` | No | Path to config file (`.yaml` or `.json`). |
-| `--unstructured` | No | Path to unstructured data file (`.csv`) for synthetic data generation. |
+| `--train` | Yes* | Path to training data file (`.jsonl`). |
+| `--test` | Yes* | Path to test data file (`.jsonl`). |
+| `--config` | No | Path to config file (`.yaml` or `.yml`). |
+| `--unstructured` | No | Path to unstructured data file (`.jsonl`) for synthetic data generation. |
 
 \* Provide either `--data` or the individual file flags (`--job-description`, `--train`, `--test`), but not both.
 
@@ -164,7 +164,7 @@ distil model upload-data <model-id> \
 
 Upload production traces for a model. Traces are an alternative to structured data uploads. The command uploads traces and processes them into training and test data in one step.
 
-**Directory mode** -- expects standard filenames (`traces.jsonl`, `job_description.json`, `config.json`/`config.yaml`) in the directory:
+**Directory mode** -- expects standard filenames (`traces.jsonl`, `job_description.json`, `config.yaml`) in the directory:
 
 ```bash
 distil model upload-traces <model-id> --data <directory>
@@ -182,10 +182,10 @@ distil model upload-traces <model-id> \
 
 | Flag | Required | Description |
 |------|----------|-------------|
-| `--data` | Yes* | Directory containing trace files (`traces.jsonl`, `job_description.json`, `config.json`/`config.yaml`). |
+| `--data` | Yes* | Directory containing trace files (`traces.jsonl`, `job_description.json`, `config.yaml`). |
 | `--traces` | Yes* | Path to traces file (`.jsonl`). |
 | `--job-description` | Yes* | Path to job description file (`.json`). |
-| `--config` | Yes* | Path to config file (`.json` or `.yaml`). |
+| `--config` | Yes* | Path to config file (`.yaml` or `.yml`). |
 | `--test` | No | Path to a curated test data file (`.jsonl` only). |
 
 \* Provide either `--data` or all three individual file flags (`--traces`, `--job-description`, `--config`), but not both.
@@ -206,7 +206,7 @@ distil model reprocess-traces <model-id> --config <file>
 
 | Flag | Alias | Required | Description |
 |------|-------|----------|-------------|
-| `--trace-processing-config` | `-t` | Yes* | Path to trace processing config file (`.json` or `.yaml`). |
+| `--trace-processing-config` | `-t` | Yes* | Path to trace processing config file (`.yaml` or `.yml`). |
 | `--config` | `-c` | Yes* | Path to full config file -- only the `trace_processing` section is used. |
 
 \* Provide either `--trace-processing-config` or `--config`, but not both.
@@ -294,6 +294,39 @@ Check the status and results of the training job. After training completes, this
 ```bash
 distil model training <model-id>
 ```
+
+## Retuning
+
+### distil model retune
+
+Retune an existing model with new tuning parameters. Creates a new model based on a previously trained one.
+
+**Using a tuning parameters file:**
+
+```bash
+distil model retune <model-id> \
+  --name <name> \
+  --student-model <model> \
+  --tuning-parameters <file>
+```
+
+**Using a full config file** (only the `tuning` section is used):
+
+```bash
+distil model retune <model-id> \
+  --name <name> \
+  --student-model <model> \
+  --config <file>
+```
+
+| Flag | Alias | Required | Description |
+|------|-------|----------|-------------|
+| `--name` | `-n` | Yes | Name of the new retuned model to be created. |
+| `--student-model` | `-s` | Yes | Student model to use for retuning. |
+| `--tuning-parameters` | `-t` | Yes* | Path to tuning parameters file (`.json` or `.yaml`). |
+| `--config` | `-c` | Yes* | Path to config file (`.json` or `.yaml`) -- only the `tuning` section is used. |
+
+\* Provide either `--tuning-parameters` or `--config`, but not both.
 
 ## Retuning
 

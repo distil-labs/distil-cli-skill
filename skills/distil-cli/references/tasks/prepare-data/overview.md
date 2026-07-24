@@ -9,10 +9,10 @@ Your data directory should contain the following files:
 | File | Format | Required | Description |
 |------|--------|----------|-------------|
 | `job_description.json` | JSON | Yes | Task description defining what the model should do |
-| `train.csv` or `train.jsonl` | CSV or JSONL | Yes | 20+ labeled training examples |
-| `test.csv` or `test.jsonl` | CSV or JSONL | Yes | Held-out evaluation set (20+ examples) |
+| `train.jsonl` | JSONL | Yes | 20+ labeled training examples |
+| `test.jsonl` | JSONL | Yes | Held-out evaluation set (20+ examples) |
 | `config.yaml` | YAML | Yes | Task type and training hyperparameters |
-| `unstructured.csv` or `unstructured.jsonl` | CSV or JSONL | No | Domain-relevant text for synthetic data generation |
+| `unstructured.jsonl` | JSONL | No | Domain-relevant text for synthetic data generation |
 
 ## job_description.json
 
@@ -34,37 +34,24 @@ The job description tells the platform what the model should do. Think of it as 
 | `question-answering-open-book` | None beyond common fields |
 | `question-answering-closed-book` | None beyond common fields |
 
-## Supported Formats
+## Supported Format
 
-Both **CSV** and **JSONL** are supported for train, test, and unstructured files. You can use either format -- the platform handles both identically.
-
-- **CSV**: Standard comma-separated values with a header row
-- **JSONL**: One JSON object per line, each containing the required column keys
-
-The file extension determines the parser used, so use `.csv` for CSV files and `.jsonl` for JSONL files.
+**JSONL** is the required format for train, test, and unstructured files: one JSON object per line, each containing the required field keys.
 
 ## Minimum Requirements
 
-- **Training data**: At least 20 labeled examples in `train.csv`/`train.jsonl`
-- **Test data**: At least 20 labeled examples in `test.csv`/`test.jsonl`
+- **Training data**: At least 20 labeled examples in `train.jsonl`
+- **Test data**: At least 20 labeled examples in `test.jsonl`
 - The platform generates synthetic data from your examples, so a few dozen high-quality examples is enough to start
 
-## Unstructured Data (unstructured.csv)
+## Unstructured Data (unstructured.jsonl)
 
-The unstructured dataset provides domain-relevant text that the teacher model uses to generate diverse, domain-specific synthetic training data. It has a single column: `context`.
+The unstructured dataset provides domain-relevant text that the teacher model uses to generate diverse, domain-specific synthetic training data. It has a single field: `context`.
 
-**JSONL format:**
 ```json
 {"context": "Your domain-specific text here..."}
 {"context": "Another passage of relevant content..."}
 ```
-
-**CSV format:**
-
-| context |
-|---------|
-| Your domain-specific text here... |
-| Another passage of relevant content... |
 
 The role of unstructured data varies by task type:
 
@@ -117,7 +104,7 @@ Run these deterministic checks before uploading. In Claude Code, verify these pr
 - [ ] For tool calling: every assistant `tool_calls[].function.arguments` is a valid JSON object (HuggingFace format, not a stringified blob)
 - [ ] For tool calling: only one tool call per assistant message, no content
 - [ ] For multi-turn tool calling: the whole conversation, including the target tool call, is a single `messages` array
-- [ ] File extension matches format (`.csv` for CSV, `.jsonl` for JSONL)
+- [ ] File extension is `.jsonl`
 - [ ] Over-length examples surfaced and confirmed with the user: the platform **silently truncates** data that exceeds its length limits (structured and unstructured data have different caps, see `references/configuration.md`) with no warning, so report the longest examples per field and confirm with the user before uploading rather than letting content be cut silently
 - [ ] No train/test leakage: no test row duplicates or near-duplicates a train row (near-duplicate: differs only in whitespace, casing, or trivial punctuation); leakage inflates every downstream score, so remove overlaps from one split before uploading
 - [ ] `job_description.json` is valid JSON

@@ -44,8 +44,6 @@ Classification requires two fields: `task_description` and `classes_description`
 
 ## Train/Test Data Examples
 
-### JSONL format
-
 ```json
 {"messages": [{"role": "user", "content": "Why is there a fee for getting cash?"}, {"role": "assistant", "content": "cash_withdrawal_charge"}]}
 {"messages": [{"role": "user", "content": "I was declined when I tried to take out cash!"}, {"role": "assistant", "content": "declined_cash_withdrawal"}]}
@@ -53,16 +51,6 @@ Classification requires two fields: `task_description` and `classes_description`
 {"messages": [{"role": "user", "content": "It has been a couple of hours but I do not see my balance updated, can you help?"}, {"role": "assistant", "content": "balance_not_updated_after_bank_transfer"}]}
 {"messages": [{"role": "user", "content": "There is a payment showing on my app that I didn't do. Will you please cancel this payment?"}, {"role": "assistant", "content": "direct_debit_payment_not_recognised"}]}
 {"messages": [{"role": "user", "content": "How do I know which payments I make will have additional fees?"}, {"role": "assistant", "content": "card_payment_fee_charged"}]}
-```
-
-### CSV format
-
-CSV uses a single `messages` column; each cell holds the same JSON array as the JSONL line above, quoted per CSV rules (double quotes inside the value are doubled). JSONL is recommended — CSV escaping of the nested JSON is error-prone.
-
-```csv
-messages
-"[{""role"": ""user"", ""content"": ""Why is there a fee for getting cash?""}, {""role"": ""assistant"", ""content"": ""cash_withdrawal_charge""}]"
-"[{""role"": ""user"", ""content"": ""I was declined when I tried to take out cash!""}, {""role"": ""assistant"", ""content"": ""declined_cash_withdrawal""}]"
 ```
 
 **Requirements:** Minimum 20 examples. Include examples for ALL classes defined in `classes_description`.
@@ -76,9 +64,7 @@ base:
 
 ## Unstructured Data (Optional)
 
-Unlabelled examples or domain documentation to guide synthetic data generation. Single column: `context`.
-
-### JSONL format
+Unlabelled examples or domain documentation to guide synthetic data generation. Single field: `context`.
 
 ```json
 {"context": "Canceling my order is what I need to do right now."}
@@ -87,14 +73,6 @@ Unlabelled examples or domain documentation to guide synthetic data generation. 
 {"context": "I got less cash than what I specified at the ATM."}
 {"context": "Why is my last cheque deposit taking so long?"}
 ```
-
-### CSV format
-
-| context |
-|---------|
-| Canceling my order is what I need to do right now. |
-| I swear that there are 2 payments on the app that I didn't make. Could my card be stolen? |
-| Too many charges on my card, how do I go about fixing that? |
 
 ## Tips
 
