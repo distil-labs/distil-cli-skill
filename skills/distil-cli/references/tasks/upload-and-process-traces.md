@@ -14,7 +14,7 @@ Traces are logs of real interactions with an LLM in production. Instead of hand-
 
 ## Task Compatibility
 
-Trace processing does **not** support contextual (open-book) tasks. The following task types work with `upload-traces`:
+Trace processing does **not** support contextual (open-book) tasks. The following task types work with traces:
 
 | Task type | Supported |
 |-----------|-----------|
@@ -25,12 +25,36 @@ Trace processing does **not** support contextual (open-book) tasks. The followin
 | `question-answering-closed-book` | Yes |
 | `question-answering-open-book` | **No** — trace processing cannot separate context from question automatically. If your production traces contain RAG-style prompts where the retrieved context is embedded in the user message, use `question-answering` instead and keep the full prompt (context + question) in the `user` turn's content. |
 
-## Upload Traces
+## The Four Commands
 
-The recommended approach is to place all required files in a directory and upload it:
+Traces reach a trainable dataset in four steps. Run them in order; each prints the ID the next one needs.
 
 ```bash
-distil model upload-traces <model-id> --data <directory>
+# 1. Store the trace files -> <traces-id>
+distil traces upload --data <directory>
+
+# 2. Start processing -> <upload-id>
+distil upload create-from-traces <traces-id>
+
+# 3. Poll until JOB_SUCCESS (several minutes)
+distil upload status <upload-id> --output json | jq -r '.status'
+
+# 4. Fetch the processed data and hand it to the model
+distil upload download <upload-id> --data-destination ./processed
+distil model upload-data <model-id> --data ./processed
+```
+
+Step 4 exists because steps 1-3 work in terms of trace and upload IDs, while `run-teacher-evaluation` and `run-training` read the data uploaded by `upload-data`. `distil upload download` writes exactly the filenames `--data` expects (`train.jsonl`, `test.jsonl`, `unstructured.jsonl`, `config.yaml`, `job_description.json`), so the two commands chain with no editing in between.
+
+`distil model upload-traces` and `distil model reprocess-traces` have been **removed** — their API endpoint no longer exists. Both print the replacement steps and exit non-zero.
+
+### Step 1: Upload the trace files
+
+The recommended approach is to place all required files in a directory:
+
+```bash
+distil traces upload --data <directory>
+# Output: Prepared traces created. ID: <traces-id>
 ```
 
 The directory should contain:
@@ -42,12 +66,10 @@ The directory should contain:
 | `config.yaml` | Yes | Training and trace processing parameters |
 | `test.jsonl` | No | Optional curated test set |
 
-### Individual File Flags
-
 As an alternative to directory mode, specify each file individually:
 
 ```bash
-distil model upload-traces <model-id> \
+distil traces upload \
   --traces <file> \
   --job-description <file> \
   --config <file> \
@@ -63,6 +85,24 @@ distil model upload-traces <model-id> \
 | `--test` | No | Path to a curated test data file (`.jsonl` only). |
 
 \* Provide either `--data` or all three individual file flags (`--traces`, `--job-description`, `--config`), but not both.
+
+This command only stores the files — nothing is processed yet, and `distil traces status <traces-id>` reports success for any set that exists. Trace validity surfaces in step 2.
+
+`distil traces list --output json | jq -r '.[0].id'` recovers the ID if you lose it; `distil traces download <traces-id>` pulls the files back.
+
+### Step 2: Process the traces
+
+```bash
+distil upload create-from-traces <traces-id>
+# Output: Processing started. Upload ID: <upload-id>
+```
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--config` | `-c` | Config file (`.yaml`/`.yml`) merged over the prepared traces' own config on top-level keys. |
+| `--job-description` | | Job description file (`.json`) that replaces the prepared traces' own outright. |
+
+Both are optional — omit them to reuse what you uploaded in step 1. Because the merge is per top-level key, a config containing only a `trace_processing` section leaves the rest of the original config untouched.
 
 ## Trace Formats
 
@@ -140,43 +180,44 @@ trace_processing:
 
 ## Reprocessing Traces
 
-After the initial upload, you can try different processing parameters without re-uploading the trace files:
+To try different processing parameters, re-run step 2 against the same `<traces-id>` with a new config. The trace files do not need re-uploading:
 
 ```bash
-# Using a trace processing config file (only trace_processing parameters)
-distil model reprocess-traces <model-id> --trace-processing-config <file>
-
-# Or using a full config file (only the trace_processing section is used)
-distil model reprocess-traces <model-id> --config <file>
+distil upload create-from-traces <traces-id> --config ./config.yaml
 ```
 
-| Flag | Alias | Description |
-|------|-------|-------------|
-| `--trace-processing-config` | `-t` | Path to trace processing config file (`.yaml` or `.yml`). |
-| `--config` | `-c` | Path to full config file -- only the `trace_processing` section is used. |
-
-Provide either `--trace-processing-config` or `--config`, but not both. You must have uploaded traces with `upload-traces` first.
+Each run produces a **new** upload ID, so earlier attempts stay intact for comparison — `distil upload list` shows them newest first. There is no `reprocess-traces` command any more; this is it.
 
 ## Checking Status
 
-Check the upload and processing status:
+Poll the upload produced in step 2. Copy the canonical loop from `references/tasks/polling-jobs.md`; extract the status with jq rather than grepping text output:
 
 ```bash
-distil model upload-status <model-id>
+distil upload status <upload-id> --output json | jq -r '.status'
 ```
 
-For machine-readable output:
+When a run fails, read the processing job's output:
 
 ```bash
-distil model upload-status <model-id> --output json
+distil upload logs <upload-id>
 ```
 
-Once processing completes, continue with teacher evaluation and training:
+Once it reports `JOB_SUCCESS`, the base model's scores on the generated test set are available:
 
 ```bash
+distil upload metrics <upload-id>
+```
+
+Then complete step 4 and continue with teacher evaluation and training:
+
+```bash
+distil upload download <upload-id> --data-destination ./processed
+distil model upload-data <model-id> --data ./processed
 distil model run-teacher-evaluation <model-id>
 distil model run-training <model-id>
 ```
+
+`distil upload download` errors while the upload is still processing, so do not run it before the status is terminal.
 
 ## Common Gotchas
 
@@ -186,7 +227,7 @@ distil model run-training <model-id>
      validation_max_total_length: 30000
    ```
 
-2. **Updating `job_description.json` requires re-uploading** — There is no way to update the job description in place. If you need to change it (e.g., to add a missing required field), you must re-run `upload-traces`, which triggers full trace processing including committee relabelling. Plan your job description carefully before uploading.
+2. **Changing `job_description.json` re-triggers full processing** — There is no way to update it in place. Pass a corrected one to `distil upload create-from-traces <traces-id> --job-description <file>`; that re-runs the whole pipeline including committee relabelling. You do not need to re-upload the trace files, but the processing cost is the same as a first run, so plan the job description carefully.
 
 3. **Markdown fences in relabeled JSON answers** — When `synthgen.output_is_json: true`, committee relabeling models sometimes wrap JSON in ```` ```json ... ``` ```` fences. Teacher evaluation will then fail JSON validation. Workaround: download the relabeled train/test, strip markdown fences from the `assistant` turns' content, validate every `assistant` content parses as JSON, and re-upload as a regular dataset with `distil model upload-data`. Then proceed to teacher evaluation.
 
@@ -196,7 +237,7 @@ distil model run-training <model-id>
 
 1. **Provide enough traces** -- Hundreds to thousands of traces is ideal for good results.
 2. **Keep relabelling enabled** -- Use `relabel: true` (the default) to improve label quality via a committee of teacher models. The committee approach produces more consistent and accurate labels than any single model.
-3. **Iterate with reprocess** -- If the processed data does not look right, use `reprocess-traces` to try different parameters without re-uploading.
+3. **Iterate by re-processing** -- If the processed data does not look right, re-run `distil upload create-from-traces <traces-id> --config <file>` with different parameters. The trace files stay put; each run yields a new upload ID.
 4. **Multi-turn conversations** -- Every trace is processed as a multi-turn conversation and rewritten as a whole; a simple single-exchange trace is just a two-turn conversation. Conversations are preserved automatically for tasks like `multi-turn-tool-calling-closed-book` — no configuration needed.
 5. **Cap large trace sets** -- Tune `num_traces_as_training_base` and `num_traces_as_testing_base` to control how many traces feed into seed generation. Unused traces become unstructured context. Set the two to the **same value** so train and test are seeded from comparable trace volumes; diverging them skews the train/test distribution.
 6. **Strip large system prompts** -- `remove_system_prompt_from_traces` is `true` by default, stripping leading system messages so large prompts don't dominate the data. Set it to `false` only if you need to keep system prompts.

@@ -112,11 +112,9 @@ upload_id = response.json()["id"]
 
 ### Upload traces
 
-Trace upload is a two-step process: upload files to S3, then register and process them.
+Three steps: stage the files in S3, register them as prepared traces, then start processing.
 
 ```python
-import yaml
-
 # Step 1: Get presigned S3 URLs and upload files
 response = requests.get(
     "https://api.distillabs.ai/staging-prepared-traces-s3-urls",
@@ -126,29 +124,32 @@ urls = response.json()
 
 requests.put(urls["traces_jsonl"], data=open("traces/traces.jsonl").read())
 requests.put(urls["job_description_json"], data=open("traces/job_description.json").read())
-requests.put(urls["config_yaml"], data=open("traces/config.yaml").read())
+requests.put(urls["config"], data=open("traces/config.yaml").read())
 
-# Step 2: Register and kick off trace processing
+# Step 2: Register the staged files as prepared traces
 response = requests.post(
-    f"https://api.distillabs.ai/models/{model_id}/prepared-traces",
+    "https://api.distillabs.ai/prepared-traces",
     data=json.dumps({
         "traces_jsonl": urls["traces_jsonl"],
-        "config": urls["config_yaml"],
         "job_description_json": urls["job_description_json"],
+        "config": urls["config"],
     }),
     headers={"Content-Type": "application/json", **auth_header},
 )
 prepared_traces_id = response.json()["id"]
 
-config = yaml.safe_load(open("traces/config.yaml"))
-trace_processing_config = config.get("trace_processing", {})
+# Step 3: Kick off trace processing
+# `config` is merged over the prepared traces' own config on top-level keys;
+# `job_description` replaces theirs outright. Both optional.
 response = requests.post(
-    f"https://api.distillabs.ai/models/{model_id}/prepared-traces/{prepared_traces_id}/upload",
-    data=json.dumps({"trace-processing-config": trace_processing_config}),
+    "https://api.distillabs.ai/uploads/from-prepared-traces",
+    data=json.dumps({"from": prepared_traces_id}),
     headers={"Content-Type": "application/json", **auth_header},
 )
 upload_id = response.json()["id"]
 ```
+
+Note the staging response key is `config`, not `config_yaml`, and neither endpoint takes a model ID.
 
 ### Check upload status
 
@@ -157,6 +158,24 @@ response = requests.get(
     f"https://api.distillabs.ai/uploads/{upload_id}/status",
     headers=auth_header,
 )
+```
+
+The response is `{"status": …}` only. Base model metrics and logs live on separate endpoints:
+
+```python
+# base_model_performance, base_model_predictions_download_url
+requests.get(f"https://api.distillabs.ai/uploads/{upload_id}/metrics", headers=auth_header)
+
+# logs of the processing job
+requests.get(f"https://api.distillabs.ai/uploads/{upload_id}/logs", headers=auth_header)
+
+# presigned URLs for train / test / unstructured / config / job description
+# 409 while the upload is still processing
+requests.get(f"https://api.distillabs.ai/uploads/{upload_id}/download", headers=auth_header)
+
+# list uploads / prepared traces, reverse chronological
+requests.get("https://api.distillabs.ai/uploads", params={"start": 0, "count": 100}, headers=auth_header)
+requests.get("https://api.distillabs.ai/prepared-traces", params={"start": 0, "count": 100}, headers=auth_header)
 ```
 
 ### Run teacher evaluation

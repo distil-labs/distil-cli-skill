@@ -149,10 +149,14 @@ If you write a validation script (Python, jq pipeline, etc.) and it raises an ex
 
 ## Step 3: Upload and Process Traces
 
-Deterministic. Run directly.
+Deterministic. Run directly. Capture `<traces-id>` and `<upload-id>` from the output — later steps need both.
 
 ```bash
-distil model upload-traces <model-id> --data ./traces-dir
+distil traces upload --data ./traces-dir
+# Output: Prepared traces created. ID: <traces-id>
+
+distil upload create-from-traces <traces-id>
+# Output: Processing started. Upload ID: <upload-id>
 ```
 
 Trace processing runs a multi-step pipeline:
@@ -160,7 +164,18 @@ Trace processing runs a multi-step pipeline:
 2. **Committee relabeling** — multiple teacher models generate candidate outputs; an arbiter picks the best
 3. **Train/test split** — produces `train`, `test`, and `unstructured` splits
 
-Poll until complete using the canonical pattern from `references/tasks/polling-jobs.md` (substitute `upload-status` as the status command, `sleep 60`). Trace processing typically takes several minutes. Do not proceed until status is `JOB_SUCCESS`.
+Poll until complete using the canonical pattern from `references/tasks/polling-jobs.md` (status command `distil upload status <upload-id> --output json`, `sleep 60`). Trace processing typically takes several minutes. Do not proceed until status is `JOB_SUCCESS`. If it fails, read `distil upload logs <upload-id>`.
+
+Then move the processed data onto the model, so teacher evaluation and training can read it:
+
+```bash
+distil upload download <upload-id> --data-destination ./processed
+distil model upload-data <model-id> --data ./processed
+```
+
+`distil upload download` writes the filenames `--data` expects, so no renaming is needed. Do not run it before the status is terminal — it errors while the upload is still processing.
+
+Record `<traces-id>` in the run log: every later re-processing pass starts from it.
 
 **Log:** append a log entry noting the upload (`references/tasks/maintain-run-log.md`).
 
@@ -184,7 +199,7 @@ Follow `references/tasks/test-set-approval.md` — it pulls down the uploads obj
 
 After the user approves the test set, ask if they want a deeper look at the full uploads object (train / test / unstructured). This is not a gate — if the user declines, continue to Step 5.
 
-If the user opts in, follow `references/tasks/analyze-uploads.md`. It downloads the upload with `distil model download-data`, runs quantitative and qualitative consistency checks, and produces an Upload Consistency Report at `iteration-<N>/upload-consistency.md`. The verdict is PROCEED or INVESTIGATE — INVESTIGATE only means "there may be data issues worth fixing before burning credits on teacher eval", not a hard block.
+If the user opts in, follow `references/tasks/analyze-uploads.md`. It downloads the upload with `distil upload download <upload-id>`, runs quantitative and qualitative consistency checks, and produces an Upload Consistency Report at `iteration-<N>/upload-consistency.md`. The verdict is PROCEED or INVESTIGATE — INVESTIGATE only means "there may be data issues worth fixing before burning credits on teacher eval", not a hard block.
 
 **Log:** append a log entry with the verdict.
 
@@ -247,7 +262,7 @@ Save the report as `iteration-<N>/teacher-eval-analysis.md`. **After writing the
 ### 6c. Decision point
 
 - **PROCEED** → Go to Step 8 (Confirm Before Training).
-- **ITERATE** → Switch to `workflows/improving-a-model.md` → **Entry Point A** (ITERATE path — work through job description, data, synthgen/mutations, teacher model in that order). The report's "Recommended actions" section tells you which lever to start with. Trace-specific re-upload paths (`upload-traces`, `reprocess-traces`, `upload-data`) are covered there.
+- **ITERATE** → Switch to `workflows/improving-a-model.md` → **Entry Point A** (ITERATE path — work through job description, data, synthgen/mutations, teacher model in that order). The report's "Recommended actions" section tells you which lever to start with. Trace-specific re-processing paths (`traces upload`, `upload create-from-traces`, `upload-data`) are covered there.
 - **RETHINK** → Switch to `workflows/improving-a-model.md` → **Entry Point A** (RETHINK path — step back and question task type, task definition, judge instructions before touching individual levers).
 
 **Also switch to Entry Point A if the teacher eval scores look questionable for any reason** — e.g. the judge flagged outputs as "bad" that look correct on inspection, or the metrics look inconsistent. The RETHINK path is the right place to confirm the judge is telling the truth before iterating on the model.
@@ -258,7 +273,7 @@ Save the report as `iteration-<N>/teacher-eval-analysis.md`. **After writing the
 
 This is the return point from `workflows/improving-a-model.md`. After each iteration loop completes there, come back to Step 6 to analyze the new teacher evaluation results. Repeat until the verdict is `PROCEED`.
 
-Every `upload-traces` or `reprocess-traces` re-run re-triggers Step 4 (Approve Test Set, hard gate) and re-offers Step 4b (Deep-Dive Uploads). The new iteration always gets its own `iteration-<N>/` directory — see `workflows/improving-a-model.md`'s Iteration Discipline section.
+Every re-run of `distil upload create-from-traces` re-triggers Step 4 (Approve Test Set, hard gate) and re-offers Step 4b (Deep-Dive Uploads). Each run yields a new `<upload-id>`, so re-run Step 3's download and `upload-data` before Step 5 or teacher evaluation will still read the previous pass. The new iteration always gets its own `iteration-<N>/` directory — see `workflows/improving-a-model.md`'s Iteration Discipline section.
 
 ---
 

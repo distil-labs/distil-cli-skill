@@ -29,7 +29,7 @@ distil model upload-data <model-id> \
   --job-description <file> \
   --train <file> \
   --test <file> \
-  [--config <file>] \
+  --config <file> \
   [--unstructured <file>]
 ```
 
@@ -62,11 +62,15 @@ Check whether the upload has been validated and is ready:
 distil model upload-status <model-id>
 ```
 
-For machine-readable output:
+For machine-readable output — `{"status": …, "metrics": {…}}`:
 
 ```bash
-distil model upload-status <model-id> --output json
+distil model upload-status <model-id> --output json | jq -r '.status'
 ```
+
+Add `--logs` to include the logs of the job that produced the upload.
+
+To check an upload by its own ID rather than through a model, use `distil upload status <upload-id>`. `distil upload list` shows every upload you have, newest first.
 
 ## Downloading Uploaded Data
 
@@ -76,15 +80,23 @@ To verify what was uploaded, download the data files back to your machine:
 distil model download-data <model-id>
 ```
 
+Or by upload ID, which also works for uploads built from traces:
+
+```bash
+distil upload download <upload-id> --data-destination <directory>
+```
+
+Both write `train.jsonl`, `test.jsonl`, `unstructured.jsonl`, `config.yaml`, and `job_description.json` — the same filenames `--data` expects, so a download can be re-uploaded without renaming anything.
+
 This is useful for confirming the correct files were sent, especially when debugging issues with teacher evaluation or training.
 
 ## Common Issues
 
 ### Wrong file format
-The platform expects JSONL (`.jsonl`) for train and test files, JSON (`.json`) for job descriptions, and YAML (`.yaml`) or JSON (`.json`) for config. Uploading files in other formats will cause validation errors.
+The platform expects JSONL (`.jsonl`) for train and test files, JSON (`.json`) for job descriptions, and YAML (`.yaml`/`.yml`) for config — `config.json` is no longer accepted. Uploading files in other formats will cause validation errors.
 
 ### Missing required files
-When using directory mode, the directory must contain `job_description.json` and training/test data files. When using individual flags, you must provide at least `--job-description`, `--train`, and `--test`.
+When using directory mode, the directory must contain `job_description.json`, training/test data files, and `config.yaml` (or `config.yml`). When using individual flags, you must provide `--job-description`, `--train`, `--test`, and `--config`. A missing config fails immediately, before anything is uploaded.
 
 ### Too few examples
 Training requires a minimum of 20 examples in the training set. If you have fewer, the platform will reject the upload. Add more labeled examples before uploading.

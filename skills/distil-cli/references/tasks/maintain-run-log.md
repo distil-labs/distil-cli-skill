@@ -15,7 +15,7 @@ If the file already exists at session start, read it to reconstruct context befo
 Append a new entry at each of these points. The workflows and `improving-a-model.md` call this file at the right moments; you do not need to remember the list, just write an entry whenever a workflow step says to.
 
 - Model creation (`distil model create`)
-- Each data upload (`upload-data`, `upload-traces`, `reprocess-traces`)
+- Each data upload (`upload-data`, `traces upload`, `upload create-from-traces`)
 - Analyze Uploads verdict (traces workflow, optional step)
 - Test-set approval (traces workflow)
 - Teacher evaluation analysis (verdict + iteration)

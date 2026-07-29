@@ -107,7 +107,7 @@ Field notes:
 | `training` | `null` until training starts; otherwise an object with training job details. |
 | `upload_ids` | Array of upload UUIDs, **latest first**. Element 0 is the current upload. |
 | `teacher_evaluation_ids` | Array of teacher evaluation UUIDs, latest first. |
-| `prepared_traces_ids` | Array of prepared-traces UUIDs, latest first. Populated when `upload-traces` is used. |
+| `prepared_traces_ids` | Array of prepared-traces UUIDs, latest first. Legacy field — list prepared traces with `distil traces list` instead. |
 | `training_status` | One of the job status values (see `references/tasks/polling-jobs.md`). |
 | `evaluation_results` | Teacher evaluation aggregate metrics once complete. |
 | `training_evaluation_results` | Training aggregate metrics once complete. |
@@ -145,7 +145,7 @@ distil model upload-data <model-id> \
   --job-description <file> \
   --train <file> \
   --test <file> \
-  [--config <file>] \
+  --config <file> \
   [--unstructured <file>]
 ```
 
@@ -155,61 +155,18 @@ distil model upload-data <model-id> \
 | `--job-description` | Yes* | Path to job description file (`.json`). |
 | `--train` | Yes* | Path to training data file (`.jsonl`). |
 | `--test` | Yes* | Path to test data file (`.jsonl`). |
-| `--config` | No | Path to config file (`.yaml` or `.yml`). |
+| `--config` | Yes* | Path to config file (`.yaml` or `.yml`). |
 | `--unstructured` | No | Path to unstructured data file (`.jsonl`) for synthetic data generation. |
 
-\* Provide either `--data` or the individual file flags (`--job-description`, `--train`, `--test`), but not both.
+\* Provide either `--data` or the individual file flags (`--job-description`, `--train`, `--test`, `--config`), but not both.
 
-### distil model upload-traces
+`--config` is required. In directory mode the directory must contain `config.yaml` or `config.yml`. The command fails before uploading anything if it is missing, so a missing config is a fast, safe failure rather than a half-done upload.
 
-Upload production traces for a model. Traces are an alternative to structured data uploads. The command uploads traces and processes them into training and test data in one step.
+### distil model upload-traces / reprocess-traces (removed)
 
-**Directory mode** -- expects standard filenames (`traces.jsonl`, `job_description.json`, `config.yaml`) in the directory:
+Both commands have been removed -- their API endpoint no longer exists. Each now prints the replacement steps and exits **non-zero**, so a script that calls them fails rather than silently doing nothing.
 
-```bash
-distil model upload-traces <model-id> --data <directory>
-```
-
-**Individual file flags:**
-
-```bash
-distil model upload-traces <model-id> \
-  --traces <file> \
-  --job-description <file> \
-  --config <file> \
-  [--test <file>]
-```
-
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--data` | Yes* | Directory containing trace files (`traces.jsonl`, `job_description.json`, `config.yaml`). |
-| `--traces` | Yes* | Path to traces file (`.jsonl`). |
-| `--job-description` | Yes* | Path to job description file (`.json`). |
-| `--config` | Yes* | Path to config file (`.yaml` or `.yml`). |
-| `--test` | No | Path to a curated test data file (`.jsonl` only). |
-
-\* Provide either `--data` or all three individual file flags (`--traces`, `--job-description`, `--config`), but not both.
-
-### distil model reprocess-traces
-
-Reprocess previously uploaded traces with a new trace processing config. Uses the most recently uploaded prepared traces for the model. You must have already uploaded traces with `upload-traces` first.
-
-```bash
-distil model reprocess-traces <model-id> --trace-processing-config <file>
-```
-
-You can also pass a full config file -- only the `trace_processing` section will be used:
-
-```bash
-distil model reprocess-traces <model-id> --config <file>
-```
-
-| Flag | Alias | Required | Description |
-|------|-------|----------|-------------|
-| `--trace-processing-config` | `-t` | Yes* | Path to trace processing config file (`.yaml` or `.yml`). |
-| `--config` | `-c` | Yes* | Path to full config file -- only the `trace_processing` section is used. |
-
-\* Provide either `--trace-processing-config` or `--config`, but not both.
+Replace `upload-traces` with `distil traces upload` followed by `distil upload create-from-traces`. Replace `reprocess-traces` with `distil upload create-from-traces <traces-id> --config <file>`. See `## Prepared Traces` and `## Uploads` below.
 
 ### distil model download-data
 
@@ -229,6 +186,8 @@ distil model download-traces-predictions <model-id> --file-name predictions.json
 ```
 
 Default output filename: `<model-id>-traces-predictions.jsonl`.
+
+Takes a model ID and reads the data uploaded with `upload-data`. To download by upload ID instead, use `distil upload download-traces-predictions <upload-id>`.
 
 ### distil model download-teacher-evaluation-predictions
 
@@ -250,12 +209,178 @@ distil model download-training-predictions <model-id> --file-name student-predic
 
 ### distil model upload-status
 
-Show the current upload and processing status for a model.
+Show the status of the data uploaded with `upload-data`, plus the base model metrics when there are any.
 
 ```bash
 distil model upload-status <model-id>
 distil model upload-status <model-id> --output json
+distil model upload-status <model-id> --logs
 ```
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--logs` | `-l` | Also fetch the logs of the job that produced the upload. |
+| `--output json` | `-o json` | Emit `{"status": …, "metrics": {…}}`, plus a `logs` key when `--logs` is set. |
+
+The JSON shape is worth noting when polling: `status` is the job status string, and `metrics` holds `base_model_performance` and `base_model_predictions_download_url`.
+
+```bash
+distil model upload-status <model-id> --output json | jq -r '.status'
+```
+
+To check an upload by its own ID, use `distil upload status <upload-id>` (see `## Uploads`).
+
+## Prepared Traces
+
+`distil traces` (alias `distil traces ls` for `list`, `distil traces create` for `upload`) manages sets of production traces. Prepared traces are the raw material: uploading them stores the files, and a separate step processes them into training and test data.
+
+### distil traces upload
+
+Store trace files as a prepared-traces resource and print its ID. Takes no model ID.
+
+**Directory mode** -- expects standard filenames (`traces.jsonl`, `job_description.json`, `config.yaml`, and optionally `test.jsonl`) in the directory:
+
+```bash
+distil traces upload --data <directory>
+# Output: Prepared traces created. ID: <traces-id>
+```
+
+**Individual file flags:**
+
+```bash
+distil traces upload \
+  --traces <file> \
+  --job-description <file> \
+  --config <file> \
+  [--test <file>]
+```
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--data` | Yes* | Directory containing trace files (`traces.jsonl`, `job_description.json`, `config.yaml`). |
+| `--traces` | Yes* | Path to traces file (`.jsonl`). |
+| `--job-description` | Yes* | Path to job description file (`.json`). |
+| `--config` | Yes* | Path to config file (`.yaml` or `.yml`). |
+| `--test` | No | Path to a curated test data file (`.jsonl` only). |
+
+\* Provide either `--data` or all three individual file flags (`--traces`, `--job-description`, `--config`), but not both.
+
+This command only stores the files -- it does not start processing. Follow it with `distil upload create-from-traces <traces-id>`.
+
+### distil traces list
+
+```bash
+distil traces list
+distil traces list --output json
+```
+
+Newest first. Fetches all pages internally (up to 10,000 records).
+
+```bash
+# Most recent prepared-traces ID
+distil traces list --output json | jq -r '.[0].id // "none"'
+```
+
+### distil traces show / status
+
+```bash
+distil traces show <traces-id>
+distil traces status <traces-id>
+```
+
+Prepared traces are created synchronously, so `status` on one that exists always reports success. It is not a verdict on the traces themselves -- trace validity only surfaces when an upload is built from them, so read `distil upload status` for that.
+
+### distil traces download
+
+```bash
+distil traces download <traces-id>
+distil traces download <traces-id> --data-destination <directory>
+```
+
+Writes `traces.jsonl`, `job_description.json`, `config.yaml`, and `test.jsonl` (whichever exist) under the destination, using the filenames `distil traces upload --data` expects. Alias: `-d`.
+
+## Uploads
+
+`distil upload` (alias `distil uploads`, and `distil upload ls` for `list`) works with uploads by upload ID. An upload is a set of training and test data, whether it came from local files or from processing prepared traces.
+
+All read commands accept `--output json` / `-o json`.
+
+### distil upload create
+
+Create an upload from local data files. Same flags as `distil model upload-data`, minus the model ID -- including the required `--config`.
+
+```bash
+distil upload create --data <directory>
+```
+
+### distil upload create-from-traces
+
+Start a trace-processing job that turns prepared traces into an upload. This is the second half of the traces path, and the replacement for the removed `reprocess-traces`.
+
+```bash
+distil upload create-from-traces <traces-id>
+distil upload create-from-traces <traces-id> --config <file>
+distil upload create-from-traces <traces-id> --job-description <file>
+# Output: Processing started. Upload ID: <upload-id>
+```
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--config` | `-c` | Config file (`.yaml`/`.yml`) merged over the prepared traces' own config on top-level keys. |
+| `--job-description` | | Job description file (`.json`) that replaces the prepared traces' own outright. |
+
+Both are optional; omit them to reuse the prepared traces' own config and job description. The merge is per top-level key, so passing a config containing only `trace_processing` keeps the rest of the original config intact.
+
+Each call produces a **new** upload, so re-running against the same `<traces-id>` with different parameters leaves earlier attempts intact for comparison. This is how you iterate on `trace_processing` params without re-uploading trace files.
+
+### distil upload list
+
+```bash
+distil upload list
+distil upload list --output json
+```
+
+Newest first. Fetches all pages internally (up to 10,000 records).
+
+```bash
+# Most recent upload ID
+distil upload list --output json | jq -r '.[0].id // "none"'
+```
+
+### distil upload show / status / logs / metrics
+
+```bash
+distil upload show <upload-id>      # id, created_at, source, status
+distil upload status <upload-id>    # status only -- use this when polling
+distil upload logs <upload-id>      # logs of the job that produced the upload
+distil upload metrics <upload-id>   # base model performance + predictions URL
+```
+
+`source` is `direct_upload` or `prepared_traces`. Uploads from local files are complete the moment they are created and have no logs; trace-derived uploads process asynchronously, so poll `status` until it reaches a terminal value (see `references/tasks/polling-jobs.md`) and read `logs` when one fails.
+
+```bash
+distil upload status <upload-id> --output json | jq -r '.status'
+```
+
+### distil upload download
+
+```bash
+distil upload download <upload-id>
+distil upload download <upload-id> --data-destination <directory>
+```
+
+Writes whichever of `train.jsonl`, `test.jsonl`, `unstructured.jsonl`, `config.yaml`, and `job_description.json` the upload has, using the filenames directory mode expects -- so the output feeds straight back into `distil model upload-data --data <directory>` or `distil upload create --data <directory>`.
+
+Errors while the upload is still processing, so poll `distil upload status` first. Alias: `-d`. If one file fails to download the command reports that file and finishes the rest.
+
+### distil upload download-traces-predictions
+
+```bash
+distil upload download-traces-predictions <upload-id>
+distil upload download-traces-predictions <upload-id> --file-name predictions.jsonl
+```
+
+Per-example predictions of the model that generated the traces, on the processed test set. Default output filename: `<upload-id>-traces-predictions.jsonl`.
 
 ## Teacher Evaluation
 

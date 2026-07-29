@@ -10,26 +10,28 @@ Download per-example predictions from trace processing, teacher evaluation, and 
 
 ## Trace Processing Predictions
 
-After `upload-traces` completes, download the original production model's predictions on the test set — the model that generated the traces. Use these to compare the original model against the committee-relabeled ground truth.
+Once trace processing completes, download the original production model's predictions on the test set — the model that generated the traces. Use these to compare the original model against the committee-relabeled ground truth.
 
 ### CLI
 
 ```bash
-distil model download-traces-predictions <model-id>
+distil upload download-traces-predictions <upload-id>
 
 # Custom output filename
-distil model download-traces-predictions <model-id> --file-name predictions.jsonl
+distil upload download-traces-predictions <upload-id> --file-name predictions.jsonl
 ```
 
-Default output: `<model-id>-traces-predictions.jsonl`
+Default output: `<upload-id>-traces-predictions.jsonl`
+
+If the processed data has already been re-uploaded with `distil model upload-data`, `distil model download-traces-predictions <model-id>` fetches the same predictions by model ID.
 
 ### API (alternative)
 
-The download URL is included in the upload status response once processing completes:
+The download URL is included in the upload metrics response once processing completes:
 
 ```python
 response = requests.get(
-    f"https://api.distillabs.ai/uploads/{upload_id}/status",
+    f"https://api.distillabs.ai/uploads/{upload_id}/metrics",
     headers=auth_header,
 )
 download_url = response.json()["base_model_predictions_download_url"]

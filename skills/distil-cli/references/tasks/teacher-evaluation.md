@@ -9,7 +9,7 @@ Teacher evaluation validates whether a large language model can solve your task 
 
 ## Run Teacher Evaluation
 
-After uploading data (via `upload-data` or `upload-traces`), start the evaluation:
+After uploading data with `distil model upload-data`, start the evaluation:
 
 ```bash
 distil model run-teacher-evaluation <model-id>
@@ -95,4 +95,4 @@ Iterate on your data and configuration before starting training if:
 - All metrics are low, which indicates the task may be under-specified.
 - You see a pattern of specific failure types in the results (e.g., the model always gets one category wrong in classification).
 
-The iteration loop is: revise job description or data, re-upload with `upload-data` or `upload-traces`, and run teacher evaluation again. Repeat until the teacher performs well.
+The iteration loop is: revise job description or data, re-upload with `upload-data`, and run teacher evaluation again. Repeat until the teacher performs well. On the traces path, re-process with `distil upload create-from-traces` first, then download and re-upload the result (see `references/tasks/upload-and-process-traces.md`).

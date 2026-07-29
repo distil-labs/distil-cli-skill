@@ -114,7 +114,7 @@ old_upload_id=$(distil model show <model-id> --output json | jq -r '.upload_ids[
 
 # 3. Re-upload — creates a new upload, doesn't overwrite
 distil model upload-data <model-id> --data ./data-dir
-# (Or distil model upload-traces for the traces path.)
+# (On the traces path, re-process first and point --data at the download — see Trace-specific paths below.)
 
 # 4. Confirm a NEW upload was created — if IDs match, re-upload didn't take
 new_upload_id=$(distil model show <model-id> --output json | jq -r '.upload_ids[0]')
@@ -136,13 +136,21 @@ For the polling loop, see `references/tasks/polling-jobs.md`. Then go back to th
 
 ### Trace-specific paths
 
-If you're in the traces workflow, you have three re-upload options:
+If you're in the traces workflow, you have three options, cheapest last:
 
-- **`distil model upload-traces`** — re-runs full trace processing including committee relabeling. Slowest.
-- **`distil model reprocess-traces`** — skips re-uploading the trace files, just re-runs processing with new `trace_processing` params. Use this for processing-only changes.
-- **`distil model upload-data`** — upload a manually fixed dataset, e.g. after stripping markdown fences from relabeled answers.
+- **`distil traces upload --data <dir>`** then `distil upload create-from-traces <new-traces-id>` — needed only when the trace files themselves changed (new traces, or a curated `test.jsonl` added). Slowest.
+- **`distil upload create-from-traces <traces-id> --config <file>`** (or `--job-description <file>`) — reuses the trace files already on the platform and re-runs processing with new parameters. Use this for processing-only changes; `<traces-id>` is in the run log from Step 3.
+- **`distil model upload-data`** — upload a manually fixed dataset, e.g. after stripping markdown fences from relabeled answers. No reprocessing at all.
 
-After any of the first two, re-run the test-set approval gate (`references/tasks/test-set-approval.md`) and re-offer the uploads deep dive (`references/tasks/analyze-uploads.md`) before returning to teacher evaluation.
+Each `create-from-traces` run produces a new `<upload-id>`, and it does not become the model's upload on its own. Finish the hop before re-running teacher evaluation:
+
+```bash
+distil upload status <upload-id> --output json | jq -r '.status'   # wait for JOB_SUCCESS
+distil upload download <upload-id> --data-destination ./processed
+distil model upload-data <model-id> --data ./processed
+```
+
+Then run the upload-ID check from step 4 above. After either of the first two options, re-run the test-set approval gate (`references/tasks/test-set-approval.md`) and re-offer the uploads deep dive (`references/tasks/analyze-uploads.md`) before returning to teacher evaluation.
 
 ---
 

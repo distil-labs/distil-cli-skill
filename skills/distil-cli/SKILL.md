@@ -91,7 +91,8 @@ Always read `references/tasks/prepare-data/overview.md` first, then the task-spe
 | User intent | Read this file |
 |---|---|
 | "How do I upload my dataset?" / "upload-data command" | `references/tasks/upload-dataset.md` |
-| "How do I use production traces?" / "upload-traces" / "reprocess traces" | `references/tasks/upload-and-process-traces.md` |
+| "How do I use production traces?" / "traces upload" / "upload-traces" / "reprocess traces" | `references/tasks/upload-and-process-traces.md` |
+| "distil upload commands" / "list my uploads" / "upload status by ID" | `references/cli-reference.md` (`## Uploads`, `## Prepared Traces`) |
 | "How do I run teacher evaluation?" / "Is my task feasible?" | `references/tasks/teacher-evaluation.md` |
 | "How do I train?" / "Start training" / "Training status" | `references/tasks/training.md` |
 | "How do I deploy?" / "Download model" / "Run inference" | `references/tasks/deployment-integration.md` |
@@ -155,7 +156,17 @@ distil model deploy local <model-id>
 distil model invoke <model-id>  # Get the curl command to query your model
 ```
 
-**Alternative: Train from traces** — Instead of steps 3-4, prepare a `traces.jsonl` file with your production logs, a `job_description.json`, and a `config.yaml`, then run `distil model upload-traces <model-id> --data ./my-traces-dir`. See `references/tasks/upload-and-process-traces.md` for trace formats and task compatibility (note: `question-answering-open-book` is not supported via traces).
+**Alternative: Train from traces** — Instead of writing `train.jsonl` and `test.jsonl` by hand in step 3, derive them from production logs. Prepare a `traces.jsonl`, a `job_description.json`, and a `config.yaml`, then:
+
+```bash
+distil traces upload --data ./my-traces-dir        # -> <traces-id>
+distil upload create-from-traces <traces-id>       # -> <upload-id>, starts processing
+distil upload status <upload-id>                   # poll until JOB_SUCCESS
+distil upload download <upload-id> --data-destination ./processed
+distil model upload-data <model-id> --data ./processed   # step 4 as usual
+```
+
+`distil upload download` writes the filenames `--data` expects, so the last two commands chain directly. See `references/tasks/upload-and-process-traces.md` for trace formats and task compatibility (note: `question-answering-open-book` is not supported via traces). `distil model upload-traces` and `distil model reprocess-traces` have been removed.
 
 ## Instructions
 
@@ -181,7 +192,7 @@ When helping users, exhaust all mechanical/lookup steps before engaging judgment
 - Run CLI commands directly. Do not just tell the user what to run.
 - **Exception: never auto-start training.** Do NOT run `distil model run-training` or `distil model retune` on your own initiative, not even when teacher evaluation clears the PROCEED threshold. Both start multi-hour, credit-burning jobs whose credits are hard to refund. Present the teacher-evaluation results and the final config, then wait for the user's explicit go-ahead (the workflows' "Confirm Before Training" step owns this gate; honor it even when the user asked you to "run the commands" generally). When in doubt, ask.
 - After running `distil model create`, capture the model ID and use it in subsequent commands.
-- Check status commands (`upload-status`, `teacher-evaluation`, `training`) to monitor progress.
+- Check status commands (`upload-status`, `upload status <upload-id>`, `teacher-evaluation`, `training`) to monitor progress.
 - When training or evaluation is running, tell the user approximately how long it takes and suggest checking back.
 - **Polling long-running jobs:** Copy the canonical polling loop from `references/tasks/polling-jobs.md` verbatim. Do not write your own grep loop or `sleep N && command` chain — the former picks the wrong status pattern half the time and the latter is blocked by Claude Code. Use `while ...; do ...; sleep 60; done` with the sleep inside the loop body.
 - **Status checks always use `--output json | jq`** — never grep human-readable output. The default text output also omits some metrics (notably LLM-as-a-Judge), so for analysis always use `--output json` too.

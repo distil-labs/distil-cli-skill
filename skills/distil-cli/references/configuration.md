@@ -166,7 +166,7 @@ Parameters for fine-grained control over synthetic data generation.
 
 ## 5. Trace Processing Configuration
 
-Parameters for the trace processing pipeline, which converts production traces into training and testing data. These are used when training from traces via `distil model upload-traces`.
+Parameters for the trace processing pipeline, which converts production traces into training and testing data. They are read when an upload is built from prepared traces -- either from the config uploaded with `distil traces upload`, or from the config passed to `distil upload create-from-traces --config`, which is merged over it on top-level keys.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|

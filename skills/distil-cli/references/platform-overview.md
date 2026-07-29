@@ -23,9 +23,11 @@ The platform uses knowledge distillation to transfer capabilities from a large "
 
 **Models.** Each experiment is tracked as a model, identified by a human-readable name and a UUID. Create a model with `distil model create <name>`. Use the returned model ID in all subsequent commands.
 
-**Uploads.** Training data is attached to a model via an upload. Use `distil model upload-data` for structured datasets or `distil model upload-traces` for production traces. A model can have multiple uploads as you iterate on the data.
+**Uploads.** An upload is a set of training and test data, identified by a UUID. Create one from local files with `distil upload create`, or from prepared traces with `distil upload create-from-traces`. `distil model upload-data` creates the upload that teacher evaluation and training read. Inspect any upload with `distil upload list` / `show` / `status`.
 
-**Trace processing.** When you upload production traces, the platform runs an automated pipeline: filtering traces for relevance, relabelling via a committee of teacher models, and splitting into training and test sets. This transforms raw production logs into high-quality structured training data. Use `distil model reprocess-traces` to iterate on processing parameters without re-uploading.
+**Prepared traces.** Raw production logs uploaded with `distil traces upload`, identified by a UUID and managed with `distil traces list` / `show` / `download`. They are the input to trace processing, not training data themselves.
+
+**Trace processing.** `distil upload create-from-traces <traces-id>` runs an automated pipeline over prepared traces: filtering traces for relevance, relabelling via a committee of teacher models, and splitting into training and test sets. This transforms raw production logs into high-quality structured training data. Re-run it against the same traces ID with a different `--config` to iterate on processing parameters without re-uploading the trace files.
 
 **Teacher evaluation.** Before training, validate that the teacher model can solve the task. Run with `distil model run-teacher-evaluation <model-id>`. High teacher accuracy predicts good student performance. Low accuracy signals that the task description or data needs revision.
 
@@ -57,16 +59,20 @@ The platform supports six task types. For model compatibility constraints (which
 distil model upload-data <model-id> --data ./my-data-folder
 ```
 
-**Production traces.** If you have production logs from real LLM interactions (e.g., Langfuse or OpenAI messages format), upload them directly. The platform automatically processes traces into training and test data:
+**Production traces.** If you have production logs from real LLM interactions (e.g., Langfuse or OpenAI messages format), let the platform derive the dataset for you. Upload the trace files, process them, then hand the result to the model:
 
 ```bash
-distil model upload-traces <model-id> --data ./my-traces-folder
+distil traces upload --data ./my-traces-folder         # -> <traces-id>
+distil upload create-from-traces <traces-id>           # -> <upload-id>
+distil upload status <upload-id>                       # poll until JOB_SUCCESS
+distil upload download <upload-id> --data-destination ./processed
+distil model upload-data <model-id> --data ./processed
 ```
 
-To reprocess previously uploaded traces with different parameters:
+To reprocess the same traces with different parameters, re-run `create-from-traces` with a new config -- no need to re-upload the trace files:
 
 ```bash
-distil model reprocess-traces <model-id> --trace-processing-config new-config.yaml
+distil upload create-from-traces <traces-id> --config new-config.yaml
 ```
 
 ## Trace Processing Pipeline

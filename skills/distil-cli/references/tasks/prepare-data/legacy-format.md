@@ -2,7 +2,7 @@
 
 Prepared train/test datasets used to be flat rows with `question`, `answer`, and (for open book QA) `context` columns. They are now a single `messages` conversation per example, mirroring the chat format the model is trained and served on. This page maps the old format to the new one so you can migrate existing datasets. Datasets in the old format can still be uploaded, but the version is not auto-detected — pass `--data-version 0` to `distil model upload-data` (the `data-version` query parameter on the API). The default is `1`, the `messages` format described here.
 
-> This change applies to **prepared datasets** uploaded with `distil model upload-data`. The raw traces uploaded with `distil model upload-traces` are unchanged — they stay in the OpenAI chat-completions format (including OpenAI-style tool calls where `arguments` is a stringified JSON blob). See `references/tasks/upload-and-process-traces.md`.
+> This change applies to **prepared datasets** uploaded with `distil model upload-data`. The raw traces uploaded with `distil traces upload` are unchanged — they stay in the OpenAI chat-completions format (including OpenAI-style tool calls where `arguments` is a stringified JSON blob). See `references/tasks/upload-and-process-traces.md`.
 
 ## What Changed
 

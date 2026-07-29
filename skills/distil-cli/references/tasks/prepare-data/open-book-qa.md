@@ -4,7 +4,7 @@ Task type: `question-answering-open-book`
 
 Use open-book QA when the model should answer questions using a provided context passage. The model grounds answers in the given text rather than relying on general knowledge. This is ideal for Retrieval-Augmented Generation (RAG) pipelines.
 
-> **Not supported by `upload-traces`.** Trace processing cannot automatically separate context from question in production logs. If you have RAG-style traces where the retrieved context is already embedded in the user message, use `question-answering` instead and keep the full prompt (context + question) in the `user` turn's content. Open Book QA is only for the `upload-data` path with manually prepared datasets.
+> **Not supported by trace processing.** It cannot automatically separate context from question in production logs. If you have RAG-style traces where the retrieved context is already embedded in the user message, use `question-answering` instead and keep the full prompt (context + question) in the `user` turn's content. Open Book QA is only for the `upload-data` path with manually prepared datasets.
 
 ## When to Pick This Task
 
