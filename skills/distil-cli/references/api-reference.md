@@ -184,8 +184,8 @@ requests.get("https://api.distillabs.ai/prepared-traces", params={"start": 0, "c
 import time
 
 response = requests.post(
-    f"https://api.distillabs.ai/models/{model_id}/teacher-evaluations",
-    data=json.dumps({"upload_id": upload_id}),
+    "https://api.distillabs.ai/teacher-evaluations/from-uploads",
+    data=json.dumps({"from": upload_id}),
     headers={"Content-Type": "application/json", **auth_header},
 )
 eval_job_id = response.json()["id"]
@@ -202,6 +202,33 @@ while running:
         running = False
     print(f"Evaluation status: {status}")
     time.sleep(60)
+
+# Scores and the predictions URL live on /metrics, not /status
+metrics = requests.get(
+    f"https://api.distillabs.ai/teacher-evaluations/{eval_job_id}/metrics",
+    headers=auth_header,
+).json()
+print(metrics["teacher_performance"])
+```
+
+```python
+# list teacher evaluations, reverse chronological
+requests.get(
+    "https://api.distillabs.ai/teacher-evaluations",
+    params={"start": 0, "count": 100},
+    headers=auth_header,
+)
+
+# one teacher evaluation, with its status and the upload it was built from
+requests.get(
+    f"https://api.distillabs.ai/teacher-evaluations/{eval_job_id}", headers=auth_header
+)
+
+# logs of the evaluation job
+requests.get(
+    f"https://api.distillabs.ai/teacher-evaluations/{eval_job_id}/logs",
+    headers=auth_header,
+)
 ```
 
 ### Run training

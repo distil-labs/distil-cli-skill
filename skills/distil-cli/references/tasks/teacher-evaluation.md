@@ -15,6 +15,15 @@ After uploading data with `distil model upload-data`, start the evaluation:
 distil model run-teacher-evaluation <model-id>
 ```
 
+To evaluate an upload by its own ID instead -- which is the natural path when the upload came from prepared traces -- use:
+
+```bash
+distil teacher-evaluation create-from-upload <upload-id>
+# Output: Teacher evaluation started. Teacher Evaluation ID: <teacher-evaluation-id>
+```
+
+Either way, poll until the job reaches a terminal status (see `references/tasks/polling-jobs.md`).
+
 ## Check Status and Results
 
 Check the status and view results:
@@ -22,6 +31,16 @@ Check the status and view results:
 ```bash
 distil model teacher-evaluation <model-id>
 ```
+
+Or, by teacher evaluation ID:
+
+```bash
+distil teacher-evaluation status <teacher-evaluation-id>    # status only
+distil teacher-evaluation metrics <teacher-evaluation-id>   # scores + predictions URL
+distil teacher-evaluation logs <teacher-evaluation-id>      # logs, for diagnosing a failure
+```
+
+With `--output json`, `distil model teacher-evaluation` emits `{"status": …, "metrics": {…}}`, so the scores are at `.metrics.teacher_performance`. `distil teacher-evaluation metrics` emits the metrics object on its own, so the scores are at `.teacher_performance`.
 
 The evaluation returns multiple scores on your test set. The specific metrics depend on your task type:
 

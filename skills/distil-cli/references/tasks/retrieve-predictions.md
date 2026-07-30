@@ -54,18 +54,21 @@ distil model download-teacher-evaluation-predictions <model-id>
 
 # Custom output filename
 distil model download-teacher-evaluation-predictions <model-id> --file-name teacher-predictions.jsonl
+
+# By teacher evaluation ID instead of by model
+distil teacher-evaluation download-predictions <teacher-evaluation-id>
 ```
 
 ### API (alternative)
 
-The download URL is included in the evaluation status response once the job completes:
+The download URL is included in the evaluation metrics response once the job completes:
 
 ```python
 response = requests.get(
-    f"https://api.distillabs.ai/teacher-evaluations/{eval_job_id}/status",
+    f"https://api.distillabs.ai/teacher-evaluations/{eval_job_id}/metrics",
     headers=auth_header,
 )
-download_url = response.json()["evaluation_predictions_download_url"]
+download_url = response.json()["predictions_download_url"]
 ```
 
 ```bash

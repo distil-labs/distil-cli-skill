@@ -144,6 +144,8 @@ distil model upload-data <model-id> --data ./my-data-dir
 # 5. Run teacher evaluation (feasibility check)
 distil model run-teacher-evaluation <model-id>
 distil model teacher-evaluation <model-id>  # Check results
+# Or by upload ID: distil teacher-evaluation create-from-upload <upload-id>
+#                  distil teacher-evaluation status|metrics|logs <teacher-evaluation-id>
 # Status values: JOB_NOT_STARTED, JOB_PENDING, JOB_RUNNING, JOB_SUCCESS, JOB_FAILURE, JOB_STOPPED
 
 # 6. Train (long-running; never auto-start: get the user's explicit go-ahead first)

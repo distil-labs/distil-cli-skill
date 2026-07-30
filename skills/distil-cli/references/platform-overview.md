@@ -29,7 +29,7 @@ The platform uses knowledge distillation to transfer capabilities from a large "
 
 **Trace processing.** `distil upload create-from-traces <traces-id>` runs an automated pipeline over prepared traces: filtering traces for relevance, relabelling via a committee of teacher models, and splitting into training and test sets. This transforms raw production logs into high-quality structured training data. Re-run it against the same traces ID with a different `--config` to iterate on processing parameters without re-uploading the trace files.
 
-**Teacher evaluation.** Before training, validate that the teacher model can solve the task. Run with `distil model run-teacher-evaluation <model-id>`. High teacher accuracy predicts good student performance. Low accuracy signals that the task description or data needs revision.
+**Teacher evaluation.** Before training, validate that the teacher model can solve the task. Run with `distil model run-teacher-evaluation <model-id>`, or against an upload directly with `distil teacher-evaluation create-from-upload <upload-id>`. High teacher accuracy predicts good student performance. Low accuracy signals that the task description or data needs revision.
 
 **Training.** The full distillation pipeline: synthetic data generation, validation, and student fine-tuning. Start with `distil model run-training <model-id>`. Training takes several hours.
 

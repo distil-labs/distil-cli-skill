@@ -392,13 +392,89 @@ Start a teacher evaluation to validate that a large model can solve your task. T
 distil model run-teacher-evaluation <model-id>
 ```
 
+Runs against the data uploaded with `upload-data`. To evaluate an upload by its own ID, use `distil teacher-evaluation create-from-upload` (see `## Teacher Evaluations`).
+
 ### distil model teacher-evaluation
 
 Check the status and results of the teacher evaluation.
 
 ```bash
 distil model teacher-evaluation <model-id>
+distil model teacher-evaluation <model-id> --output json
+distil model teacher-evaluation <model-id> --logs
 ```
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--logs` | `-l` | Also fetch the logs of the evaluation job. |
+| `--output json` | `-o json` | Emit `{"status": …, "metrics": {…}}`, plus a `logs` key when `--logs` is set. |
+
+The JSON shape mirrors `distil model upload-status`: `status` is the job status string, and `metrics` holds `teacher_performance` and `predictions_download_url`.
+
+```bash
+distil model teacher-evaluation <model-id> --output json | jq -r '.status'
+distil model teacher-evaluation <model-id> --output json | jq '.metrics.teacher_performance'
+```
+
+## Teacher Evaluations
+
+`distil teacher-evaluation` (aliases `distil teacher-evaluations` and `distil teacher-eval`, and `distil teacher-evaluation ls` for `list`) works with teacher evaluations by their own ID. A teacher evaluation always belongs to exactly one upload.
+
+All read commands accept `--output json` / `-o json`.
+
+### distil teacher-evaluation create-from-upload
+
+Start a teacher evaluation over an upload. This is the only creation path that does not go through a model.
+
+```bash
+distil teacher-evaluation create-from-upload <upload-id>
+distil teacher-evaluation create-from-upload <upload-id> --output json
+# Output: Teacher evaluation started. Teacher Evaluation ID: <teacher-evaluation-id>
+```
+
+The upload has to have finished processing first, so poll `distil upload status <upload-id>` until `JOB_SUCCESS`. Each call produces a **new** teacher evaluation, so earlier attempts stay intact for comparison.
+
+### distil teacher-evaluation list
+
+```bash
+distil teacher-evaluation list
+distil teacher-evaluation list --output json
+```
+
+Newest first. Fetches all pages internally (up to 10,000 records).
+
+```bash
+# Most recent teacher evaluation ID
+distil teacher-evaluation list --output json | jq -r '.[0].id // "none"'
+
+# Teacher evaluations for one upload
+distil teacher-evaluation list --output json | jq -r --arg u "<upload-id>" '.[] | select(.upload_id == $u) | .id'
+```
+
+### distil teacher-evaluation show / status / logs / metrics
+
+```bash
+distil teacher-evaluation show <teacher-evaluation-id>      # id, created_at, upload_id, status
+distil teacher-evaluation status <teacher-evaluation-id>    # status only -- use this when polling
+distil teacher-evaluation logs <teacher-evaluation-id>      # logs of the evaluation job
+distil teacher-evaluation metrics <teacher-evaluation-id>   # teacher performance + predictions URL
+```
+
+Teacher evaluations run asynchronously, so poll `status` until it reaches a terminal value (see `references/tasks/polling-jobs.md`) and read `logs` when one fails. `metrics` is empty until the job succeeds.
+
+```bash
+distil teacher-evaluation status <teacher-evaluation-id> --output json | jq -r '.status'
+distil teacher-evaluation metrics <teacher-evaluation-id> --output json | jq '.teacher_performance'
+```
+
+### distil teacher-evaluation download-predictions
+
+```bash
+distil teacher-evaluation download-predictions <teacher-evaluation-id>
+distil teacher-evaluation download-predictions <teacher-evaluation-id> --file-name predictions.jsonl
+```
+
+Per-example teacher predictions on the upload's test set. Default output filename: `<teacher-evaluation-id>-teacher-evaluation-predictions.jsonl`.
 
 ## Training
 

@@ -218,7 +218,7 @@ Working directory for this step: the current `iteration-<N>/` (see `workflows/im
 
 1. Get aggregate metrics — **always use `--output json`**, the default text output omits LLM-as-a-Judge and other metrics:
 ```bash
-distil model teacher-evaluation <model-id> --output json | jq '.aggregateMetrics'
+distil model teacher-evaluation <model-id> --output json | jq '.metrics.teacher_performance'
 ```
 
 2. Download per-example teacher predictions into the iteration dir (see `references/tasks/retrieve-predictions.md` for full options):

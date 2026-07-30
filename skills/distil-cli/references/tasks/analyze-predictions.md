@@ -35,7 +35,7 @@ The default text output of `distil model teacher-evaluation`, `distil model trai
 For analysis, always pull the full metric set:
 
 ```bash
-distil model teacher-evaluation <model-id> --output json | jq '.aggregateMetrics'
+distil model teacher-evaluation <model-id> --output json | jq '.metrics.teacher_performance'
 distil model training <model-id> --output json | jq '.aggregateMetrics'
 ```
 

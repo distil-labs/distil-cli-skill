@@ -43,6 +43,7 @@ Swap the status command depending on which job is being polled:
 |----------------|----------------|
 | Upload / trace processing (by upload ID) | `distil upload status <upload-id> --output json` |
 | Teacher evaluation | `distil model teacher-evaluation <model-id> --output json` |
+| Teacher evaluation (by teacher evaluation ID) | `distil teacher-evaluation status <teacher-evaluation-id> --output json` |
 | Training | `distil model training <model-id> --output json` |
 
 ### Sleep interval
