@@ -98,7 +98,6 @@ Output: <one-line description of the output, JSON schema with field descriptions
 | LLM-as-a-Judge | <score> |
 | Exact-Match | <score> |
 | ROUGE-L | <score> |
-| METEOR | <score> |
 
 (For tool calling, replace with tool_call_equivalence, binary_tool_call, staged_tool_call.)
 
@@ -169,7 +168,6 @@ Output: <one-line description of the output to the model, JSON schema with field
 | LLM-as-a-Judge | <score> |
 | Exact-Match | <score> |
 | ROUGE-L | <score> |
-| METEOR | <score> |
 
 (For tool calling tasks, replace with tool_call_equivalence, binary_tool_call, staged_tool_call.
  For tools with fuzzy/free-text arguments, use LLM-as-a-Judge as the primary metric,
@@ -245,7 +243,6 @@ Output: <one-line description of the output, JSON schema with field descriptions
 | LLM-as-a-Judge | <score> | <score> | <score> | <diff> | <diff> |
 | Exact-Match    | <score> | <score> | <score> | <diff> | <diff> |
 | ROUGE-L        | <score> | <score> | <score> | <diff> | <diff> |
-| METEOR         | <score> | <score> | <score> | <diff> | <diff> |
 
 (For tool calling, replace with tool_call_equivalence, binary_tool_call, staged_tool_call.
  For tools with fuzzy/free-text arguments, use LLM-as-a-Judge as the primary metric.)

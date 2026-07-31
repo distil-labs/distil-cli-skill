@@ -32,14 +32,6 @@ Measures the longest common subsequence (word overlap) between the model output 
 - **Returns:** A score from 0 to 1. Higher values indicate more shared wording.
 - **Limitation:** Favors longer answers that reuse reference phrases. Does not capture semantic equivalence.
 
-### METEOR
-
-Balances precision and recall while rewarding correct synonyms and penalizing incoherent text.
-
-- **What it measures:** Word overlap with credit for synonyms and word stems, plus a fluency penalty.
-- **When to use:** Tasks where synonyms and paraphrasing are acceptable. Often tracks human judgments better than pure overlap metrics.
-- **Returns:** A score from 0 to 1.
-
 ## Tool Calling Metrics
 
 Used for tool calling and multi-turn tool calling tasks.
@@ -101,9 +93,9 @@ Evaluates predictions incrementally across four stages. Useful during developmen
 
 | Task Type | Recommended Metric | Other Available Metrics |
 |-----------|--------------------|------------------------|
-| Question Answering | LLM-as-a-Judge | Exact-Match, ROUGE-L, METEOR |
-| Classification | LLM-as-a-Judge | Exact-Match, ROUGE-L, METEOR |
-| Open Book QA (RAG) | LLM-as-a-Judge | Exact-Match, ROUGE-L, METEOR |
-| Closed Book QA | LLM-as-a-Judge | Exact-Match, ROUGE-L, METEOR |
+| Question Answering | LLM-as-a-Judge | Exact-Match, ROUGE-L |
+| Classification | LLM-as-a-Judge | Exact-Match, ROUGE-L |
+| Open Book QA (RAG) | LLM-as-a-Judge | Exact-Match, ROUGE-L |
+| Closed Book QA | LLM-as-a-Judge | Exact-Match, ROUGE-L |
 | Tool Calling | tool_call_equivalence | binary_tool_call, staged_tool_call |
 | Multi-Turn Tool Calling | tool_call_equivalence | binary_tool_call, staged_tool_call |

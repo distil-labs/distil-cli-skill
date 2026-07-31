@@ -34,7 +34,7 @@ The training process has three stages:
 
 When training completes, `distil model training <model-id>` shows evaluation metrics comparing the trained SLM against the teacher model. The specific metrics depend on your task type:
 
-- **Text generation tasks:** LLM-as-a-Judge, Exact-Match, ROUGE-L, METEOR
+- **Text generation tasks:** LLM-as-a-Judge, Exact-Match, ROUGE-L
 - **Tool calling tasks:** tool_call_equivalence, binary_tool_call, staged_tool_call
 
 For detailed explanations of each metric, see `evaluation-metrics.md`.

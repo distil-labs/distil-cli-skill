@@ -44,7 +44,7 @@ With `--output json`, `distil model teacher-evaluation` emits `{"status": …, "
 
 The evaluation returns multiple scores on your test set. The specific metrics depend on your task type:
 
-- **Text generation tasks** (question answering, classification, open/closed book QA): LLM-as-a-Judge, Exact-Match, ROUGE-L, METEOR
+- **Text generation tasks** (question answering, classification, open/closed book QA): LLM-as-a-Judge, Exact-Match, ROUGE-L
 - **Tool calling tasks** (tool calling, multi-turn tool calling): tool_call_equivalence, binary_tool_call, staged_tool_call
 
 For detailed explanations of each metric and how to interpret scorecards, see `evaluation-metrics.md`.
