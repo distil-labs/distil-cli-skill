@@ -148,6 +148,11 @@ distil model teacher-evaluation <model-id>  # Check results
 #                  distil teacher-evaluation status|metrics|logs <teacher-evaluation-id>
 # Status values: JOB_NOT_STARTED, JOB_PENDING, JOB_RUNNING, JOB_SUCCESS, JOB_FAILURE, JOB_STOPPED
 
+# 5b. Optional: inspect the synthetic data training would use
+#     distil training-dataset create-from-upload <upload-id>
+#     distil training-dataset status|sample <training-dataset-id>
+#     Training still runs from the upload -- this only lets you see the generated rows first
+
 # 6. Train (long-running; never auto-start: get the user's explicit go-ahead first)
 distil model run-training <model-id>
 distil model training <model-id>  # Check status

@@ -257,6 +257,22 @@ This is the return point from `workflows/improving-a-model.md`. After each itera
 
 ---
 
+## Optional: Inspect the Synthetic Training Data
+
+Training generates synthetic examples from the upload internally. You can run that generation on its own first and look at the rows before committing to a 6-hour run — useful when the teacher eval passed but you are unsure the generated data matches the task.
+
+```bash
+distil training-dataset create-from-upload <upload-id>          # costs 2 credits
+# Poll status per references/tasks/polling-jobs.md, sleep 60
+distil training-dataset sample <training-dataset-id>            # free, up to 20 rows
+```
+
+If the sampled rows look wrong — off-topic, malformed, wrong label distribution — that is a synthgen or job-description problem. Go to `workflows/improving-a-model.md` → **Entry Point A** rather than training on it.
+
+This does **not** replace Step 7: `distil model run-training` still runs from the upload and generates its own data. Skip this step unless there is a specific reason to look.
+
+---
+
 ## Step 6: Confirm Before Training
 
 Training is a **6+ hour, credit-burning operation**. Before kicking it off, confirm with the user:

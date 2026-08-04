@@ -231,6 +231,72 @@ requests.get(
 )
 ```
 
+### Generate a training dataset
+
+Optional. Runs synthetic data generation over an upload as its own step, so the
+generated rows can be inspected before training. Training still runs from the
+upload; it does not accept a training dataset ID.
+
+```python
+# start generation (costs 2 credits)
+response = requests.post(
+    "https://api.distillabs.ai/training-datasets/from-uploads",
+    data=json.dumps({"from": upload_id}),
+    headers={"Content-Type": "application/json", **auth_header},
+)
+training_dataset_id = response.json()["id"]
+
+# poll for completion
+running = True
+while running:
+    status = requests.get(
+        f"https://api.distillabs.ai/training-datasets/{training_dataset_id}/status",
+        headers=auth_header,
+    ).json()["status"]
+    if status not in ("JOB_NOT_STARTED", "JOB_PENDING", "JOB_RUNNING"):
+        running = False
+    else:
+        time.sleep(60)
+
+# preview up to 20 rows -- free, deterministic, seeded on the dataset id
+rows = requests.get(
+    f"https://api.distillabs.ai/training-datasets/{training_dataset_id}/sample",
+    headers=auth_header,
+).json()["rows"]
+```
+
+```python
+# list training datasets, reverse chronological
+requests.get(
+    "https://api.distillabs.ai/training-datasets",
+    params={"start": 0, "count": 100},
+    headers=auth_header,
+)
+
+# one dataset, with its status and the upload it was generated from
+requests.get(
+    f"https://api.distillabs.ai/training-datasets/{training_dataset_id}",
+    headers=auth_header,
+)
+
+# stored file sizes -- not job output, generation writes no metrics artifact
+requests.get(
+    f"https://api.distillabs.ai/training-datasets/{training_dataset_id}/metrics",
+    headers=auth_header,
+)
+
+# presigned download URLs -- credit-gated, 0 credits granted by default
+requests.get(
+    f"https://api.distillabs.ai/training-datasets/{training_dataset_id}/download",
+    headers=auth_header,
+)
+```
+
+A dataset created directly from staged files is synchronous and has no job behind
+it, so its `status` comes back as `JOB_SUCCESS` straight away. The field is
+marked optional in the OpenAPI schema only because it carries a default there —
+the API always sends it.
+
 ### Run training
 
 ```python

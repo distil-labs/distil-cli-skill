@@ -31,6 +31,8 @@ The platform uses knowledge distillation to transfer capabilities from a large "
 
 **Teacher evaluation.** Before training, validate that the teacher model can solve the task. Run with `distil model run-teacher-evaluation <model-id>`, or against an upload directly with `distil teacher-evaluation create-from-upload <upload-id>`. High teacher accuracy predicts good student performance. Low accuracy signals that the task description or data needs revision.
 
+**Training datasets.** An upload's data with synthetic training examples generated for it, identified by a UUID. Training generates this internally, so a training dataset is normally something you create to *look at* what would be trained on: `distil training-dataset create-from-upload <upload-id>`, then `distil training-dataset sample <training-dataset-id>`. Training still runs from the upload and does not accept a training dataset ID.
+
 **Training.** The full distillation pipeline: synthetic data generation, validation, and student fine-tuning. Start with `distil model run-training <model-id>`. Training takes several hours.
 
 **Deployment.** After training, download the model with `distil model download <model-id>` and deploy it locally (`distil model deploy local <model-id>`) or to distil-managed remote infrastructure (`distil model deploy remote <model-id>`).

@@ -476,6 +476,101 @@ distil teacher-evaluation download-predictions <teacher-evaluation-id> --file-na
 
 Per-example teacher predictions on the upload's test set. Default output filename: `<teacher-evaluation-id>-teacher-evaluation-predictions.jsonl`.
 
+## Training Datasets
+
+`distil training-dataset` (aliases `distil training-datasets` and `distil training-data`, and `distil training-dataset ls` for `list`) works with training datasets by their own ID.
+
+A training dataset is an upload's data with synthetic training examples generated for it — the same four files an upload holds (`train.jsonl`, `test.jsonl`, `config.yaml`, `job_description.json`), with generated rows in `train.jsonl`. There is no unstructured data file.
+
+Training already generates this data internally, so this family is for **inspecting** what would be trained on, or for curating it. `distil model run-training` still runs from the upload; pointing training at a dataset ID is not supported.
+
+All read commands accept `--output json` / `-o json`.
+
+### distil training-dataset create-from-upload
+
+Start a synthetic data generation job over an upload. Costs 2 credits.
+
+```bash
+distil training-dataset create-from-upload <upload-id>
+distil training-dataset create-from-upload <upload-id> --output json
+# Output: Synthetic data generation started. Training Dataset ID: <training-dataset-id>
+```
+
+The upload has to have finished processing first, so poll `distil upload status <upload-id>` until `JOB_SUCCESS`. Each call produces a **new** dataset, so earlier attempts stay intact for comparison.
+
+### distil training-dataset create
+
+Create a dataset directly from local files, with no generation job. Takes `--data <directory>`, or all four of `--train`, `--test`, `--config`, `--job-description`.
+
+```bash
+distil training-dataset create --data ./my-dataset-dir
+distil training-dataset create --train train.jsonl --test test.jsonl --config config.yaml --job-description job_description.json
+```
+
+Because `download` writes the file names `create` reads, download → edit → create round-trips a dataset.
+
+### distil training-dataset list
+
+```bash
+distil training-dataset list
+distil training-dataset list --output json
+```
+
+Newest first. Fetches all pages internally (up to 10,000 records).
+
+```bash
+# Most recent training dataset ID
+distil training-dataset list --output json | jq -r '.[0].id // "none"'
+
+# Datasets generated from one upload
+distil training-dataset list --output json | jq -r --arg u "<upload-id>" '.[] | select(.upload_id == $u) | .id'
+
+# Only the ones created by a generation job, not uploaded directly
+distil training-dataset list --output json | jq -r '.[] | select(.source == "upload") | .id'
+```
+
+`source` is `upload` for a generated dataset and `direct_upload` for one created from local files.
+
+### distil training-dataset show / status / logs / metrics
+
+```bash
+distil training-dataset show <training-dataset-id>      # id, created_at, source, upload_id, status
+distil training-dataset status <training-dataset-id>    # status only -- use this when polling
+distil training-dataset logs <training-dataset-id>      # logs of the generation job
+distil training-dataset metrics <training-dataset-id>   # stored size of train.jsonl and test.jsonl
+```
+
+Generation runs asynchronously, so poll `status` until it reaches a terminal value (see `references/tasks/polling-jobs.md`) and read `logs` when one fails.
+
+A directly created dataset has no job behind it: its `status` is `JOB_SUCCESS` as soon as it exists, and its `logs` are empty. That is normal, not a failure.
+
+`metrics` reports object sizes, not job output — synthetic data generation writes no metrics artifact, unlike teacher evaluation and trace processing. Do not look here for quality numbers.
+
+```bash
+distil training-dataset status <training-dataset-id> --output json | jq -r '.status'
+distil training-dataset metrics <training-dataset-id> --output json | jq '.train_data_size_bytes'
+```
+
+### distil training-dataset sample
+
+Print up to 20 rows of the training data without downloading it. Free, and available for every dataset.
+
+```bash
+distil training-dataset sample <training-dataset-id>
+distil training-dataset sample <training-dataset-id> --output json | jq '.rows[0]'
+```
+
+The sample is deterministic — seeded on the dataset ID, so repeated calls return the same rows. The 20-row cap is not configurable: it is what keeps a free endpoint from becoming an unmetered download. Prefer this over `download` when you only need to see what was generated.
+
+### distil training-dataset download
+
+```bash
+distil training-dataset download <training-dataset-id>
+distil training-dataset download <training-dataset-id> --data-destination ./dataset
+```
+
+Writes `train.jsonl`, `test.jsonl`, `config.yaml` and `job_description.json` into `<training-dataset-id>-data` unless `-d`/`--data-destination` says otherwise. **Credit-gated, with 0 credits granted by default** — expect a 402 unless credits have been granted for this route.
+
 ## Training
 
 ### distil model run-training

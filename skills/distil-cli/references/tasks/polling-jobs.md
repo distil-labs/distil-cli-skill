@@ -1,6 +1,6 @@
 # Polling Long-Running Jobs
 
-Distil jobs (upload processing, teacher evaluation, training) run asynchronously. This file is the canonical polling pattern. Every workflow and reference should link here rather than re-document the loop.
+Distil jobs (upload processing, teacher evaluation, synthetic data generation, training) run asynchronously. This file is the canonical polling pattern. Every workflow and reference should link here rather than re-document the loop.
 
 ---
 
@@ -44,12 +44,17 @@ Swap the status command depending on which job is being polled:
 | Upload / trace processing (by upload ID) | `distil upload status <upload-id> --output json` |
 | Teacher evaluation | `distil model teacher-evaluation <model-id> --output json` |
 | Teacher evaluation (by teacher evaluation ID) | `distil teacher-evaluation status <teacher-evaluation-id> --output json` |
+| Synthetic data generation (by training dataset ID) | `distil training-dataset status <training-dataset-id> --output json` |
 | Training | `distil model training <model-id> --output json` |
 
 ### Sleep interval
 
-- **Minutes-scale jobs** (upload, trace processing, teacher evaluation): `sleep 60`.
+- **Minutes-scale jobs** (upload, trace processing, teacher evaluation, synthetic data generation): `sleep 60`.
 - **Hours-scale jobs** (training): `sleep 600`.
+
+### Datasets with no job behind them
+
+`distil training-dataset status` reports `JOB_SUCCESS` immediately for a dataset created by `distil training-dataset create`, because a direct upload is synchronous and has no job. The loop above terminates on the first iteration, which is correct — do not read it as a job that finished suspiciously fast.
 
 ---
 
