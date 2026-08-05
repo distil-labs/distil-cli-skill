@@ -356,6 +356,88 @@ response = requests.get(
 download_url = response.json()
 ```
 
+### SLMs
+
+An SLM is a trained small language model addressed by its own ID — the model tarball plus its config. It is either trained from a training dataset or uploaded directly. This is what `distil slm` talks to.
+
+```python
+# train an SLM from a training dataset
+response = requests.post(
+    "https://api.distillabs.ai/slms/from-training-datasets",
+    data=json.dumps({"from": training_dataset_id}),
+    headers={"Content-Type": "application/json", **auth_header},
+)
+slm_id = response.json()["id"]
+
+# list SLMs, reverse chronological
+requests.get(
+    "https://api.distillabs.ai/slms",
+    params={"start": 0, "count": 100},
+    headers=auth_header,
+)
+
+# one SLM, with its status and the training dataset it came from
+requests.get(f"https://api.distillabs.ai/slms/{slm_id}", headers=auth_header)
+
+# status only -- use this when polling
+requests.get(f"https://api.distillabs.ai/slms/{slm_id}/status", headers=auth_header)
+
+# logs of the job that produced the SLM
+requests.get(f"https://api.distillabs.ai/slms/{slm_id}/logs", headers=auth_header)
+
+# base + tuned model performance, plus the predictions URL
+metrics = requests.get(
+    f"https://api.distillabs.ai/slms/{slm_id}/metrics", headers=auth_header
+).json()
+print(metrics["tuned_model_performance"])
+
+# presigned URLs for the model tarball and the config
+requests.get(f"https://api.distillabs.ai/slms/{slm_id}/download", headers=auth_header)
+```
+
+To upload an SLM you already have, `GET /staging-slms-s3-urls` for presigned PUT URLs (`model_tar`, `config_yaml`), PUT both files, then `POST /slms` with `{"model": <model_tar_url>, "config": <config_yaml_url>}`.
+
+### Training datasets
+
+Training datasets are the train/test pair an SLM is trained from, either uploaded directly or derived from an upload. See `### Generate a training dataset` above for the generation and polling flow; the endpoints below are the rest of the surface.
+
+```python
+# derive a training dataset from an upload
+response = requests.post(
+    "https://api.distillabs.ai/training-datasets/from-uploads",
+    data=json.dumps({"from": upload_id}),
+    headers={"Content-Type": "application/json", **auth_header},
+)
+training_dataset_id = response.json()["id"]
+
+# list them, reverse chronological
+requests.get(
+    "https://api.distillabs.ai/training-datasets",
+    params={"start": 0, "count": 100},
+    headers=auth_header,
+)
+
+# one training dataset, with its status and the upload it came from
+requests.get(
+    f"https://api.distillabs.ai/training-datasets/{training_dataset_id}",
+    headers=auth_header,
+)
+
+# status only -- use this when polling
+requests.get(
+    f"https://api.distillabs.ai/training-datasets/{training_dataset_id}/status",
+    headers=auth_header,
+)
+
+# a handful of rows, to eyeball what the pipeline produced
+requests.get(
+    f"https://api.distillabs.ai/training-datasets/{training_dataset_id}/sample",
+    headers=auth_header,
+)
+```
+
+Also available: `/logs`, `/metrics` (train and test data sizes in bytes), and `/download` (presigned URLs for the train, test, config, and job description files).
+
 ### Deploy remotely
 
 ```python

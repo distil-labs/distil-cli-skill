@@ -46,11 +46,12 @@ Swap the status command depending on which job is being polled:
 | Teacher evaluation (by teacher evaluation ID) | `distil teacher-evaluation status <teacher-evaluation-id> --output json` |
 | Synthetic data generation (by training dataset ID) | `distil training-dataset status <training-dataset-id> --output json` |
 | Training | `distil model training <model-id> --output json` |
+| Training (by SLM ID) | `distil slm status <slm-id> --output json` |
 
 ### Sleep interval
 
 - **Minutes-scale jobs** (upload, trace processing, teacher evaluation, synthetic data generation): `sleep 60`.
-- **Hours-scale jobs** (training): `sleep 600`.
+- **Hours-scale jobs** (training, whether polled by model ID or SLM ID): `sleep 600`.
 
 ### Datasets with no job behind them
 

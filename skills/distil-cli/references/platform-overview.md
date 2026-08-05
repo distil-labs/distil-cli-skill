@@ -35,7 +35,9 @@ The platform uses knowledge distillation to transfer capabilities from a large "
 
 **Training.** The full distillation pipeline: synthetic data generation, validation, and student fine-tuning. Start with `distil model run-training <model-id>`. Training takes several hours.
 
-**Deployment.** After training, download the model with `distil model download <model-id>` and deploy it locally (`distil model deploy local <model-id>`) or to distil-managed remote infrastructure (`distil model deploy remote <model-id>`).
+**SLMs.** A trained small language model — the model tarball plus the config it came from — identified by a UUID and managed with `distil slm list` / `show` / `status` / `logs` / `metrics` / `download`. This is the same trained model `distil model training` reports on, addressed directly rather than through a model. `distil slm metrics <slm-id>` is the one place that shows the base and the tuned student side by side. You can also bring your own with `distil slm create`.
+
+**Deployment.** After training, download the model with `distil model download <model-id>` (or `distil slm download <slm-id>`) and deploy it locally (`distil model deploy local <model-id>`) or to distil-managed remote infrastructure (`distil model deploy remote <model-id>`).
 
 ## Supported Task Types
 

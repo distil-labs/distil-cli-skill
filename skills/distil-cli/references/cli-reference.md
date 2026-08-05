@@ -591,6 +591,99 @@ Check the status and results of the training job. After training completes, this
 distil model training <model-id>
 ```
 
+To work with the trained model by its own ID instead of through a model, see `## SLMs`.
+
+## SLMs
+
+`distil slm` (alias `distil slms`, and `distil slm ls` for `list`) works with trained small language models by their own ID. An SLM is the model tarball plus the config that describes it, and it comes from one of two places: the platform trained it from a training dataset, or you uploaded it yourself.
+
+All read commands accept `--output json` / `-o json`.
+
+### distil slm create-from-training-dataset
+
+Train an SLM from a training dataset.
+
+```bash
+distil slm create-from-training-dataset <training-dataset-id>
+distil slm create-from-training-dataset <training-dataset-id> --output json
+# Output: Training started. SLM ID: <slm-id>
+```
+
+Training takes several hours. Get the training dataset ID from `distil training-dataset create-from-upload` or `distil training-dataset list` (see `## Training Datasets` above).
+
+### distil slm create
+
+Upload an SLM you already have. Two forms, mutually exclusive:
+
+```bash
+# Directory mode -- expects model.tar and config.yaml (or config.yml)
+distil slm create --data ./my-slm-dir
+
+# Explicit paths -- both flags required together
+distil slm create --model ./model.tar --config ./config.yaml
+```
+
+| Flag | Description |
+|------|-------------|
+| `--data` | Directory holding `model.tar` and `config.yaml`. |
+| `--model` | Path to the model tarball (`.tar`). |
+| `--config` | Path to the config (`.yaml` or `.yml`). |
+
+The config cannot come from inside the tarball: a real `model.tar` holds `model/` and `model-adapter/` and nothing else. Uploading runs a job too, so poll `distil slm status <slm-id>` afterwards.
+
+### distil slm list
+
+```bash
+distil slm list
+distil slm list --output json
+```
+
+Newest first. Fetches all pages internally (up to 10,000 records).
+
+```bash
+# Most recent SLM ID
+distil slm list --output json | jq -r '.[0].id // "none"'
+
+# SLMs trained from one training dataset
+distil slm list --output json | jq -r --arg d "<training-dataset-id>" '.[] | select(.training_dataset_id == $d) | .id'
+```
+
+### distil slm show / status / logs / metrics
+
+```bash
+distil slm show <slm-id>      # id, created_at, source, training_dataset_id, status
+distil slm status <slm-id>    # status only -- use this when polling
+distil slm logs <slm-id>      # logs of the job that produced the SLM
+distil slm metrics <slm-id>   # base + tuned model performance, predictions URL
+```
+
+Poll `status` until it reaches a terminal value (see `references/tasks/polling-jobs.md`) and read `logs` when one fails. `metrics` is empty until the job succeeds.
+
+```bash
+distil slm status <slm-id> --output json | jq -r '.status'
+distil slm metrics <slm-id> --output json | jq '.tuned_model_performance'
+```
+
+`metrics` is the one place that reports the base and the tuned student side by side, which is what you want when judging whether fine-tuning actually helped.
+
+### distil slm download
+
+```bash
+distil slm download <slm-id>
+distil slm download <slm-id> --destination ./my-slm    # -d also works
+```
+
+Writes `model.tar` and `config.yaml` into the destination directory, defaulting to `<slm-id>-slm/`. Those are the filenames `distil slm create --data` expects, so download and re-upload chain directly. Errors out while the job is still running, so poll `status` first.
+
+### distil slm download-predictions
+
+```bash
+distil slm download-predictions <slm-id>
+distil slm download-predictions <slm-id> --file-name predictions.jsonl
+```
+
+Per-example tuned-model predictions on the test set. Default output filename: `<slm-id>-slm-predictions.jsonl`.
+
 ## Retuning
 
 ### distil model retune

@@ -88,7 +88,12 @@ distil model download-training-predictions <model-id>
 
 # Custom output filename
 distil model download-training-predictions <model-id> --file-name student-predictions.jsonl
+
+# By SLM ID instead of by model
+distil slm download-predictions <slm-id>
 ```
+
+`distil slm download-predictions` defaults to `<slm-id>-slm-predictions.jsonl` and reads the URL from `distil slm metrics <slm-id>`.
 
 ### API (alternative)
 

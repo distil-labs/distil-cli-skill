@@ -10,6 +10,8 @@ Download your trained model after training completes:
 distil model download <model-id>
 ```
 
+To download by SLM ID instead, use `distil slm download <slm-id>`, which writes `model.tar` plus the `config.yaml` it was trained from into `<slm-id>-slm/` (override with `-d`/`--destination`).
+
 ### Downloaded Model Structure
 
 The download contains everything needed to run your model:

@@ -20,6 +20,13 @@ Training typically takes several hours. Check the current status:
 distil model training <model-id>
 ```
 
+Or, by SLM ID -- `distil slm` addresses the trained model directly rather than through a model:
+
+```bash
+distil slm status <slm-id>    # status only
+distil slm logs <slm-id>      # logs, for diagnosing a failure
+```
+
 For the full status value list, the canonical polling loop, and why `grep` doesn't work, see `references/tasks/polling-jobs.md`.
 
 ## Training Stages
@@ -32,7 +39,7 @@ The training process has three stages:
 
 ## Understanding Training Results
 
-When training completes, `distil model training <model-id>` shows evaluation metrics comparing the trained SLM against the teacher model. The specific metrics depend on your task type:
+When training completes, `distil model training <model-id>` shows evaluation metrics comparing the trained SLM against the teacher model. `distil slm metrics <slm-id>` reports the same run by SLM ID, with the base and the tuned student side by side. The specific metrics depend on your task type:
 
 - **Text generation tasks:** LLM-as-a-Judge, Exact-Match, ROUGE-L
 - **Tool calling tasks:** tool_call_equivalence, binary_tool_call, staged_tool_call
