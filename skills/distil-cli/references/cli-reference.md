@@ -723,6 +723,24 @@ The tarball holds exactly two directories and nothing else:
 
 ## Utilities
 
+### distil credits-balance
+
+Report how many further calls the account may make to each metered endpoint. Routes the platform does not meter print `unlimited`; in JSON they come back as the string `"inf"`.
+
+```bash
+distil credits-balance
+distil credits-balance --output json
+```
+
+Use this when a command fails with "Credit balance is too low" to see which route ran out, and before starting a long pipeline to check the stages ahead have credit. A balance of `0` on the route a stage needs means that stage will fail; the account needs a top-up before rerunning.
+
+```bash
+# Can this account still start a training run?
+distil credits-balance --output json | jq -r '.balances.slms_from_training_datasets_post'
+```
+
+Route keys are named after the endpoint each stage calls, for example `prepared_traces_post` for `distil traces upload`, `uploads_post` for `distil upload create`, `training_datasets_from_uploads_post` for `distil training-dataset create-from-upload`, and `deployments_from_slms_post` for `distil deployment create-from-slm`.
+
 ### distil update
 
 Update the Distil CLI to the latest version. The platform evolves quickly — run this before starting any new project to ensure new commands and features are available.
