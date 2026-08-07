@@ -22,7 +22,7 @@ iteration-2/
   train.jsonl / test.jsonl / traces.jsonl
   teacher-eval-analysis.md     # analyze-predictions writes here
   teacher-predictions.jsonl
-  training-analysis.md         # after retune, if applicable
+  training-analysis.md         # after re-training, if applicable
   student-predictions.jsonl
   upload-consistency.md        # if Analyze Uploads was run
   original-model-analysis.md   # traces workflow, via test-set-approval
@@ -104,33 +104,27 @@ Do not flip teachers as the first move. A stronger teacher won't fix a vague job
 
 After any change:
 
+Nothing is mutated in place. Every change means creating a **new** upload and a **new** teacher evaluation, which is what keeps earlier attempts available for comparison.
+
 ```bash
 # 1. Create the next iteration dir and drop in a README describing what's being tested.
 mkdir -p iteration-<N>
 # Write iteration-<N>/README.md with 2-4 sentences on the lever being pulled.
 
-# 2. Capture current upload ID so we can confirm a new one is created
-old_upload_id=$(distil model show <model-id> --output json | jq -r '.upload_ids[0] // "none"')
+# 2. Create a new upload from the revised data
+distil upload create --data ./data-dir
+# Output: Upload successful. Upload ID: <new-upload-id>
+# (On the traces path, re-process instead — see Trace-specific paths below.)
 
-# 3. Re-upload — creates a new upload, doesn't overwrite
-distil model upload-data <model-id> --data ./data-dir
-# (On the traces path, re-process first and point --data at the download — see Trace-specific paths below.)
-
-# 4. Confirm a NEW upload was created — if IDs match, re-upload didn't take
-new_upload_id=$(distil model show <model-id> --output json | jq -r '.upload_ids[0]')
-if [ "$new_upload_id" = "$old_upload_id" ]; then
-    echo "ERROR: upload ID unchanged. Re-upload didn't take. Stop and investigate."
-    exit 1
-fi
-echo "New upload: $new_upload_id (was $old_upload_id)"
-
-# 5. Re-run teacher evaluation (uses the latest upload automatically)
-distil model run-teacher-evaluation <model-id>
+# 3. Wait for it, then evaluate the teacher against the NEW upload id
+distil upload status <new-upload-id> --output json | jq -r '.status'
+distil teacher-evaluation create-from-upload <new-upload-id>
+# Output: Teacher evaluation started. Teacher Evaluation ID: <new-teacher-evaluation-id>
 ```
 
-The upload ID check matters because silent failures here are the worst kind — you'll re-run teacher evaluation against the *old* job description and get the *old* results, then waste time wondering why your changes had no effect.
+**The failure mode to guard against is using the wrong ID.** Because nothing is overwritten, passing last iteration's `<upload-id>` succeeds — it just re-evaluates the old data and returns the old scores, and you waste time wondering why your changes had no effect. Read the new ID out of the command output; do not reuse a shell variable from the previous iteration. If you are unsure which upload an evaluation actually ran against, `distil teacher-evaluation show <teacher-evaluation-id>` reports its `upload_id` — that is the authoritative check, not your notes.
 
-Append a log entry (`references/tasks/maintain-run-log.md`) after the re-upload succeeds, recording which lever was pulled.
+Append a log entry (`references/tasks/maintain-run-log.md`) after the upload succeeds, recording which lever was pulled and why.
 
 For the polling loop, see `references/tasks/polling-jobs.md`. Then go back to the workflow you came from (Step 4 in dataset-to-model, Step 6 in traces-to-model) and analyze the new results — pass the current `iteration-<N>/` as the working directory to `references/tasks/analyze-predictions.md`.
 
@@ -140,17 +134,16 @@ If you're in the traces workflow, you have three options, cheapest last:
 
 - **`distil traces upload --data <dir>`** then `distil upload create-from-traces <new-traces-id>` — needed only when the trace files themselves changed (new traces, or a curated `test.jsonl` added). Slowest.
 - **`distil upload create-from-traces <traces-id> --config <file>`** (or `--job-description <file>`) — reuses the trace files already on the platform and re-runs processing with new parameters. Use this for processing-only changes; `<traces-id>` is in the run log from Step 3.
-- **`distil model upload-data`** — upload a manually fixed dataset, e.g. after stripping markdown fences from relabeled answers. No reprocessing at all.
+- **`distil upload create --data <dir>`** — upload a manually fixed dataset, e.g. after `distil upload download` and stripping markdown fences from relabeled answers. No reprocessing at all.
 
-Each `create-from-traces` run produces a new `<upload-id>`, and it does not become the model's upload on its own. Finish the hop before re-running teacher evaluation:
+Each `create-from-traces` run produces a new `<upload-id>` and it is immediately usable — teacher evaluation reads an upload directly, so there is no download-and-re-upload hop. Just wait for processing to finish:
 
 ```bash
-distil upload status <upload-id> --output json | jq -r '.status'   # wait for JOB_SUCCESS
-distil upload download <upload-id> --data-destination ./processed
-distil model upload-data <model-id> --data ./processed
+distil upload status <new-upload-id> --output json | jq -r '.status'   # wait for JOB_SUCCESS
+distil teacher-evaluation create-from-upload <new-upload-id>
 ```
 
-Then run the upload-ID check from step 4 above. After either of the first two options, re-run the test-set approval gate (`references/tasks/test-set-approval.md`) and re-offer the uploads deep dive (`references/tasks/analyze-uploads.md`) before returning to teacher evaluation.
+After either of the first two options, re-run the test-set approval gate (`references/tasks/test-set-approval.md`) and re-offer the uploads deep dive (`references/tasks/analyze-uploads.md`) before returning to teacher evaluation.
 
 ---
 
@@ -158,36 +151,47 @@ Then run the upload-ID check from step 4 above. After either of the first two op
 
 The training analysis verdict was `RETUNE` or `ESCALATE`. The tuned student is below target — significantly below teacher, or doesn't beat the original production model (traces workflow).
 
-The three levers from Entry Point A still apply (they require re-training from scratch). Two additional levers become available because the synthetic dataset already exists.
+The three levers from Entry Point A still apply (they require regenerating the training dataset). Two additional levers become available because the training dataset already exists and can be reused.
 
-#### Lever 5 — Retune with a different student
+**There is no retune command.** Reusing generated data means round-tripping the training dataset through your machine with an edited config:
 
-Retune creates a new model based on the synthetic data from a prior training run — no re-upload or re-generation needed. This is the most effective lever when the student is close to but below the teacher.
+```bash
+# 1. Download the dataset you already paid to generate
+distil training-dataset download <training-dataset-id> --destination ./dataset
 
-Retune starts a new credit-consuming training run. Never run it on your own initiative: confirm the chosen student and parameters with the user first, exactly as the "Confirm Before Training" gate requires for `run-training`.
+# 2. Edit ./dataset/config.yaml -- base.student_model_name and/or the tuning section
+
+# 3. Create a new dataset from the edited files (no generation job, no generation cost)
+distil training-dataset create --data ./dataset
+# Output: Upload successful. Training Dataset ID: <new-training-dataset-id>
+
+# 4. Train on it
+distil slm create-from-training-dataset <new-training-dataset-id>
+```
+
+`download` writes the filenames `create` reads, so nothing needs renaming. The new dataset's `source` is `direct_upload` and its status is `JOB_SUCCESS` immediately, since no job runs.
+
+**Caveat:** `distil training-dataset download` is credit-gated with 0 credits granted by default. If it returns a 402, this shortcut is unavailable and the fallback is a fresh `distil training-dataset create-from-upload <upload-id>` with an updated config on the upload — which pays the 2-credit generation cost again.
+
+Step 4 starts a new credit-consuming training run. Never run it on your own initiative: confirm the chosen student and parameters with the user first, exactly as the "Confirm Before Training" gate requires.
+
+#### Lever 5 — A different student model
+
+The most effective lever when the student is close to but below the teacher. Change `base.student_model_name` in step 2 above.
 
 See `references/model-catalog.md` for sizing and compatibility. Common escalations:
 - Student was 1B and task needs more capacity → try 3B or 4B.
 - Need tool calling → student family must be Qwen3 or Llama 3.
 - Edge deployment constraint → go smaller (135M–350M) but expect a quality drop.
 
-```bash
-distil model retune <model-id> \
-  --name <new-name> \
-  --student-model <new-student> \
-  --tuning-parameters <file>
-```
-
-Or pass a full config with `--config` — only the `tuning` section is used. See `references/cli-reference.md` for flag details.
-
-#### Lever 6 — Retune with different tuning parameters
+#### Lever 6 — Different tuning parameters
 
 Useful when the student is right-sized but underfit or overfit. See `references/configuration.md` §2 for the full `tuning` parameter set.
 
 - **Underfit** (tuned student barely beats base student) → increase `num_train_epochs`, consider enabling RLVR via `rlvr_dataset_size: 0.3`.
 - **Overfit** (tuned student regressed on examples base got right) → lower `num_train_epochs`, reduce `generation_target` so synthgen doesn't drown the real examples, or add diversity via mutations.
 
-**Tuning diagnostics — ask for training-job logs.** The CLI doesn't expose training-job logs (loss curves, per-epoch metrics) directly, but if the user can paste them into the conversation they usually reveal the cause of a bad run. Ask for them before picking a tuning-parameter change:
+**Tuning diagnostics — read the training logs.** `distil slm logs <slm-id>` returns the logs of the job that produced the SLM. If they do not include the detail you need (loss curves, per-epoch metrics), ask the user to paste what they can see; those numbers usually reveal the cause of a bad run. Check them before picking a tuning-parameter change:
 
 | Symptom in logs | Likely cause | Lever |
 |-----------------|--------------|-------|
@@ -196,9 +200,11 @@ Useful when the student is right-sized but underfit or overfit. See `references/
 | NaN loss mid-training | Numerical instability (often bf16 edge cases or bad examples) | Disable `bf16`, or re-check data for pathological inputs |
 | Val-loss rising while train-loss keeps falling | Overfitting | Lower `num_train_epochs`, add diversity via mutations |
 
-### When to ESCALATE instead of retune
+### When to ESCALATE instead of re-training
 
-If the tuned student barely beats the base student despite good teacher scores, retuning won't help — the distillation isn't transferring knowledge. Go back to Entry Point A and revisit task definition, data quality, and whether the task type itself is right.
+If the tuned student barely beats the base student despite good teacher scores, changing the student or the tuning parameters won't help — the distillation isn't transferring knowledge. Go back to Entry Point A and revisit task definition, data quality, and whether the task type itself is right.
+
+`distil slm metrics <slm-id> --output json` is what tells you this: compare `.tuned_model_performance` against `.base_model_performance`. A small gap there, with a strong `.teacher_performance`, is the ESCALATE signal.
 
 ---
 
@@ -213,7 +219,8 @@ If the tuned student barely beats the base student despite good teacher scores, 
 | Metric interpretation | `references/evaluation-metrics.md` |
 | Analysis report templates | `references/tasks/analyze-predictions.md` |
 | Polling loop | `references/tasks/polling-jobs.md` |
-| Retune command | `references/cli-reference.md` (see `distil model retune`) |
+| Training dataset round-trip (`download` / `create`) | `references/cli-reference.md` (`## Training Datasets`) |
+| Training and re-training | `references/tasks/training.md` |
 | Trace-specific gotchas | `references/tasks/upload-and-process-traces.md` |
 | Run log format and triggers | `references/tasks/maintain-run-log.md` |
 | Test-set approval (traces) | `references/tasks/test-set-approval.md` |

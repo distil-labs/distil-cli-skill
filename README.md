@@ -99,11 +99,11 @@ Once the skill is installed, just ask Claude to help you train a model:
 > "Help me train a classification model for customer support intent detection"
 
 Claude will guide you through:
-1. Creating a model with `distil model create`
-2. Preparing your data files
-3. Uploading data and running teacher evaluation
-4. Training the model
-5. Downloading and deploying
+1. Preparing your data files
+2. Uploading them with `distil upload create`
+3. Running teacher evaluation to check the task is feasible
+4. Generating a training dataset and training the SLM
+5. Deploying it, or downloading it to serve yourself
 
 ## Documentation
 

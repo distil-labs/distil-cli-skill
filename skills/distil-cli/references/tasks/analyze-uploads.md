@@ -2,7 +2,7 @@
 
 Deep dive into the data splits (train / test / unstructured) before spending credits on teacher evaluation. How each workflow uses this file:
 
-- **Dataset workflow (standard, pre-upload):** run the Quantitative Section against the user's local files during the "Data consistency analysis" step of `workflows/dataset-to-model.md`, before `upload-data`. For this workflow the findings DO gate the upload: flagged issues should be fixed before uploading. The Qualitative Section is an opt-in extra.
+- **Dataset workflow (standard, pre-upload):** run the Quantitative Section against the user's local files during the "Data consistency analysis" step of `workflows/dataset-to-model.md`, before `distil upload create`. For this workflow the findings DO gate the upload: flagged issues should be fixed before uploading. The Qualitative Section is an opt-in extra.
 - **Traces workflow (opt-in, post-approval):** offered right after test-set approval in `workflows/traces-to-model.md`, once trace processing has completed and the user has approved the test set. Informational only; it does not gate the workflow. Ask the user verbatim:
 
 ```
@@ -16,7 +16,7 @@ If the user declines, skip this step entirely and continue to teacher evaluation
 - **Working directory:** the current `iteration-N/` directory when one exists (see `workflows/improving-a-model.md`'s Iteration Discipline section). On a first dataset-workflow pass no iteration directory exists yet; work from the project root and do not create `iteration-1/` early (that convention belongs to the iteration loop).
 - **Data source:**
   - Dataset workflow: the user's local train / test / unstructured files; no download needed. If no unstructured file was provided, skip the unstructured-coverage check.
-  - Traces workflow: `distil upload download <upload-id> --data-destination ./processed` downloads the processed train / test / unstructured files locally. Once the data has been re-uploaded to a model, `distil model download-data <model-id>` fetches the same files. See `references/tasks/upload-dataset.md`.
+  - Traces workflow: `distil upload download <upload-id> --destination ./processed` downloads the processed train / test / unstructured files locally. See `references/tasks/upload-dataset.md`.
 
 ## Token-Burn Guard
 
@@ -53,7 +53,7 @@ Report template:
 # Upload Consistency Report
 
 ## 1. Overview
-- **Model ID:** <model-id>
+- **Upload ID:** <upload-id | not uploaded yet>
 - **Iteration:** <N | pre-upload>
 - **Splits inspected:** train (<N>), test (<N>), unstructured (<N | not provided>)
 - **Sampling:** <whole split | first 200 per split | stratified sample of 200 per split>
@@ -80,7 +80,7 @@ Axes derived from the data:
 **Verdict:** <PROCEED | INVESTIGATE>
 
 If INVESTIGATE, concrete next moves (pick the ones that match the workflow):
-- Dataset workflow: edit the local train/test files or `job_description.json` to close <specific gap>, re-run the validation checklist, then upload with `distil model upload-data`.
+- Dataset workflow: edit the local train/test files or `job_description.json` to close <specific gap>, re-run the validation checklist, then create a new upload with `distil upload create --data <dir>`.
 - Either workflow: add `synthgen.mutation_topics` targeting <missing scenario> (see `references/mutations-guide.md`).
 - Traces workflow: edit `job_description.json` to <specific gap> and re-run `distil upload create-from-traces <traces-id> --job-description <file>` (see `workflows/traces-to-model.md`).
 - Traces workflow: adjust `trace_processing` params (e.g., `num_traces_as_training_base`) in a config and re-run `distil upload create-from-traces <traces-id> --config <file>` (see `references/tasks/upload-and-process-traces.md`).

@@ -23,8 +23,6 @@ distil upload download-traces-predictions <upload-id> --file-name predictions.js
 
 Default output: `<upload-id>-traces-predictions.jsonl`
 
-If the processed data has already been re-uploaded with `distil model upload-data`, `distil model download-traces-predictions <model-id>` fetches the same predictions by model ID.
-
 ### API (alternative)
 
 The download URL is included in the upload metrics response once processing completes:
@@ -50,14 +48,13 @@ After teacher evaluation completes, download the teacher model's predictions on 
 ### CLI
 
 ```bash
-distil model download-teacher-evaluation-predictions <model-id>
+distil teacher-evaluation download-predictions <teacher-evaluation-id>
 
 # Custom output filename
-distil model download-teacher-evaluation-predictions <model-id> --file-name teacher-predictions.jsonl
-
-# By teacher evaluation ID instead of by model
-distil teacher-evaluation download-predictions <teacher-evaluation-id>
+distil teacher-evaluation download-predictions <teacher-evaluation-id> --file-name teacher-predictions.jsonl
 ```
+
+Default output: `<teacher-evaluation-id>-teacher-evaluation-predictions.jsonl`. Reads the URL from `distil teacher-evaluation metrics <teacher-evaluation-id>`, so the job has to have succeeded first.
 
 ### API (alternative)
 
@@ -84,16 +81,15 @@ After model training completes, download the tuned (fine-tuned) student model's 
 ### CLI
 
 ```bash
-distil model download-training-predictions <model-id>
+distil slm download-predictions <slm-id>
 
 # Custom output filename
-distil model download-training-predictions <model-id> --file-name student-predictions.jsonl
-
-# By SLM ID instead of by model
-distil slm download-predictions <slm-id>
+distil slm download-predictions <slm-id> --file-name student-predictions.jsonl
 ```
 
-`distil slm download-predictions` defaults to `<slm-id>-slm-predictions.jsonl` and reads the URL from `distil slm metrics <slm-id>`.
+Default output: `<slm-id>-slm-predictions.jsonl`. Reads the URL from `distil slm metrics <slm-id>`, so the training job has to have succeeded first.
+
+For the **base student** (untuned) predictions, there is no CLI command — see the API section below. `distil slm metrics <slm-id>` does report the base student's aggregate scores at `.base_model_performance`, so you can compare summary numbers without the per-example file.
 
 ### API (alternative)
 

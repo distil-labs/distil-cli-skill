@@ -25,9 +25,9 @@ Trace processing does **not** support contextual (open-book) tasks. The followin
 | `question-answering-closed-book` | Yes |
 | `question-answering-open-book` | **No** — trace processing cannot separate context from question automatically. If your production traces contain RAG-style prompts where the retrieved context is embedded in the user message, use `question-answering` instead and keep the full prompt (context + question) in the `user` turn's content. |
 
-## The Four Commands
+## The Three Commands
 
-Traces reach a trainable dataset in four steps. Run them in order; each prints the ID the next one needs.
+Traces reach a trainable upload in three steps. Run them in order; each prints the ID the next one needs.
 
 ```bash
 # 1. Store the trace files -> <traces-id>
@@ -38,15 +38,17 @@ distil upload create-from-traces <traces-id>
 
 # 3. Poll until JOB_SUCCESS (several minutes)
 distil upload status <upload-id> --output json | jq -r '.status'
-
-# 4. Fetch the processed data and hand it to the model
-distil upload download <upload-id> --data-destination ./processed
-distil model upload-data <model-id> --data ./processed
 ```
 
-Step 4 exists because steps 1-3 work in terms of trace and upload IDs, while `run-teacher-evaluation` and `run-training` read the data uploaded by `upload-data`. `distil upload download` writes exactly the filenames `--data` expects (`train.jsonl`, `test.jsonl`, `unstructured.jsonl`, `config.yaml`, `job_description.json`), so the two commands chain with no editing in between.
+That is all. Step 2 produces a real upload, and teacher evaluation and synthetic data generation both take an `<upload-id>` directly — so there is **no download-and-re-upload round-trip**. Continue straight into `distil teacher-evaluation create-from-upload <upload-id>` exactly as you would for a hand-built dataset.
 
-`distil model upload-traces` and `distil model reprocess-traces` have been **removed** — their API endpoint no longer exists. Both print the replacement steps and exit non-zero.
+Download the processed data only when you actually want to look at it or edit it:
+
+```bash
+distil upload download <upload-id> --destination ./processed
+```
+
+`distil upload download` writes `train.jsonl`, `test.jsonl`, `unstructured.jsonl`, `config.yaml`, and `job_description.json` — the same filenames `distil upload create --data` expects, so an edited copy can be uploaded back as a fresh upload without renaming anything. It errors while the upload is still processing, so poll step 3 first.
 
 ### Step 1: Upload the trace files
 
@@ -208,16 +210,15 @@ Once it reports `JOB_SUCCESS`, the base model's scores on the generated test set
 distil upload metrics <upload-id>
 ```
 
-Then complete step 4 and continue with teacher evaluation and training:
+Then continue straight into teacher evaluation and training against the same `<upload-id>`:
 
 ```bash
-distil upload download <upload-id> --data-destination ./processed
-distil model upload-data <model-id> --data ./processed
-distil model run-teacher-evaluation <model-id>
-distil model run-training <model-id>
+distil teacher-evaluation create-from-upload <upload-id>       # -> <teacher-evaluation-id>
+distil training-dataset create-from-upload <upload-id>         # -> <training-dataset-id>
+distil slm create-from-training-dataset <training-dataset-id>  # -> <slm-id>
 ```
 
-`distil upload download` errors while the upload is still processing, so do not run it before the status is terminal.
+Both of the last two are billable and must not be started without the user's explicit go-ahead — see `references/tasks/training.md`.
 
 ## Common Gotchas
 
@@ -229,7 +230,7 @@ distil model run-training <model-id>
 
 2. **Changing `job_description.json` re-triggers full processing** — There is no way to update it in place. Pass a corrected one to `distil upload create-from-traces <traces-id> --job-description <file>`; that re-runs the whole pipeline including committee relabelling. You do not need to re-upload the trace files, but the processing cost is the same as a first run, so plan the job description carefully.
 
-3. **Markdown fences in relabeled JSON answers** — When `synthgen.output_is_json: true`, committee relabeling models sometimes wrap JSON in ```` ```json ... ``` ```` fences. Teacher evaluation will then fail JSON validation. Workaround: download the relabeled train/test, strip markdown fences from the `assistant` turns' content, validate every `assistant` content parses as JSON, and re-upload as a regular dataset with `distil model upload-data`. Then proceed to teacher evaluation.
+3. **Markdown fences in relabeled JSON answers** — When `synthgen.output_is_json: true`, committee relabeling models sometimes wrap JSON in ```` ```json ... ``` ```` fences. Teacher evaluation will then fail JSON validation. Workaround: `distil upload download <upload-id> --destination ./processed`, strip markdown fences from the `assistant` turns' content, validate every `assistant` content parses as JSON, then `distil upload create --data ./processed` to make a clean upload. Run teacher evaluation against that new `<upload-id>`.
 
 4. **(`question-answering` only) `input_description` must be self-contained** — For the `question-answering` task type, the synthgen model that generates training inputs does NOT see `task_description`. It only sees `input_description`. So `input_description` must fully describe the input structure on its own — markers, sections, examples, formatting. If you only put input details in `task_description`, synthgen will produce poor inputs even if teacher evaluation looks fine. This does NOT apply to other task types (`classification`, tool calling, closed-book QA): synthgen does not read `input_description` for them — see `references/job-description-guide.md` for what synthgen reads per task.
 

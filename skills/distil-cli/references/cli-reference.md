@@ -1,10 +1,65 @@
 # CLI Command Reference
 
-Complete reference for the Distil CLI. Command aliases: `distil model` = `distil models` = `distil m` — all three work identically.
+Complete reference for the Distil CLI. Every command works on one entity, addressed by its own ID.
+
+## The Pipeline
+
+Each stage produces an ID that the next stage consumes.
+
+```
+distil traces upload                        -> <traces-id>        (optional: traces path only)
+distil upload create-from-traces            -> <upload-id>
+  or distil upload create --data <dir>      -> <upload-id>
+distil teacher-evaluation create-from-upload -> <teacher-evaluation-id>   (feasibility check)
+distil training-dataset create-from-upload  -> <training-dataset-id>      (synthetic data gen)
+distil slm create-from-training-dataset     -> <slm-id>                   (fine-tuning)
+distil deployment create-from-slm           -> <deployment-id>            (hosted inference)
+```
+
+Every family follows the same shape: `create*` to make one, `list` / `show` to find it, `status` / `logs` to follow its job, `metrics` for results, `download*` for artifacts. Every family aliases `ls` to `list`. Every read command accepts `--output json` / `-o json`.
+
+### Tracing the Chain
+
+Entities are linked on the platform: **each one records its parent**, so you never have to keep a manual ledger of IDs. Given any ID you can recover the whole lineage behind it.
+
+| Entity | Field pointing at its parent |
+|--------|------------------------------|
+| `deployment` | `slm_id` |
+| `slm` | `training_dataset_id` (null when `source` is `direct_upload`) |
+| `training_dataset` | `upload_id` (null when `source` is `direct_upload`) |
+| `teacher_evaluation` | `upload_id` |
+| `upload` | `prepared_traces_id` (null when `source` is `direct_upload`) |
+
+Walking backwards from a deployment to the traces it came from:
+
+```bash
+slm=$(distil deployment show <deployment-id> --output json | jq -r '.slm_id')
+td=$(distil slm show "$slm" --output json | jq -r '.training_dataset_id // empty')
+upload=$(distil training-dataset show "$td" --output json | jq -r '.upload_id // empty')
+traces=$(distil upload show "$upload" --output json | jq -r '.prepared_traces_id // empty')
+```
+
+Walking forwards, filter a `list` on the parent field:
+
+```bash
+# Teacher evaluations for one upload
+distil teacher-evaluation list --output json | jq -r --arg u "<upload-id>" '.[] | select(.upload_id == $u) | .id'
+
+# Training datasets generated from one upload
+distil training-dataset list --output json | jq -r --arg u "<upload-id>" '.[] | select(.upload_id == $u) | .id'
+
+# SLMs trained from one training dataset
+distil slm list --output json | jq -r --arg d "<training-dataset-id>" '.[] | select(.training_dataset_id == $d) | .id'
+
+# Deployments of one SLM
+distil deployment list --output json | jq -r --arg s "<slm-id>" '.[] | select(.slm_id == $s) | .id'
+```
+
+The chain stops at anything created directly from local files — a `distil slm create` upload has no `training_dataset_id`, and a `distil training-dataset create` dataset has no `upload_id`, because no parent produced them. Use `// empty` or `// "none"` in jq so a null does not silently become the string `"null"`.
 
 ## Job Status and Polling
 
-Async commands (upload, teacher evaluation, training, trace processing) return a job status. For the full status value list, the canonical polling loop, and the `--output json | jq` pattern, see `references/tasks/polling-jobs.md`.
+Async commands (upload, teacher evaluation, synthetic data generation, training, trace processing) return a job status. For the full status value list, the canonical polling loop, and the `--output json | jq` pattern, see `references/tasks/polling-jobs.md`.
 
 **Summary:** Terminal values are `JOB_SUCCESS`, `JOB_FAILURE`, `JOB_STOPPED`. Anything else means in progress. Always extract status via `--output json | jq -r '.status'` — do not grep human-readable output.
 
@@ -49,194 +104,13 @@ Log out from the platform and clear credentials.
 distil logout
 ```
 
-## Model Management
-
-### distil model create
-
-Create a new model with the specified name. Returns the model ID used in all subsequent commands.
-
-```bash
-distil model create <name>
-```
-
-- `<name>` -- A human-readable name for your model (e.g., `customer-support-classifier`).
-
-### distil model list
-
-List all your models with their IDs, names, and status.
-
-```bash
-distil model list
-distil model list --output json
-```
-
-### distil model show
-
-Show detailed information about a specific model, including all component IDs (upload IDs, teacher evaluation IDs, training info).
-
-```bash
-distil model show <model-id>
-distil model show <model-id> --output json
-```
-
-**JSON schema** (from `--output json`):
-
-```json
-{
-  "id": "4cd3f76d-ffab-4244-a70e-54092df485b0",
-  "name": "review-schema-probe",
-  "created_at": "2026-04-17T22:28:09.549401Z",
-  "training": null,
-  "upload_ids": [],
-  "teacher_evaluation_ids": [],
-  "prepared_traces_ids": [],
-  "training_status": "JOB_NOT_STARTED",
-  "evaluation_results": null,
-  "training_evaluation_results": null,
-  "task_details": null
-}
-```
-
-Field notes:
-
-| Field | Description |
-|-------|-------------|
-| `id` | Model UUID. |
-| `name` | Human-readable name set at `distil model create`. |
-| `created_at` | ISO 8601 timestamp (UTC). |
-| `training` | `null` until training starts; otherwise an object with training job details. |
-| `upload_ids` | Array of upload UUIDs, **latest first**. Element 0 is the current upload. |
-| `teacher_evaluation_ids` | Array of teacher evaluation UUIDs, latest first. |
-| `prepared_traces_ids` | Array of prepared-traces UUIDs, latest first. Legacy field — list prepared traces with `distil traces list` instead. |
-| `training_status` | One of the job status values (see `references/tasks/polling-jobs.md`). |
-| `evaluation_results` | Teacher evaluation aggregate metrics once complete. |
-| `training_evaluation_results` | Training aggregate metrics once complete. |
-| `task_details` | Task-specific details populated after upload. |
-
-**Common jq queries:**
-
-```bash
-# Latest upload ID (used to verify a re-upload actually took)
-distil model show <model-id> --output json | jq -r '.upload_ids[0] // "none"'
-
-# Latest teacher evaluation ID
-distil model show <model-id> --output json | jq -r '.teacher_evaluation_ids[0] // "none"'
-
-# Current training status
-distil model show <model-id> --output json | jq -r '.training_status'
-```
-
-## Data Upload
-
-### distil model upload-data
-
-Upload training data for a model. Use either directory mode or individual file flags.
-
-**Directory mode** -- expects standard filenames (`job_description.json`, `train.jsonl`, `test.jsonl`, `config.yaml`) in the directory:
-
-```bash
-distil model upload-data <model-id> --data <directory>
-```
-
-**Individual file flags:**
-
-```bash
-distil model upload-data <model-id> \
-  --job-description <file> \
-  --train <file> \
-  --test <file> \
-  --config <file> \
-  [--unstructured <file>]
-```
-
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--data` | Yes* | Directory containing data files. |
-| `--job-description` | Yes* | Path to job description file (`.json`). |
-| `--train` | Yes* | Path to training data file (`.jsonl`). |
-| `--test` | Yes* | Path to test data file (`.jsonl`). |
-| `--config` | Yes* | Path to config file (`.yaml` or `.yml`). |
-| `--unstructured` | No | Path to unstructured data file (`.jsonl`) for synthetic data generation. |
-
-\* Provide either `--data` or the individual file flags (`--job-description`, `--train`, `--test`, `--config`), but not both.
-
-`--config` is required. In directory mode the directory must contain `config.yaml` or `config.yml`. The command fails before uploading anything if it is missing, so a missing config is a fast, safe failure rather than a half-done upload.
-
-### distil model upload-traces / reprocess-traces (removed)
-
-Both commands have been removed -- their API endpoint no longer exists. Each now prints the replacement steps and exits **non-zero**, so a script that calls them fails rather than silently doing nothing.
-
-Replace `upload-traces` with `distil traces upload` followed by `distil upload create-from-traces`. Replace `reprocess-traces` with `distil upload create-from-traces <traces-id> --config <file>`. See `## Prepared Traces` and `## Uploads` below.
-
-### distil model download-data
-
-Download the uploaded data files for a model.
-
-```bash
-distil model download-data <model-id>
-```
-
-### distil model download-traces-predictions
-
-Download per-example predictions of the original production model after trace processing completes. Used to compare the original model against the committee-relabeled ground truth.
-
-```bash
-distil model download-traces-predictions <model-id>
-distil model download-traces-predictions <model-id> --file-name predictions.jsonl
-```
-
-Default output filename: `<model-id>-traces-predictions.jsonl`.
-
-Takes a model ID and reads the data uploaded with `upload-data`. To download by upload ID instead, use `distil upload download-traces-predictions <upload-id>`.
-
-### distil model download-teacher-evaluation-predictions
-
-Download per-example teacher model predictions on the test set after teacher evaluation completes. Used for analysis reports and identifying which examples the teacher gets right or wrong.
-
-```bash
-distil model download-teacher-evaluation-predictions <model-id>
-distil model download-teacher-evaluation-predictions <model-id> --file-name teacher-predictions.jsonl
-```
-
-### distil model download-training-predictions
-
-Download per-example tuned student model predictions on the test set after training completes. Used for the training analysis report comparing tuned student vs. teacher and base student.
-
-```bash
-distil model download-training-predictions <model-id>
-distil model download-training-predictions <model-id> --file-name student-predictions.jsonl
-```
-
-### distil model upload-status
-
-Show the status of the data uploaded with `upload-data`, plus the base model metrics when there are any.
-
-```bash
-distil model upload-status <model-id>
-distil model upload-status <model-id> --output json
-distil model upload-status <model-id> --logs
-```
-
-| Flag | Alias | Description |
-|------|-------|-------------|
-| `--logs` | `-l` | Also fetch the logs of the job that produced the upload. |
-| `--output json` | `-o json` | Emit `{"status": …, "metrics": {…}}`, plus a `logs` key when `--logs` is set. |
-
-The JSON shape is worth noting when polling: `status` is the job status string, and `metrics` holds `base_model_performance` and `base_model_predictions_download_url`.
-
-```bash
-distil model upload-status <model-id> --output json | jq -r '.status'
-```
-
-To check an upload by its own ID, use `distil upload status <upload-id>` (see `## Uploads`).
-
 ## Prepared Traces
 
 `distil traces` (alias `distil traces ls` for `list`, `distil traces create` for `upload`) manages sets of production traces. Prepared traces are the raw material: uploading them stores the files, and a separate step processes them into training and test data.
 
 ### distil traces upload
 
-Store trace files as a prepared-traces resource and print its ID. Takes no model ID.
+Store trace files as a prepared-traces resource and print its ID.
 
 **Directory mode** -- expects standard filenames (`traces.jsonl`, `job_description.json`, `config.yaml`, and optionally `test.jsonl`) in the directory:
 
@@ -294,28 +168,64 @@ Prepared traces are created synchronously, so `status` on one that exists always
 
 ```bash
 distil traces download <traces-id>
-distil traces download <traces-id> --data-destination <directory>
+distil traces download <traces-id> --destination <directory>
 ```
 
 Writes `traces.jsonl`, `job_description.json`, `config.yaml`, and `test.jsonl` (whichever exist) under the destination, using the filenames `distil traces upload --data` expects. Alias: `-d`.
 
+### distil traces download-metadata
+
+```bash
+distil traces download-metadata <traces-id>
+distil traces download-metadata <traces-id> --destination ./metadata    # -d also works
+```
+
+Writes only `config.yaml` and `job_description.json`, into `<traces-id>-metadata` by default. Use this instead of `download` when you want to read or edit the settings the traces were prepared with and do not need `traces.jsonl`. Every entity family has the same subcommand -- see `distil upload download-metadata`, `distil teacher-evaluation download-metadata`, `distil training-dataset download-metadata` and `distil slm download-metadata`.
+
 ## Uploads
 
-`distil upload` (alias `distil uploads`, and `distil upload ls` for `list`) works with uploads by upload ID. An upload is a set of training and test data, whether it came from local files or from processing prepared traces.
+`distil upload` (alias `distil uploads`, and `distil upload ls` for `list`) works with uploads by upload ID. An upload is a set of training and test data, whether it came from local files or from processing prepared traces. It is the entry point to the pipeline: teacher evaluation and synthetic data generation both read an upload.
 
 All read commands accept `--output json` / `-o json`.
 
 ### distil upload create
 
-Create an upload from local data files. Same flags as `distil model upload-data`, minus the model ID -- including the required `--config`.
+Create an upload from local data files. Use either directory mode or individual file flags.
+
+**Directory mode** -- expects standard filenames (`job_description.json`, `train.jsonl`, `test.jsonl`, `config.yaml`, and optionally `unstructured.jsonl`) in the directory:
 
 ```bash
 distil upload create --data <directory>
+# Output: Upload successful. Upload ID: <upload-id>
 ```
+
+**Individual file flags:**
+
+```bash
+distil upload create \
+  --job-description <file> \
+  --train <file> \
+  --test <file> \
+  --config <file> \
+  [--unstructured <file>]
+```
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--data` | Yes* | Directory containing data files. |
+| `--job-description` | Yes* | Path to job description file (`.json`). |
+| `--train` | Yes* | Path to training data file (`.jsonl`). |
+| `--test` | Yes* | Path to test data file (`.jsonl`). |
+| `--config` | Yes* | Path to config file (`.yaml` or `.yml`). |
+| `--unstructured` | No | Path to unstructured data file (`.jsonl`) for synthetic data generation. |
+
+\* Provide either `--data` or the individual file flags (`--job-description`, `--train`, `--test`, `--config`), but not both.
+
+`--config` is required. In directory mode the directory must contain `config.yaml` or `config.yml`. The command fails before uploading anything if it is missing, so a missing config is a fast, safe failure rather than a half-done upload.
 
 ### distil upload create-from-traces
 
-Start a trace-processing job that turns prepared traces into an upload. This is the second half of the traces path, and the replacement for the removed `reprocess-traces`.
+Start a trace-processing job that turns prepared traces into an upload. This is the second half of the traces path.
 
 ```bash
 distil upload create-from-traces <traces-id>
@@ -326,10 +236,12 @@ distil upload create-from-traces <traces-id> --job-description <file>
 
 | Flag | Alias | Description |
 |------|-------|-------------|
-| `--config` | `-c` | Config file (`.yaml`/`.yml`) merged over the prepared traces' own config on top-level keys. |
+| `--config` | `-c` | Complete config file (`.yaml`/`.yml`) that replaces the prepared traces' own outright. |
 | `--job-description` | | Job description file (`.json`) that replaces the prepared traces' own outright. |
 
-Both are optional; omit them to reuse the prepared traces' own config and job description. The merge is per top-level key, so passing a config containing only `trace_processing` keeps the rest of the original config intact.
+Both are optional; omit them to reuse the prepared traces' own config and job description. Each **replaces** the corresponding file outright rather than merging into it, so a `--config` has to be complete: a partial config drops every key it leaves out. Pull the original with `distil traces download-metadata <traces-id>`, edit that, and pass it back.
+
+Every `create-from-*` command except `distil deployment create-from-slm` takes the same two flags -- see `distil teacher-evaluation create-from-upload`, `distil training-dataset create-from-upload` and `distil slm create-from-training-dataset`. Combined with `download-metadata` this gives an edit-and-rerun loop: pull the metadata of a finished entity, edit the config, and pass it back with `--config` on the next `create-from-*`.
 
 Each call produces a **new** upload, so re-running against the same `<traces-id>` with different parameters leaves earlier attempts intact for comparison. This is how you iterate on `trace_processing` params without re-uploading trace files.
 
@@ -360,18 +272,30 @@ distil upload metrics <upload-id>   # base model performance + predictions URL
 
 ```bash
 distil upload status <upload-id> --output json | jq -r '.status'
+distil upload metrics <upload-id> --output json | jq '.base_model_performance'
 ```
+
+`metrics` holds `base_model_performance` and `base_model_predictions_download_url`. Note the shape: `metrics` returns the metrics object directly, so the scores are at `.base_model_performance`, not nested under a `metrics` key.
 
 ### distil upload download
 
 ```bash
 distil upload download <upload-id>
-distil upload download <upload-id> --data-destination <directory>
+distil upload download <upload-id> --destination <directory>
 ```
 
-Writes whichever of `train.jsonl`, `test.jsonl`, `unstructured.jsonl`, `config.yaml`, and `job_description.json` the upload has, using the filenames directory mode expects -- so the output feeds straight back into `distil model upload-data --data <directory>` or `distil upload create --data <directory>`.
+Writes whichever of `train.jsonl`, `test.jsonl`, `unstructured.jsonl`, `config.yaml`, and `job_description.json` the upload has, using the filenames directory mode expects -- so the output feeds straight back into `distil upload create --data <directory>`.
 
 Errors while the upload is still processing, so poll `distil upload status` first. Alias: `-d`. If one file fails to download the command reports that file and finishes the rest.
+
+### distil upload download-metadata
+
+```bash
+distil upload download-metadata <upload-id>
+distil upload download-metadata <upload-id> --destination ./metadata    # -d also works
+```
+
+Writes only `config.yaml` and `job_description.json`, into `<upload-id>-metadata` by default -- the settings the upload was created with, without the train and test data that `download` pulls.
 
 ### distil upload download-traces-predictions
 
@@ -380,57 +304,35 @@ distil upload download-traces-predictions <upload-id>
 distil upload download-traces-predictions <upload-id> --file-name predictions.jsonl
 ```
 
-Per-example predictions of the model that generated the traces, on the processed test set. Default output filename: `<upload-id>-traces-predictions.jsonl`.
-
-## Teacher Evaluation
-
-### distil model run-teacher-evaluation
-
-Start a teacher evaluation to validate that a large model can solve your task. This is a feasibility check and performance benchmark before training.
-
-```bash
-distil model run-teacher-evaluation <model-id>
-```
-
-Runs against the data uploaded with `upload-data`. To evaluate an upload by its own ID, use `distil teacher-evaluation create-from-upload` (see `## Teacher Evaluations`).
-
-### distil model teacher-evaluation
-
-Check the status and results of the teacher evaluation.
-
-```bash
-distil model teacher-evaluation <model-id>
-distil model teacher-evaluation <model-id> --output json
-distil model teacher-evaluation <model-id> --logs
-```
-
-| Flag | Alias | Description |
-|------|-------|-------------|
-| `--logs` | `-l` | Also fetch the logs of the evaluation job. |
-| `--output json` | `-o json` | Emit `{"status": …, "metrics": {…}}`, plus a `logs` key when `--logs` is set. |
-
-The JSON shape mirrors `distil model upload-status`: `status` is the job status string, and `metrics` holds `teacher_performance` and `predictions_download_url`.
-
-```bash
-distil model teacher-evaluation <model-id> --output json | jq -r '.status'
-distil model teacher-evaluation <model-id> --output json | jq '.metrics.teacher_performance'
-```
+Per-example predictions of the model that generated the traces, on the processed test set. Used to compare the original production model against the committee-relabeled ground truth. Default output filename: `<upload-id>-traces-predictions.jsonl`.
 
 ## Teacher Evaluations
 
 `distil teacher-evaluation` (aliases `distil teacher-evaluations` and `distil teacher-eval`, and `distil teacher-evaluation ls` for `list`) works with teacher evaluations by their own ID. A teacher evaluation always belongs to exactly one upload.
 
+A teacher evaluation is a feasibility check and performance benchmark: if the teacher model can solve your task, the student can learn it. Run it before spending credits on training.
+
 All read commands accept `--output json` / `-o json`.
 
 ### distil teacher-evaluation create-from-upload
 
-Start a teacher evaluation over an upload. This is the only creation path that does not go through a model.
+Start a teacher evaluation over an upload.
 
 ```bash
 distil teacher-evaluation create-from-upload <upload-id>
 distil teacher-evaluation create-from-upload <upload-id> --output json
+distil teacher-evaluation create-from-upload <upload-id> --config <file>
+distil teacher-evaluation create-from-upload <upload-id> --job-description <file>
 # Output: Teacher evaluation started. Teacher Evaluation ID: <teacher-evaluation-id>
 ```
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--config` | `-c` | Complete config file (`.yaml`/`.yml`) that replaces the upload's own outright. |
+| `--job-description` | | Job description file (`.json`) that replaces the upload's own outright. |
+| `--output json` | `-o json` | Emit the new teacher evaluation as JSON. |
+
+Both overrides are optional; omit them to reuse the upload's own config and job description. A `--config` replaces the source's outright rather than merging into it, so it has to be complete; pair it with `download-metadata` to start from the original. Use this to re-evaluate one upload against a different teacher model without re-uploading the data.
 
 The upload has to have finished processing first, so poll `distil upload status <upload-id>` until `JOB_SUCCESS`. Each call produces a **new** teacher evaluation, so earlier attempts stay intact for comparison.
 
@@ -474,7 +376,16 @@ distil teacher-evaluation download-predictions <teacher-evaluation-id>
 distil teacher-evaluation download-predictions <teacher-evaluation-id> --file-name predictions.jsonl
 ```
 
-Per-example teacher predictions on the upload's test set. Default output filename: `<teacher-evaluation-id>-teacher-evaluation-predictions.jsonl`.
+Per-example teacher predictions on the upload's test set. Used for analysis reports and identifying which examples the teacher gets right or wrong. Default output filename: `<teacher-evaluation-id>-teacher-evaluation-predictions.jsonl`.
+
+### distil teacher-evaluation download-metadata
+
+```bash
+distil teacher-evaluation download-metadata <teacher-evaluation-id>
+distil teacher-evaluation download-metadata <teacher-evaluation-id> --destination ./metadata    # -d also works
+```
+
+Writes `config.yaml` and `job_description.json` into `<teacher-evaluation-id>-metadata` by default. Other than its predictions, this is the only download a teacher evaluation has -- it is how you recover the config the evaluation ran with.
 
 ## Training Datasets
 
@@ -482,7 +393,7 @@ Per-example teacher predictions on the upload's test set. Default output filenam
 
 A training dataset is an upload's data with synthetic training examples generated for it — the same four files an upload holds (`train.jsonl`, `test.jsonl`, `config.yaml`, `job_description.json`), with generated rows in `train.jsonl`. There is no unstructured data file.
 
-Training already generates this data internally, so this family is for **inspecting** what would be trained on, or for curating it. `distil model run-training` still runs from the upload; pointing training at a dataset ID is not supported.
+**This is a required stage, not an optional inspection.** Training reads a training dataset, so generating one is how you get to `distil slm create-from-training-dataset`. The useful side effect is that you can look at the generated rows with `sample` before committing to the multi-hour training job.
 
 All read commands accept `--output json` / `-o json`.
 
@@ -493,8 +404,18 @@ Start a synthetic data generation job over an upload. Costs 2 credits.
 ```bash
 distil training-dataset create-from-upload <upload-id>
 distil training-dataset create-from-upload <upload-id> --output json
+distil training-dataset create-from-upload <upload-id> --config <file>
+distil training-dataset create-from-upload <upload-id> --job-description <file>
 # Output: Synthetic data generation started. Training Dataset ID: <training-dataset-id>
 ```
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--config` | `-c` | Complete config file (`.yaml`/`.yml`) that replaces the upload's own outright. |
+| `--job-description` | | Job description file (`.json`) that replaces the upload's own outright. |
+| `--output json` | `-o json` | Emit the new training dataset as JSON. |
+
+Both overrides are optional; omit them to reuse the upload's own config and job description. A `--config` replaces the source's outright rather than merging into it, so it has to be complete; pair it with `download-metadata` to start from the original. Use `--config` to change generation settings between attempts without building a new upload.
 
 The upload has to have finished processing first, so poll `distil upload status <upload-id>` until `JOB_SUCCESS`. Each call produces a **new** dataset, so earlier attempts stay intact for comparison.
 
@@ -507,7 +428,7 @@ distil training-dataset create --data ./my-dataset-dir
 distil training-dataset create --train train.jsonl --test test.jsonl --config config.yaml --job-description job_description.json
 ```
 
-Because `download` writes the file names `create` reads, download → edit → create round-trips a dataset.
+Because `download` writes the file names `create` reads, download → edit → create round-trips a dataset. This is the path for curating generated rows by hand before training on them.
 
 ### distil training-dataset list
 
@@ -566,32 +487,19 @@ The sample is deterministic — seeded on the dataset ID, so repeated calls retu
 
 ```bash
 distil training-dataset download <training-dataset-id>
-distil training-dataset download <training-dataset-id> --data-destination ./dataset
+distil training-dataset download <training-dataset-id> --destination ./dataset
 ```
 
-Writes `train.jsonl`, `test.jsonl`, `config.yaml` and `job_description.json` into `<training-dataset-id>-data` unless `-d`/`--data-destination` says otherwise. **Credit-gated, with 0 credits granted by default** — expect a 402 unless credits have been granted for this route.
+Writes `train.jsonl`, `test.jsonl`, `config.yaml` and `job_description.json` into `<training-dataset-id>-data` unless `-d`/`--destination` says otherwise. **Credit-gated, with 0 credits granted by default** — expect a 402 unless credits have been granted for this route. Use `sample` when you only need to see the rows.
 
-## Training
-
-### distil model run-training
-
-Start training to distill knowledge from the teacher into a compact student model.
+### distil training-dataset download-metadata
 
 ```bash
-distil model run-training <model-id>
+distil training-dataset download-metadata <training-dataset-id>
+distil training-dataset download-metadata <training-dataset-id> --destination ./metadata    # -d also works
 ```
 
-Training typically takes several hours. See "Job Status Values" at the top of this file for the full list of statuses and how to check them reliably.
-
-### distil model training
-
-Check the status and results of the training job. After training completes, this also shows evaluation metrics comparing the SLM against the teacher.
-
-```bash
-distil model training <model-id>
-```
-
-To work with the trained model by its own ID instead of through a model, see `## SLMs`.
+Writes only `config.yaml` and `job_description.json`, into `<training-dataset-id>-metadata` by default. Unlike `download` it fetches no generated rows, so prefer it when you only need the settings synthetic data generation ran with.
 
 ## SLMs
 
@@ -601,15 +509,25 @@ All read commands accept `--output json` / `-o json`.
 
 ### distil slm create-from-training-dataset
 
-Train an SLM from a training dataset.
+Train an SLM from a training dataset. This is the distillation step: knowledge from the teacher is compressed into a compact student model.
 
 ```bash
 distil slm create-from-training-dataset <training-dataset-id>
 distil slm create-from-training-dataset <training-dataset-id> --output json
+distil slm create-from-training-dataset <training-dataset-id> --config <file>
+distil slm create-from-training-dataset <training-dataset-id> --job-description <file>
 # Output: Training started. SLM ID: <slm-id>
 ```
 
-Training takes several hours. Get the training dataset ID from `distil training-dataset create-from-upload` or `distil training-dataset list` (see `## Training Datasets` above).
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--config` | `-c` | Complete config file (`.yaml`/`.yml`) that replaces the training dataset's own outright. |
+| `--job-description` | | Job description file (`.json`) that replaces the training dataset's own outright. |
+| `--output json` | `-o json` | Emit the new SLM as JSON. |
+
+Both overrides are optional; omit them to reuse the training dataset's own config and job description. A `--config` replaces the source's outright rather than merging into it, so it has to be complete; pair it with `download-metadata` to start from the original. Use `--config` to retrain the same dataset with different training settings or a different student model.
+
+Training typically takes several hours and burns credits that are hard to refund. Get the training dataset ID from `distil training-dataset create-from-upload` or `distil training-dataset list` (see `## Training Datasets` above).
 
 ### distil slm create
 
@@ -657,11 +575,14 @@ distil slm logs <slm-id>      # logs of the job that produced the SLM
 distil slm metrics <slm-id>   # base + tuned model performance, predictions URL
 ```
 
+`source` is `training_dataset` for a trained SLM and `direct_upload` for one you uploaded.
+
 Poll `status` until it reaches a terminal value (see `references/tasks/polling-jobs.md`) and read `logs` when one fails. `metrics` is empty until the job succeeds.
 
 ```bash
 distil slm status <slm-id> --output json | jq -r '.status'
 distil slm metrics <slm-id> --output json | jq '.tuned_model_performance'
+distil slm metrics <slm-id> --output json | jq '.base_model_performance'
 ```
 
 `metrics` is the one place that reports the base and the tuned student side by side, which is what you want when judging whether fine-tuning actually helped.
@@ -675,6 +596,8 @@ distil slm download <slm-id> --destination ./my-slm    # -d also works
 
 Writes `model.tar` and `config.yaml` into the destination directory, defaulting to `<slm-id>-slm/`. Those are the filenames `distil slm create --data` expects, so download and re-upload chain directly. Errors out while the job is still running, so poll `status` first.
 
+This is also the starting point for serving the model yourself — see `## Local Serving` below.
+
 ### distil slm download-predictions
 
 ```bash
@@ -682,131 +605,121 @@ distil slm download-predictions <slm-id>
 distil slm download-predictions <slm-id> --file-name predictions.jsonl
 ```
 
-Per-example tuned-model predictions on the test set. Default output filename: `<slm-id>-slm-predictions.jsonl`.
+Per-example tuned-model predictions on the test set. Used for the training analysis report comparing tuned student vs. teacher and base student. Default output filename: `<slm-id>-slm-predictions.jsonl`.
 
-## Retuning
-
-### distil model retune
-
-Retune an existing model with new tuning parameters. Creates a new model based on a previously trained one.
-
-**Using a tuning parameters file:**
+### distil slm download-metadata
 
 ```bash
-distil model retune <model-id> \
-  --name <name> \
-  --student-model <model> \
-  --tuning-parameters <file>
+distil slm download-metadata <slm-id>
+distil slm download-metadata <slm-id> --destination ./metadata    # -d also works
 ```
 
-**Using a full config file** (only the `tuning` section is used):
+Writes only `config.yaml` and `job_description.json`, into `<slm-id>-metadata` by default. Skips the `model.tar` that `download` pulls, so it is the cheap way to check what an SLM was trained with.
+
+## Deployments
+
+`distil deployment` (alias `distil deployments`, and `distil deployment ls` for `list`) manages hosted inference deployments by their own ID. A deployment serves one SLM from Distil Labs infrastructure and exposes an OpenAI-compatible endpoint.
+
+All read commands accept `--output json` / `-o json`.
+
+### distil deployment create-from-slm
+
+Deploy an SLM to the inference playground.
 
 ```bash
-distil model retune <model-id> \
-  --name <name> \
-  --student-model <model> \
-  --config <file>
+distil deployment create-from-slm <slm-id>
+distil deployment create-from-slm <slm-id> --output json
+# Output: Deployment started. Deployment ID: <deployment-id>
 ```
 
-| Flag | Alias | Required | Description |
-|------|-------|----------|-------------|
-| `--name` | `-n` | Yes | Name of the new retuned model to be created. |
-| `--student-model` | `-s` | Yes | Student model to use for retuning. |
-| `--tuning-parameters` | `-t` | Yes* | Path to tuning parameters file (`.json` or `.yaml`). |
-| `--config` | `-c` | Yes* | Path to config file (`.json` or `.yaml`) -- only the `tuning` section is used. |
+The SLM's job has to have succeeded first, so poll `distil slm status <slm-id>` until `JOB_SUCCESS`. A running deployment consumes inference credits — shut it down with `delete` when you are done.
 
-\* Provide either `--tuning-parameters` or `--config`, but not both.
-
-## Retuning
-
-### distil model retune
-
-Retune an existing model with new tuning parameters. Creates a new model based on a previously trained one.
-
-**Using a tuning parameters file:**
+### distil deployment list
 
 ```bash
-distil model retune <model-id> \
-  --name <name> \
-  --student-model <model> \
-  --tuning-parameters <file>
+distil deployment list
+distil deployment list --output json
 ```
 
-**Using a full config file** (only the `tuning` section is used):
+Newest first. Fetches all pages internally (up to 10,000 records).
 
 ```bash
-distil model retune <model-id> \
-  --name <name> \
-  --student-model <model> \
-  --config <file>
+# Most recent deployment ID
+distil deployment list --output json | jq -r '.[0].id // "none"'
+
+# Deployments of one SLM
+distil deployment list --output json | jq -r --arg s "<slm-id>" '.[] | select(.slm_id == $s) | .id'
 ```
 
-| Flag | Alias | Required | Description |
-|------|-------|----------|-------------|
-| `--name` | `-n` | Yes | Name of the new retuned model to be created. |
-| `--student-model` | `-s` | Yes | Student model to use for retuning. |
-| `--tuning-parameters` | `-t` | Yes* | Path to tuning parameters file (`.json` or `.yaml`). |
-| `--config` | `-c` | Yes* | Path to config file (`.json` or `.yaml`) -- only the `tuning` section is used. |
-
-\* Provide either `--tuning-parameters` or `--config`, but not both.
-
-## Deployment
-
-### distil model deploy local
-
-Deploy a model locally using llama-cpp as the inference backend (experimental). Requires llama-cpp installed on your machine.
+### distil deployment show / status / logs
 
 ```bash
-distil model deploy local <model-id>
-distil model deploy local --port 9000 <model-id>
-distil model deploy local --port 9000 --logs <model-id>
+distil deployment show <deployment-id>      # id, created_at, slm_id
+distil deployment status <deployment-id>    # the show fields plus deployment_status and endpoint_status
+distil deployment logs <deployment-id>      # logs of the deployment
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--port <port>` | Port number for local llama-server (default: 8000). |
-| `--logs` | Show llama-server logs during local deployment. |
-| `--output json` | Output results in JSON format. |
+`status` reports **two** status fields, and they are not the same:
 
-### distil model deploy remote
+| Field | Values | Meaning |
+|-------|--------|---------|
+| `deployment_status` | the job status values (`JOB_PENDING`, `JOB_RUNNING`, `JOB_SUCCESS`, …) | Whether the deploy itself finished. |
+| `endpoint_status` | `running`, `stopped`, or `null` | Whether the endpoint is actually serving traffic. `null` until there is an endpoint at all. |
 
-Deploy a model to Distil Labs hosted inference infrastructure.
+Poll on `endpoint_status` when you are waiting to send a request — a `JOB_SUCCESS` deploy whose endpoint is still `stopped` cannot answer yet.
 
 ```bash
-distil model deploy remote <model-id>
-distil model deploy remote --client-script <model-id>
+distil deployment status <deployment-id> --output json | jq -r '.deployment_status'
+distil deployment status <deployment-id> --output json | jq -r '.endpoint_status // "none"'
 ```
 
-| Flag | Description |
-|------|-------------|
-| `--client-script` | Output only the client script for the deployment. |
-| `--output json` | Output results in JSON format. |
+### distil deployment endpoint
 
-### distil model deploy remote --deactivate
-
-Deactivate a remote deployment to conserve credits.
+Print the URL and API key for a deployment. This is how you get the credentials to send inference requests.
 
 ```bash
-distil model deploy remote --deactivate <model-id>
+distil deployment endpoint <deployment-id>
+distil deployment endpoint <deployment-id> --output json
 ```
 
-### distil model invoke
-
-Get the command to query a deployed model. Outputs a ready-to-run `uv run` command pointing to a client script.
+Both `url` and `api_key` are `null` until the deployment is serving, so this is safe to poll without branching on readiness:
 
 ```bash
-distil model invoke <model-id>
+distil deployment endpoint <deployment-id> --output json | jq -r '.url // "not ready"'
+distil deployment endpoint <deployment-id> --output json | jq -r '.api_key // "not ready"'
 ```
 
-## Model Download
+See `references/tasks/deployment-integration.md` for sending requests against the endpoint.
 
-### distil model download
+### distil deployment delete
 
-Download your trained model files.
+Shut a deployment down and stop it consuming inference credits. Alias: `distil deployment shutdown`.
 
 ```bash
-distil model download <model-id>
+distil deployment delete <deployment-id>
+distil deployment shutdown <deployment-id>
 ```
+
+The SLM is untouched — only the serving infrastructure goes away. Deploy it again with `distil deployment create-from-slm <slm-id>`.
+
+## Local Serving
+
+There is no CLI-managed local server. To run an SLM on your own machine, download it and serve the artifacts yourself:
+
+```bash
+distil slm download <slm-id> --destination ./my-slm
+# writes ./my-slm/model.tar and ./my-slm/config.yaml
+tar -xf ./my-slm/model.tar -C ./my-slm
+```
+
+The tarball holds exactly two directories and nothing else:
+
+| Path | Contents |
+|------|----------|
+| `model/` | The model weights, in Hugging Face format. |
+| `model-adapter/` | The LoRA adapter. |
+
+`vllm serve ./my-slm/model` works against this directly, since vLLM reads Hugging Face format. **llama-cpp does not** — it needs GGUF, and the SLM tarball ships no GGUF file, so serving with llama-cpp means converting first. See `references/tasks/deployment-integration.md` for the per-backend commands and for the hosted alternative.
 
 ## Utilities
 
@@ -832,5 +745,5 @@ These flags work with most commands:
 
 | Flag | Description |
 |------|-------------|
-| `--output json` | Output results in JSON format for scripting and automation. |
+| `--output json` | Output results in JSON format for scripting and automation. Aliased to `-o json`. |
 | `--help` | Display help information for any command. |

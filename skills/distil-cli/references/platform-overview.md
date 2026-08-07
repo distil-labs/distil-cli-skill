@@ -21,23 +21,30 @@ The platform uses knowledge distillation to transfer capabilities from a large "
 
 ## Key Concepts
 
-**Models.** Each experiment is tracked as a model, identified by a human-readable name and a UUID. Create a model with `distil model create <name>`. Use the returned model ID in all subsequent commands.
+Every stage of the platform is its own entity with its own UUID, and each stage consumes the ID the previous one printed.
 
-**Uploads.** An upload is a set of training and test data, identified by a UUID. Create one from local files with `distil upload create`, or from prepared traces with `distil upload create-from-traces`. `distil model upload-data` creates the upload that teacher evaluation and training read. Inspect any upload with `distil upload list` / `show` / `status`.
+```
+prepared traces -> upload -> teacher evaluation      (feasibility check, a side branch)
+                   upload -> training dataset -> SLM -> deployment
+```
 
-**Prepared traces.** Raw production logs uploaded with `distil traces upload`, identified by a UUID and managed with `distil traces list` / `show` / `download`. They are the input to trace processing, not training data themselves.
+The links are stored on the platform, not just in your notes: a deployment records its `slm_id`, an SLM its `training_dataset_id`, a training dataset and a teacher evaluation their `upload_id`, and an upload its `prepared_traces_id`. So the full lineage behind any entity is recoverable from that entity alone — see `references/cli-reference.md` (`### Tracing the Chain`).
 
-**Trace processing.** `distil upload create-from-traces <traces-id>` runs an automated pipeline over prepared traces: filtering traces for relevance, relabelling via a committee of teacher models, and splitting into training and test sets. This transforms raw production logs into high-quality structured training data. Re-run it against the same traces ID with a different `--config` to iterate on processing parameters without re-uploading the trace files.
+**Prepared traces.** Raw production logs uploaded with `distil traces upload`, identified by a UUID and managed with `distil traces list` / `show` / `download`. They are the input to trace processing, not training data themselves. Optional — only the traces path uses them.
 
-**Teacher evaluation.** Before training, validate that the teacher model can solve the task. Run with `distil model run-teacher-evaluation <model-id>`, or against an upload directly with `distil teacher-evaluation create-from-upload <upload-id>`. High teacher accuracy predicts good student performance. Low accuracy signals that the task description or data needs revision.
+**Trace processing.** `distil upload create-from-traces <traces-id>` runs an automated pipeline over prepared traces: filtering traces for relevance, relabelling via a committee of teacher models, and splitting into training and test sets. This transforms raw production logs into high-quality structured training data, producing an upload. Re-run it against the same traces ID with a different `--config` to iterate on processing parameters without re-uploading the trace files.
 
-**Training datasets.** An upload's data with synthetic training examples generated for it, identified by a UUID. Training generates this internally, so a training dataset is normally something you create to *look at* what would be trained on: `distil training-dataset create-from-upload <upload-id>`, then `distil training-dataset sample <training-dataset-id>`. Training still runs from the upload and does not accept a training dataset ID.
+**Uploads.** An upload is a set of training and test data, identified by a UUID. It is the entry point to the pipeline: teacher evaluation and synthetic data generation both read an upload. Create one from local files with `distil upload create --data <dir>`, or from prepared traces with `distil upload create-from-traces`. Inspect any upload with `distil upload list` / `show` / `status`.
 
-**Training.** The full distillation pipeline: synthetic data generation, validation, and student fine-tuning. Start with `distil model run-training <model-id>`. Training takes several hours.
+**Teacher evaluation.** Before spending credits on training, validate that the teacher model can solve the task: `distil teacher-evaluation create-from-upload <upload-id>`, then `distil teacher-evaluation metrics <teacher-evaluation-id>`. High teacher accuracy predicts good student performance. Low accuracy signals that the task description or data needs revision. This is a side branch — it gates the decision to train, but nothing downstream consumes its ID.
 
-**SLMs.** A trained small language model — the model tarball plus the config it came from — identified by a UUID and managed with `distil slm list` / `show` / `status` / `logs` / `metrics` / `download`. This is the same trained model `distil model training` reports on, addressed directly rather than through a model. `distil slm metrics <slm-id>` is the one place that shows the base and the tuned student side by side. You can also bring your own with `distil slm create`.
+**Training datasets.** An upload's data with synthetic training examples generated for it, identified by a UUID. Create one with `distil training-dataset create-from-upload <upload-id>` (2 credits). This is a **required stage** — training reads a training dataset, not an upload. The useful side effect is that `distil training-dataset sample <training-dataset-id>` shows you the generated rows for free, so you can see what the model will learn from before committing to the multi-hour training job.
 
-**Deployment.** After training, download the model with `distil model download <model-id>` (or `distil slm download <slm-id>`) and deploy it locally (`distil model deploy local <model-id>`) or to distil-managed remote infrastructure (`distil model deploy remote <model-id>`).
+**Training.** `distil slm create-from-training-dataset <training-dataset-id>` fine-tunes the student on the generated data. Takes several hours and burns credits that are hard to refund.
+
+**SLMs.** A trained small language model — the model tarball plus the config it came from — identified by a UUID and managed with `distil slm list` / `show` / `status` / `logs` / `metrics` / `download`. `distil slm metrics <slm-id>` is the one place that shows the base and the tuned student side by side, which is how you judge whether fine-tuning actually helped. You can also bring your own with `distil slm create`.
+
+**Deployments.** `distil deployment create-from-slm <slm-id>` serves an SLM from Distil Labs infrastructure behind an OpenAI-compatible endpoint; `distil deployment endpoint <deployment-id>` prints its URL and API key, and `distil deployment delete <deployment-id>` shuts it down. To serve the model yourself instead, `distil slm download <slm-id>` writes `model.tar` and `config.yaml` for you to run under vLLM or llama-cpp.
 
 ## Supported Task Types
 
@@ -60,17 +67,21 @@ The platform supports six task types. For model compatibility constraints (which
 **Structured dataset upload.** Prepare labeled files manually (`job_description.json`, `train.jsonl`, `test.jsonl`, `config.yaml`, optional `unstructured.jsonl`) and upload with:
 
 ```bash
-distil model upload-data <model-id> --data ./my-data-folder
+distil upload create --data ./my-data-folder           # -> <upload-id>
 ```
 
-**Production traces.** If you have production logs from real LLM interactions (e.g., Langfuse or OpenAI messages format), let the platform derive the dataset for you. Upload the trace files, process them, then hand the result to the model:
+**Production traces.** If you have production logs from real LLM interactions (e.g., Langfuse or OpenAI messages format), let the platform derive the dataset for you. Upload the trace files and process them:
 
 ```bash
 distil traces upload --data ./my-traces-folder         # -> <traces-id>
 distil upload create-from-traces <traces-id>           # -> <upload-id>
 distil upload status <upload-id>                       # poll until JOB_SUCCESS
-distil upload download <upload-id> --data-destination ./processed
-distil model upload-data <model-id> --data ./processed
+```
+
+Both paths end at an `<upload-id>`, so everything downstream is identical. There is no need to download processed traces and re-upload them — do that only when you want to inspect or hand-edit what trace processing produced:
+
+```bash
+distil upload download <upload-id> --destination ./processed
 ```
 
 To reprocess the same traces with different parameters, re-run `create-from-traces` with a new config -- no need to re-upload the trace files:
@@ -131,10 +142,10 @@ Uploaded traces are transformed into train/test data by a four-stage pipeline. T
 
 ## Credit System
 
-Remote deployments on distil-managed infrastructure require credits. All users receive $30 of free starting credits. Deactivate deployments when not in use to conserve credits:
+Credits are consumed by synthetic data generation (2 credits per training dataset), training, and hosted deployments while they run. All users receive $30 of free starting credits. Shut deployments down when not in use to conserve credits:
 
 ```bash
-distil model deploy remote --deactivate <model-id>
+distil deployment delete <deployment-id>      # alias: distil deployment shutdown
 ```
 
-Contact [contact@distillabs.ai](mailto:contact@distillabs.ai) for additional credits. Remote deployments are intended for testing; contact Distil Labs to set up production deployments.
+Contact [contact@distillabs.ai](mailto:contact@distillabs.ai) for additional credits. Hosted deployments are intended for testing; contact Distil Labs to set up production deployments.

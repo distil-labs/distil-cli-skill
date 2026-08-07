@@ -9,7 +9,7 @@ This step subsumes what the traces workflow previously called "Analyze Original 
 ## Inputs
 
 - **Working directory:** the current `iteration-N/` dir (owned by `workflows/improving-a-model.md`'s Iteration Discipline section). On the first upload, this is `iteration-1/`.
-- **Test-set composition:** `distil upload download <upload-id> --data-destination .` — pulls the processed `train`, `test`, and `unstructured` splits locally. See `references/tasks/upload-dataset.md`.
+- **Test-set composition:** `distil upload download <upload-id> --destination .` — pulls the processed `train`, `test`, and `unstructured` splits locally. See `references/tasks/upload-dataset.md`.
 - **Original-model predictions on the test set:** `distil upload download-traces-predictions <upload-id> --file-name original-model-predictions.jsonl`. See `references/tasks/retrieve-predictions.md`.
 
 ## What to Present
@@ -55,7 +55,7 @@ After presenting both blocks, ask the user verbatim:
 Reply 'approved' to proceed to teacher evaluation, or tell me what to change (e.g., reprocess with different trace_processing parameters, drop specific examples, add a curated test.jsonl).
 ```
 
-Do not run `distil model run-teacher-evaluation` until the user replies with approval. If the user asks for changes, the common levers are:
+Do not run `distil teacher-evaluation create-from-upload` until the user replies with approval. If the user asks for changes, the common levers are:
 
 - Adjust `trace_processing` params in a config and re-run `distil upload create-from-traces <traces-id> --config <file>`
 - Fix upstream issues in `job_description.json` and re-run `distil upload create-from-traces <traces-id> --job-description <file>`

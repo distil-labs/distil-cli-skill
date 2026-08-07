@@ -1,6 +1,6 @@
 ---
 name: distil-cli
-version: 4.5.0
+version: 5.0.0
 description: >
   Train task-specific small language models (SLMs) using the Distil Labs CLI and platform.
   Activate this skill when the user asks about: distil labs, distil CLI, the distil command,
@@ -9,9 +9,11 @@ description: >
   deploying trained SLMs, model evaluation metrics, task-specific model training,
   classification/QA/tool-calling model training, synthetic data generation for training,
   or any question about the distil platform, its configuration, or its workflows.
-  Also activate when the user mentions: distil model, distil auth, distil login, distil register,
-  uploading training data, teacher evaluation, model retuning, model deployment with llama-cpp or vLLM,
-  or when working with config.yaml / job_description.json / train.jsonl files for model training.
+  Also activate when the user mentions: distil upload, distil slm, distil deployment,
+  distil training-dataset, distil teacher-evaluation, distil traces, distil auth, distil login,
+  distil register, uploading training data, teacher evaluation, model deployment with vLLM or
+  llama-cpp, or when working with config.yaml / job_description.json / train.jsonl files for
+  model training.
 ---
 
 # Distil CLI
@@ -29,7 +31,7 @@ description: >
 
 If the user wants to train a model end-to-end (any phrasing — "help me train a model", "build me an SLM", "I want to fine-tune for X"), do NOT answer ad hoc from the reference files. Instead:
 
-1. **Initialize the run log.** If this is a model-building workflow (not a pure lookup / Q&A), create `model-building-log-<name>.md` at the project root and write the opening entry (`<name>` = a descriptive slug for this project, which we'll later also use for `distil model create`). See `references/tasks/maintain-run-log.md` for format and append triggers. This fires once per project regardless of which workflow branch (dataset vs. traces) the user ends up on — individual workflow Step 0s do not duplicate the init.
+1. **Initialize the run log.** If this is a model-building workflow (not a pure lookup / Q&A), create `model-building-log-<name>.md` at the project root and write the opening entry (`<name>` = a descriptive slug you and the user pick for this project; it is local bookkeeping only and is never passed to a command). See `references/tasks/maintain-run-log.md` for format and append triggers. The run log records decisions and reasoning; it is not an ID ledger, since the platform links each entity to its parent (see `references/cli-reference.md` `### Tracing the Chain`). This fires once per project regardless of which workflow branch (dataset vs. traces) the user ends up on — individual workflow Step 0s do not duplicate the init.
 2. Ask one disambiguating question: **"Do you have a labeled dataset to start from, or production traces from an existing LLM application?"**
 3. Load the matching workflow:
    - **Dataset** → `workflows/dataset-to-model.md`
@@ -90,13 +92,15 @@ Always read `references/tasks/prepare-data/overview.md` first, then the task-spe
 
 | User intent | Read this file |
 |---|---|
-| "How do I upload my dataset?" / "upload-data command" | `references/tasks/upload-dataset.md` |
-| "How do I use production traces?" / "traces upload" / "upload-traces" / "reprocess traces" | `references/tasks/upload-and-process-traces.md` |
+| "How do I upload my dataset?" / "upload create command" | `references/tasks/upload-dataset.md` |
+| "How do I use production traces?" / "traces upload" / "process traces" | `references/tasks/upload-and-process-traces.md` |
 | "distil upload commands" / "list my uploads" / "upload status by ID" | `references/cli-reference.md` (`## Uploads`, `## Prepared Traces`) |
 | "distil slm commands" / "list my SLMs" / "training status by SLM ID" / "upload my own SLM" | `references/cli-reference.md` (`## SLMs`) |
+| "distil training-dataset commands" / "synthetic data generation" / "inspect generated rows" | `references/cli-reference.md` (`## Training Datasets`) |
+| "distil deployment commands" / "list my deployments" / "get my endpoint URL or API key" / "shut down a deployment" | `references/cli-reference.md` (`## Deployments`) |
 | "How do I run teacher evaluation?" / "Is my task feasible?" | `references/tasks/teacher-evaluation.md` |
 | "How do I train?" / "Start training" / "Training status" | `references/tasks/training.md` |
-| "How do I deploy?" / "Download model" / "Run inference" | `references/tasks/deployment-integration.md` |
+| "How do I deploy?" / "Download my SLM" / "Run inference" / "Serve locally with vLLM or llama-cpp" | `references/tasks/deployment-integration.md` |
 | "distil auth" / "distil login" / "Credit balance is too low" / 401 errors / "/login doesn't work for distil" | `references/tasks/verify-auth.md` |
 | "Download predictions" / "per-example results" / "inspect model outputs" | `references/tasks/retrieve-predictions.md` |
 | "Analyze predictions" / "write analysis report" / "compare teacher and student" | `references/tasks/analyze-predictions.md` |
@@ -115,7 +119,16 @@ Always read `references/tasks/prepare-data/overview.md` first, then the task-spe
 
 ## Quick Platform Summary
 
-The core flow is: **create model** → **prepare data** → **upload** → **teacher evaluation** → **train** → **deploy**. Teacher evaluation is a feasibility check — if the teacher can solve the task, the student will learn it. Training takes several hours and produces a downloadable model you can deploy locally (llama-cpp, vLLM) or via the platform.
+The core flow is: **prepare data** → **upload** → **teacher evaluation** → **generate training dataset** → **train** → **deploy**. Teacher evaluation is a feasibility check — if the teacher can solve the task, the student will learn it. Training takes several hours and produces a downloadable SLM you can serve yourself (vLLM, llama-cpp) or host on the platform.
+
+Every stage is its own entity with its own ID, and each stage consumes the previous stage's ID:
+
+```
+<upload-id> → <teacher-evaluation-id>                              # feasibility check (side branch)
+<upload-id> → <training-dataset-id> → <slm-id> → <deployment-id>   # the path to a served model
+```
+
+Each entity records its parent (`slm.training_dataset_id`, `training_dataset.upload_id`, and so on), so any lineage can be recovered from a single ID — see `references/cli-reference.md` (`### Tracing the Chain`) for walking it in either direction.
 
 For the longer write-up of what Distil Labs is and why, read `references/platform-overview.md`. For the list of supported task types, student models, and teacher models — always read `references/model-catalog.md` before recommending a specific model; availability changes over time.
 
@@ -129,54 +142,53 @@ curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh   # first-time insta
 distil update                                                  # if already installed — the platform evolves quickly
 distil auth                                                    # opens your browser to log in (alias: distil login)
 
-# 2. Create a model
-distil model create my-model-name
-# Note the model ID from the output
-
-# 3. Prepare data files in a directory:
+# 2. Prepare data files in a directory:
 #    - job_description.json  (task objectives)
 #    - config.yaml           (task type, student model, teacher model)
 #    - train.jsonl           (20+ labeled examples)
 #    - test.jsonl            (held-out evaluation set)
 
-# 4. Upload data
-distil model upload-data <model-id> --data ./my-data-dir
-
-# 5. Run teacher evaluation (feasibility check)
-distil model run-teacher-evaluation <model-id>
-distil model teacher-evaluation <model-id>  # Check results
-# Or by upload ID: distil teacher-evaluation create-from-upload <upload-id>
-#                  distil teacher-evaluation status|metrics|logs <teacher-evaluation-id>
+# 3. Upload the data
+distil upload create --data ./my-data-dir
+# Output: Upload successful. Upload ID: <upload-id>   <- capture this
+distil upload status <upload-id>
 # Status values: JOB_NOT_STARTED, JOB_PENDING, JOB_RUNNING, JOB_SUCCESS, JOB_FAILURE, JOB_STOPPED
 
-# 5b. Optional: inspect the synthetic data training would use
-#     distil training-dataset create-from-upload <upload-id>
-#     distil training-dataset status|sample <training-dataset-id>
-#     Training still runs from the upload -- this only lets you see the generated rows first
+# 4. Teacher evaluation (feasibility check)
+distil teacher-evaluation create-from-upload <upload-id>
+# Output: Teacher evaluation started. Teacher Evaluation ID: <teacher-evaluation-id>
+distil teacher-evaluation status <teacher-evaluation-id>
+distil teacher-evaluation metrics <teacher-evaluation-id> --output json | jq '.teacher_performance'
 
-# 6. Train (long-running; never auto-start: get the user's explicit go-ahead first)
-distil model run-training <model-id>
-distil model training <model-id>  # Check status
-# Or by SLM ID: distil slm status|logs|metrics <slm-id>
+# 5. Generate the training dataset (2 credits; never auto-start — get explicit go-ahead)
+distil training-dataset create-from-upload <upload-id>
+# Output: Synthetic data generation started. Training Dataset ID: <training-dataset-id>
+distil training-dataset status <training-dataset-id>
+distil training-dataset sample <training-dataset-id>   # free: see the generated rows before training
 
-# 7. Download and deploy
-distil model download <model-id>
-distil model deploy local <model-id>
-distil model invoke <model-id>  # Get the curl command to query your model
-# Or by SLM ID: distil slm download <slm-id>   (model.tar + config.yaml)
+# 6. Train (several hours; never auto-start — get explicit go-ahead)
+distil slm create-from-training-dataset <training-dataset-id>
+# Output: Training started. SLM ID: <slm-id>
+distil slm status <slm-id>
+distil slm metrics <slm-id> --output json | jq '.tuned_model_performance, .base_model_performance'
+
+# 7. Serve it — hosted, or on your own machine
+distil deployment create-from-slm <slm-id>             # -> <deployment-id>
+distil deployment status <deployment-id>               # wait for endpoint_status == "running"
+distil deployment endpoint <deployment-id>             # URL + API key
+distil deployment delete <deployment-id>               # shut down when done (stops burning credits)
+# Local instead: distil slm download <slm-id>          # model.tar + config.yaml
 ```
 
-**Alternative: Train from traces** — Instead of writing `train.jsonl` and `test.jsonl` by hand in step 3, derive them from production logs. Prepare a `traces.jsonl`, a `job_description.json`, and a `config.yaml`, then:
+**Alternative: Train from traces** — Instead of writing `train.jsonl` and `test.jsonl` by hand in step 2, derive them from production logs. Prepare a `traces.jsonl`, a `job_description.json`, and a `config.yaml`, then replace step 3 with:
 
 ```bash
 distil traces upload --data ./my-traces-dir        # -> <traces-id>
 distil upload create-from-traces <traces-id>       # -> <upload-id>, starts processing
 distil upload status <upload-id>                   # poll until JOB_SUCCESS
-distil upload download <upload-id> --data-destination ./processed
-distil model upload-data <model-id> --data ./processed   # step 4 as usual
 ```
 
-`distil upload download` writes the filenames `--data` expects, so the last two commands chain directly. See `references/tasks/upload-and-process-traces.md` for trace formats and task compatibility (note: `question-answering-open-book` is not supported via traces). `distil model upload-traces` and `distil model reprocess-traces` have been removed.
+That produces an `<upload-id>` directly, so steps 4-7 are unchanged — no local round-trip needed. Download the processed data with `distil upload download <upload-id> --destination ./processed` when you want to inspect or edit what trace processing produced. See `references/tasks/upload-and-process-traces.md` for trace formats and task compatibility (note: `question-answering-open-book` is not supported via traces).
 
 ## Instructions
 
@@ -200,9 +212,9 @@ When helping users, exhaust all mechanical/lookup steps before engaging judgment
 ### In Claude Code
 
 - Run CLI commands directly. Do not just tell the user what to run.
-- **Exception: never auto-start training.** Do NOT run `distil model run-training` or `distil model retune` on your own initiative, not even when teacher evaluation clears the PROCEED threshold. Both start multi-hour, credit-burning jobs whose credits are hard to refund. Present the teacher-evaluation results and the final config, then wait for the user's explicit go-ahead (the workflows' "Confirm Before Training" step owns this gate; honor it even when the user asked you to "run the commands" generally). When in doubt, ask.
-- After running `distil model create`, capture the model ID and use it in subsequent commands.
-- Check status commands (`upload-status`, `upload status <upload-id>`, `teacher-evaluation`, `training`, `slm status <slm-id>`) to monitor progress.
+- **Exception: never auto-start training.** Do NOT run `distil training-dataset create-from-upload` or `distil slm create-from-training-dataset` on your own initiative, not even when teacher evaluation clears the PROCEED threshold. Both are billable: synthetic data generation costs 2 credits, and training burns multi-hour credits that are hard to refund. Present the teacher-evaluation results and the final config, then wait for the user's explicit go-ahead (the workflows' "Confirm Before Training" step owns this gate; honor it even when the user asked you to "run the commands" generally). When in doubt, ask.
+- **Carry the IDs forward.** Each creation command prints the ID the next stage needs (`<upload-id>` → `<teacher-evaluation-id>` / `<training-dataset-id>` → `<slm-id>` → `<deployment-id>`). Read each one out of the command output rather than reusing a stale shell variable. Nothing is lost if you do lose one: entities link to their parents, so `distil <entity> show <id>` walks backwards and a `list` filtered on the parent field walks forwards — see `references/cli-reference.md` (`### Tracing the Chain`).
+- Check status commands (`upload status <upload-id>`, `teacher-evaluation status <teacher-evaluation-id>`, `training-dataset status <training-dataset-id>`, `slm status <slm-id>`, `deployment status <deployment-id>`) to monitor progress.
 - When training or evaluation is running, tell the user approximately how long it takes and suggest checking back.
 - **Polling long-running jobs:** Copy the canonical polling loop from `references/tasks/polling-jobs.md` verbatim. Do not write your own grep loop or `sleep N && command` chain — the former picks the wrong status pattern half the time and the latter is blocked by Claude Code. Use `while ...; do ...; sleep 60; done` with the sleep inside the loop body.
 - **Status checks always use `--output json | jq`** — never grep human-readable output. The default text output also omits some metrics (notably LLM-as-a-Judge), so for analysis always use `--output json` too.
@@ -210,15 +222,29 @@ When helping users, exhaust all mechanical/lookup steps before engaging judgment
 ### In Claude.ai (Browser)
 
 - Provide complete, copy-pasteable file contents (job_description.json, config.yaml, train.jsonl, test.jsonl).
-- List the CLI commands the user should run in order, with their model ID placeholder.
+- List the CLI commands the user should run in order, with the entity ID placeholders (`<upload-id>`, `<training-dataset-id>`, `<slm-id>`, …). Tell them which command prints each ID, since they have to carry it into the next command themselves.
 - Explain what each command does and what to look for in the output.
 
 ### When the User Wants to Improve a Model
 
-Read `workflows/improving-a-model.md`. It covers both iteration cases — teacher eval below thresholds, and training results that don't pass the DEPLOY bar — and consolidates the levers (job description, data, synthgen/mutations, student/teacher choice, tuning parameters, retune).
+Read `workflows/improving-a-model.md`. It covers both iteration cases — teacher eval below thresholds, and training results that don't pass the DEPLOY bar — and consolidates the levers (job description, data, synthgen/mutations, student/teacher choice, tuning parameters).
 
 It also owns the **`iteration-N/` directory convention** (one directory per attempt, reports written unsuffixed inside it) and the **token-burn awareness** rule for iteration #3+ (each iteration costs re-upload + teacher-eval credits + Claude analysis tokens — confirm the plan before racing into another attempt).
 
+Iterating means creating new entities, not mutating existing ones: a fresh `distil upload create` yields a new `<upload-id>`, and from it a new teacher evaluation, training dataset, and SLM. Earlier attempts stay intact, which is what makes side-by-side comparison possible.
+
 ### Command Aliases
 
-`distil model` = `distil models` = `distil m` — all three work identically.
+Every entity family aliases `ls` to `list`, and each has a plural alias:
+
+| Command | Aliases |
+|---|---|
+| `distil upload` | `uploads` |
+| `distil slm` | `slms` |
+| `distil deployment` | `deployments` |
+| `distil teacher-evaluation` | `teacher-evaluations`, `teacher-eval` |
+| `distil training-dataset` | `training-datasets`, `training-data` |
+| `distil traces upload` | `distil traces create` |
+| `distil deployment delete` | `distil deployment shutdown` |
+| `distil auth` | `distil login` |
+| `distil signup` | `distil register`, `distil join` |

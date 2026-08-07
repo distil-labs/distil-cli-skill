@@ -7,8 +7,11 @@ Upload your prepared data files to the Distil Labs platform for teacher evaluati
 The recommended approach is to place all required files in a single directory and upload the directory:
 
 ```bash
-distil model upload-data <model-id> --data <directory>
+distil upload create --data <directory>
+# Output: Upload successful. Upload ID: <upload-id>
 ```
+
+Capture the `<upload-id>` — it is what teacher evaluation and synthetic data generation both consume.
 
 The directory should contain files with these standard names:
 
@@ -25,7 +28,7 @@ The directory should contain files with these standard names:
 As an alternative to directory mode, you can specify each file individually:
 
 ```bash
-distil model upload-data <model-id> \
+distil upload create \
   --job-description <file> \
   --train <file> \
   --test <file> \
@@ -39,10 +42,12 @@ distil model upload-data <model-id> \
 | `--job-description` | Yes* | Path to job description file (`.json`). |
 | `--train` | Yes* | Path to training data file (`.jsonl`). |
 | `--test` | Yes* | Path to test data file (`.jsonl`). |
-| `--config` | No | Path to config file (`.yaml` or `.yml`). |
+| `--config` | Yes* | Path to config file (`.yaml` or `.yml`). |
 | `--unstructured` | No | Path to unstructured data file (`.jsonl`) for synthetic data generation. |
 
-\* Provide either `--data` or the individual file flags (`--job-description`, `--train`, `--test`), but not both.
+\* Provide either `--data` or the individual file flags (`--job-description`, `--train`, `--test`, `--config`), but not both.
+
+`--config` is required either way. In directory mode the directory must hold `config.yaml` or `config.yml`. The command fails before uploading anything if it is missing, so a missing config is a fast failure rather than a half-done upload.
 
 ## What Happens After Upload
 
@@ -52,41 +57,36 @@ After upload, the platform:
 2. Checks that the data matches the task type declared in `config.yaml`.
 3. Prepares the data for teacher evaluation.
 
-Once validation completes, you can proceed to teacher evaluation with `distil model run-teacher-evaluation <model-id>`.
+Once validation completes, you can proceed to teacher evaluation with `distil teacher-evaluation create-from-upload <upload-id>`.
 
 ## Checking Upload Status
 
 Check whether the upload has been validated and is ready:
 
 ```bash
-distil model upload-status <model-id>
+distil upload status <upload-id>
+distil upload status <upload-id> --output json | jq -r '.status'
 ```
 
-For machine-readable output — `{"status": …, "metrics": {…}}`:
+Uploads created from local files are complete the moment they exist and have no logs. Uploads built from prepared traces process asynchronously, so poll until `JOB_SUCCESS` and read `distil upload logs <upload-id>` if one fails.
+
+`distil upload list` shows every upload you have, newest first — useful for recovering an ID you lost:
 
 ```bash
-distil model upload-status <model-id> --output json | jq -r '.status'
+distil upload list --output json | jq -r '.[0].id // "none"'
 ```
 
-Add `--logs` to include the logs of the job that produced the upload.
-
-To check an upload by its own ID rather than through a model, use `distil upload status <upload-id>`. `distil upload list` shows every upload you have, newest first.
+`distil upload metrics <upload-id>` reports `base_model_performance` for the untuned student, when there is any.
 
 ## Downloading Uploaded Data
 
 To verify what was uploaded, download the data files back to your machine:
 
 ```bash
-distil model download-data <model-id>
+distil upload download <upload-id> --destination <directory>
 ```
 
-Or by upload ID, which also works for uploads built from traces:
-
-```bash
-distil upload download <upload-id> --data-destination <directory>
-```
-
-Both write `train.jsonl`, `test.jsonl`, `unstructured.jsonl`, `config.yaml`, and `job_description.json` — the same filenames `--data` expects, so a download can be re-uploaded without renaming anything.
+This writes `train.jsonl`, `test.jsonl`, `unstructured.jsonl`, `config.yaml`, and `job_description.json` — the same filenames `--data` expects, so a download can be re-uploaded without renaming anything.
 
 This is useful for confirming the correct files were sent, especially when debugging issues with teacher evaluation or training.
 

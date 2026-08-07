@@ -1,167 +1,148 @@
 # Deployment and Integration
 
-Download and deploy your trained model locally or on Distil Labs hosted infrastructure.
+Serve a trained SLM either on Distil Labs hosted infrastructure or on your own machine.
 
-## Download Trained Model
-
-Download your trained model after training completes:
+Both paths start from an `<slm-id>`. Get it from `distil slm create-from-training-dataset`, or find it later with `distil slm list --output json | jq -r '.[0].id'`. Confirm the SLM is ready before deploying:
 
 ```bash
-distil model download <model-id>
+distil slm status <slm-id> --output json | jq -r '.status'   # want JOB_SUCCESS
 ```
 
-To download by SLM ID instead, use `distil slm download <slm-id>`, which writes `model.tar` plus the `config.yaml` it was trained from into `<slm-id>-slm/` (override with `-d`/`--destination`).
+## Which Path?
 
-### Downloaded Model Structure
+| | Hosted deployment | Local serving |
+|---|---|---|
+| Command | `distil deployment create-from-slm <slm-id>` | `distil slm download <slm-id>` |
+| Setup | none | you install and run the inference server |
+| Cost | consumes inference credits while running | free |
+| Good for | quick testing, sharing an endpoint, integration work | offline use, air-gapped environments, high-volume serving |
 
-The download contains everything needed to run your model:
+Hosted deployments are not intended for production use — contact contact@distillabs.ai when you are ready for production.
 
-| File/Directory | Description |
-|----------------|-------------|
-| `model/` | Model weights. |
-| `model-adapters/` | LoRA adapters. |
-| `model_client.py` | Inference client script. |
-| `README.md` | Usage instructions. |
+## Hosted Deployment
 
-## Local Deployment
-
-### Option 1: Distil CLI with llama-cpp (Recommended)
-
-Deploy your model locally using the built-in command, which uses llama-cpp as the inference backend:
+### Create the deployment
 
 ```bash
-distil model deploy local <model-id>
+distil deployment create-from-slm <slm-id>
+# Output: Deployment started. Deployment ID: <deployment-id>
 ```
 
-This downloads the model and starts a local llama-server on port 8000. The model is available via the OpenAI-compatible API at `http://localhost:8000/v1`.
+Capture the `<deployment-id>`. Provisioning is asynchronous.
 
-Customize the port and enable server logs:
+### Wait for it to serve
+
+`distil deployment status` reports two independent things. Poll on `endpoint_status`, not `deployment_status` — a finished deploy whose endpoint is still `stopped` cannot answer a request yet.
 
 ```bash
-distil model deploy local --port 9000 --logs <model-id>
+while true; do
+    endpoint=$(distil deployment status <deployment-id> --output json | jq -r '.endpoint_status // "none"')
+    echo "endpoint: $endpoint"
+    if [ "$endpoint" = "running" ]; then break; fi
+    sleep 30
+done
 ```
 
-| Option | Description |
-|--------|-------------|
-| `--port <port>` | Port number for local llama-server (default: 8000). |
-| `--logs` | Show llama-server logs during local deployment. |
-| `--output json` | Output results in JSON format. |
+See `references/tasks/polling-jobs.md` for the general polling rules.
 
-**Requirement:** Local deployment requires [llama-cpp](https://github.com/ggerganov/llama.cpp) installed on your machine.
-
-### Option 2: vLLM
-
-For high-performance serving, use vLLM:
+### Get the URL and API key
 
 ```bash
+distil deployment endpoint <deployment-id>
+distil deployment endpoint <deployment-id> --output json
+```
+
+Both fields are `null` until the deployment is serving, so this is safe to call while you wait:
+
+```bash
+url=$(distil deployment endpoint <deployment-id> --output json | jq -r '.url // empty')
+key=$(distil deployment endpoint <deployment-id> --output json | jq -r '.api_key // empty')
+```
+
+### Shut it down
+
+A running deployment consumes inference credits. Shut it down when you are done testing:
+
+```bash
+distil deployment delete <deployment-id>      # alias: distil deployment shutdown
+```
+
+The SLM is untouched — only the serving infrastructure goes away. Redeploy the same SLM later with `distil deployment create-from-slm <slm-id>`.
+
+## Local Serving
+
+### Download and extract
+
+```bash
+distil slm download <slm-id> --destination ./my-slm
+tar -xf ./my-slm/model.tar -C ./my-slm
+```
+
+`distil slm download` writes `model.tar` and the `config.yaml` the SLM was trained from. The tarball holds exactly two directories:
+
+| Path | Contents |
+|------|----------|
+| `model/` | The model weights, in Hugging Face format. |
+| `model-adapter/` | The LoRA adapter. |
+
+There is no client script and no README inside — those came with the older model-scoped download and are not part of an SLM artifact.
+
+### Option 1: vLLM (recommended)
+
+vLLM reads Hugging Face format, so it serves the extracted `model/` directory as-is.
+
+```bash
+python -m venv serve
+source serve/bin/activate
 pip install vllm openai
-vllm serve model --api-key EMPTY
+
+vllm serve ./my-slm/model --api-key EMPTY
 ```
 
 For tool calling models:
 
 ```bash
-vllm serve model --enable-auto-tool-choice --tool-call-parser hermes --api-key EMPTY
+vllm serve ./my-slm/model --enable-auto-tool-choice --tool-call-parser hermes --api-key EMPTY
 ```
 
-Query via the OpenAI-compatible API:
+The server runs in the foreground and exposes an OpenAI-compatible API on port 8000. Run it in a separate window or as a background process.
 
-```python
-from openai import OpenAI
+### Option 2: llama-cpp
 
-client = OpenAI(base_url="http://localhost:8000/v1", api_key="EMPTY")
-response = client.chat.completions.create(
-    model="model",
-    messages=[{"role": "user", "content": "Your question here"}]
-)
-print(response.choices[0].message.content)
+llama-cpp needs GGUF, and **the SLM tarball contains no GGUF file** — so this path requires a conversion step first. Use `convert_hf_to_gguf.py` from a [llama.cpp](https://github.com/ggerganov/llama.cpp) checkout:
+
+```bash
+python convert_hf_to_gguf.py ./my-slm/model --outfile ./my-slm/model.gguf
+llama-server -m ./my-slm/model.gguf --port 8000
+```
+
+If you only want a local endpoint and do not specifically need llama-cpp, vLLM is less work.
+
+### Option 3: Ollama
+
+Ollama also wants GGUF. Convert as above, then write a `Modelfile` pointing at the result:
+
+```
+FROM ./model.gguf
+```
+
+```bash
+ollama create my-slm -f Modelfile
+ollama run my-slm
 ```
 
 ## Querying Your Model
 
-### Using the Invocation Script
-
-Get a ready-to-run command for your deployed model (local or remote):
-
-```bash
-distil model invoke <model-id>
-```
-
-This outputs a `uv run` command pointing to a client script. Copy and run it directly:
-
-```bash
-uv run $PATH_TO_CLIENT --conversation '[{"role": "user", "content": "Your question here"}]'
-
-# For QA tasks with context, wrap it in a <context> tag (followed by a newline) inside the first user message
-uv run $PATH_TO_CLIENT --conversation '[{"role": "user", "content": "<context>Your context here</context>\nYour question here"}]'
-```
-
-### Using the Provided Client Script
-
-The downloaded model includes `model_client.py`. Run it directly:
-
-```bash
-python model_client.py --conversation '[{"role": "user", "content": "Your question here"}]'
-
-# For QA tasks with context, wrap it in a <context> tag (followed by a newline) inside the first user message
-python model_client.py --conversation '[{"role": "user", "content": "<context>Your context here</context>\nYour question here"}]'
-```
-
-**Important:** Use the correct system prompt and message formatting when querying your SLM. SLMs are specialized and expect exactly the same format as seen during training. Using a different system prompt or formatting will result in poor performance.
-
-## Remote Deployment
-
-Deploy your model on Distil Labs hosted infrastructure for testing and integration. Remote deployments are not intended for production use -- contact contact@distillabs.ai when you are ready for production.
-
-### Activate a Remote Deployment
-
-```bash
-distil model deploy remote <model-id>
-```
-
-The CLI provisions your deployment and displays:
-- Endpoint URL
-- API key
-- Client script for querying the model
-
-To output only the client script (useful for piping to a file):
-
-```bash
-distil model deploy remote --client-script <model-id>
-```
-
-### Deactivate a Remote Deployment
-
-When you are done testing, deactivate to conserve credits:
-
-```bash
-distil model deploy remote --deactivate <model-id>
-```
-
-### CLI Options Reference
-
-| Option | Description |
-|--------|-------------|
-| `--client-script` | Output only the client script for the deployment. |
-| `--deactivate` | Deactivate a remote deployment. |
-| `--output json` | Output results in JSON format. |
-
-## Credits
-
-Remote deployments require credits. All users get $30 of free starting credits. When credits are exhausted, you cannot create new deployments and existing deployments will be deactivated. Contact contact@distillabs.ai when you need more.
-
-## OpenAI-Compatible API
-
-Both local and remote deployments expose an OpenAI-compatible API at the `/v1` endpoint. This means you can integrate your model with any tool or library that supports the OpenAI API format:
+Both hosted and local deployments expose an OpenAI-compatible API at `/v1`, so any OpenAI-compatible client works.
 
 ```python
 from openai import OpenAI
 
-# Local deployment
-client = OpenAI(base_url="http://localhost:8000/v1", api_key="EMPTY")
+# Hosted deployment -- url and api_key from `distil deployment endpoint <deployment-id>`
+client = OpenAI(base_url="<url>/v1", api_key="<api-key>")
 
-# Remote deployment (use the endpoint URL and API key from deploy remote output)
-client = OpenAI(base_url="<endpoint-url>/v1", api_key="<your-api-key>")
+# Local vLLM
+client = OpenAI(base_url="http://localhost:8000/v1", api_key="EMPTY")
 
 response = client.chat.completions.create(
     model="model",
@@ -172,3 +153,26 @@ response = client.chat.completions.create(
 )
 print(response.choices[0].message.content)
 ```
+
+With curl against a hosted deployment:
+
+```bash
+curl "$url/v1/chat/completions" \
+  -H "Authorization: Bearer $key" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "model", "messages": [{"role": "user", "content": "Your question"}]}'
+```
+
+**Important:** Use the same system prompt and message formatting the model saw during training. SLMs are specialized and expect exactly the training-time format — a different system prompt or a reshaped message will degrade quality badly. The `config.yaml` that `distil slm download` writes alongside the tarball records what the model was trained with.
+
+For question answering tasks that take context, wrap it in a `<context>` tag followed by a newline, inside the first user message:
+
+```json
+[{"role": "user", "content": "<context>Your context here</context>\nYour question here"}]
+```
+
+## Credits
+
+Hosted deployments require credits. All users get $30 of free starting credits. When credits are exhausted you cannot create new deployments, and existing deployments are shut down. Contact contact@distillabs.ai when you need more.
+
+Local serving costs nothing once the SLM is downloaded.

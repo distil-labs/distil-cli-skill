@@ -9,38 +9,30 @@ Teacher evaluation validates whether a large language model can solve your task 
 
 ## Run Teacher Evaluation
 
-After uploading data with `distil model upload-data`, start the evaluation:
-
-```bash
-distil model run-teacher-evaluation <model-id>
-```
-
-To evaluate an upload by its own ID instead -- which is the natural path when the upload came from prepared traces -- use:
+Once the upload has reached `JOB_SUCCESS`, start the evaluation against it:
 
 ```bash
 distil teacher-evaluation create-from-upload <upload-id>
 # Output: Teacher evaluation started. Teacher Evaluation ID: <teacher-evaluation-id>
 ```
 
-Either way, poll until the job reaches a terminal status (see `references/tasks/polling-jobs.md`).
+Capture the `<teacher-evaluation-id>` — everything below needs it. Then poll until the job reaches a terminal status (see `references/tasks/polling-jobs.md`).
+
+Each call creates a **new** teacher evaluation, so re-running against the same upload leaves earlier attempts intact for comparison.
 
 ## Check Status and Results
 
-Check the status and view results:
-
 ```bash
-distil model teacher-evaluation <model-id>
-```
-
-Or, by teacher evaluation ID:
-
-```bash
-distil teacher-evaluation status <teacher-evaluation-id>    # status only
+distil teacher-evaluation status <teacher-evaluation-id>    # status only -- use this when polling
 distil teacher-evaluation metrics <teacher-evaluation-id>   # scores + predictions URL
 distil teacher-evaluation logs <teacher-evaluation-id>      # logs, for diagnosing a failure
 ```
 
-With `--output json`, `distil model teacher-evaluation` emits `{"status": …, "metrics": {…}}`, so the scores are at `.metrics.teacher_performance`. `distil teacher-evaluation metrics` emits the metrics object on its own, so the scores are at `.teacher_performance`.
+```bash
+distil teacher-evaluation metrics <teacher-evaluation-id> --output json | jq '.teacher_performance'
+```
+
+`metrics` is empty until the job succeeds, so poll `status` first.
 
 The evaluation returns multiple scores on your test set. The specific metrics depend on your task type:
 
@@ -114,4 +106,6 @@ Iterate on your data and configuration before starting training if:
 - All metrics are low, which indicates the task may be under-specified.
 - You see a pattern of specific failure types in the results (e.g., the model always gets one category wrong in classification).
 
-The iteration loop is: revise job description or data, re-upload with `upload-data`, and run teacher evaluation again. Repeat until the teacher performs well. On the traces path, re-process with `distil upload create-from-traces` first, then download and re-upload the result (see `references/tasks/upload-and-process-traces.md`).
+The iteration loop is: revise the job description or data, create a **new** upload with `distil upload create --data <dir>`, and run `distil teacher-evaluation create-from-upload` against the new `<upload-id>`. Repeat until the teacher performs well. On the traces path, re-run `distil upload create-from-traces <traces-id> --config <new-config>` instead — that produces a new upload straight from the stored trace files, with no local round-trip (see `references/tasks/upload-and-process-traces.md`).
+
+Nothing is mutated in place, so every attempt keeps its own upload and teacher evaluation. That is what lets you compare iterations side by side — record the ID pairs in the run log.

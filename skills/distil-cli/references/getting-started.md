@@ -67,24 +67,16 @@ distil update
 
 ## Quickstart Walkthrough
 
-This walkthrough trains a question-answering model end-to-end. It uses a minimal dataset to show the full flow: create a model, prepare data, upload, evaluate, train, and deploy.
+This walkthrough trains a question-answering model end-to-end. It uses a minimal dataset to show the full flow: prepare data, upload, evaluate, generate a training dataset, train, and serve.
 
-### 1. Create a Model
+Each step prints an ID that the next step needs. Note them as you go for convenience, though nothing is lost if you don't — every entity records the one it came from, so `distil <entity> show <id>` recovers the lineage later:
 
-Register a new model to track the experiment:
-
-```bash
-distil model create my-first-model
-# Output includes the Model ID (use this for all subsequent commands)
+```
+<upload-id> -> <teacher-evaluation-id>                              (feasibility check)
+<upload-id> -> <training-dataset-id> -> <slm-id> -> <deployment-id>  (the model itself)
 ```
 
-List all models at any time:
-
-```bash
-distil model list
-```
-
-### 2. Choose a Task Type
+### 1. Choose a Task Type
 
 Select the task type that matches the problem. For this walkthrough, use `question-answering`. The platform supports six task types:
 
@@ -97,7 +89,7 @@ Select the task type that matches the problem. For this walkthrough, use `questi
 | Open Book QA (RAG)        | Answer questions given provided context passages                |
 | Closed Book QA            | Answer questions from knowledge learned during training         |
 
-### 3. Prepare Minimal Data
+### 2. Prepare Minimal Data
 
 Create a directory (e.g., `./my-data`) containing the following files:
 
@@ -137,68 +129,98 @@ base:
 
 Include at least 20 examples in the train file and a separate set in the test file.
 
-### 4. Upload Data
+### 3. Upload the Data
 
 ```bash
-distil model upload-data <model-id> --data ./my-data
+distil upload create --data ./my-data
+# Output: Upload successful. Upload ID: <upload-id>
 ```
 
 Check upload status:
 
 ```bash
-distil model upload-status <model-id>
+distil upload status <upload-id>
 ```
 
-### 5. Run Teacher Evaluation
+Uploads from local files are complete the moment they are created. Trace-derived uploads process asynchronously — see `references/tasks/upload-and-process-traces.md`.
 
-Validate that a large teacher model can solve the task before training the student:
+### 4. Run Teacher Evaluation
+
+Validate that a large teacher model can solve the task before spending credits on the student:
 
 ```bash
-distil model run-teacher-evaluation <model-id>
+distil teacher-evaluation create-from-upload <upload-id>
+# Output: Teacher evaluation started. Teacher Evaluation ID: <teacher-evaluation-id>
 ```
 
-Check status and results:
+Check status, then read the scores:
 
 ```bash
-distil model teacher-evaluation <model-id>
+distil teacher-evaluation status <teacher-evaluation-id>
+distil teacher-evaluation metrics <teacher-evaluation-id> --output json | jq '.teacher_performance'
 ```
 
-High teacher accuracy means the task is well-defined. Low accuracy means the job description, data, or config needs revision. Iterate on the data and re-upload until the teacher performs well.
+High teacher accuracy means the task is well-defined. Low accuracy means the job description, data, or config needs revision. Iterate on the data and create a new upload until the teacher performs well.
+
+### 5. Generate the Training Dataset
+
+Synthetic data generation expands your handful of examples into a full training set. Costs 2 credits.
+
+```bash
+distil training-dataset create-from-upload <upload-id>
+# Output: Synthetic data generation started. Training Dataset ID: <training-dataset-id>
+distil training-dataset status <training-dataset-id>
+```
+
+Look at what was generated before you train on it — this is free and takes seconds:
+
+```bash
+distil training-dataset sample <training-dataset-id>
+```
 
 ### 6. Train the Student Model
 
-Start the knowledge distillation training pipeline:
-
 ```bash
-distil model run-training <model-id>
+distil slm create-from-training-dataset <training-dataset-id>
+# Output: Training started. SLM ID: <slm-id>
 ```
 
 Training takes several hours. Monitor progress:
 
 ```bash
-distil model training <model-id>
+distil slm status <slm-id>
+```
+
+When it finishes, compare the tuned student against the untuned baseline:
+
+```bash
+distil slm metrics <slm-id> --output json | jq '.tuned_model_performance, .base_model_performance'
 ```
 
 For the full status list and the canonical polling loop, see `references/tasks/polling-jobs.md`.
 
-### 7. Download and Deploy
+### 7. Serve the Model
 
-Download the trained model:
-
-```bash
-distil model download <model-id>
-```
-
-Deploy locally (uses llama-cpp as the backend):
+Host it on Distil Labs infrastructure:
 
 ```bash
-distil model deploy local <model-id>
+distil deployment create-from-slm <slm-id>
+# Output: Deployment started. Deployment ID: <deployment-id>
+
+distil deployment status <deployment-id>      # wait for endpoint_status == "running"
+distil deployment endpoint <deployment-id>    # prints the URL and API key
 ```
 
-Get the invocation command for the deployed model:
+The endpoint is OpenAI-compatible, so any OpenAI client library works against it. Shut it down when you are done, so it stops consuming credits:
 
 ```bash
-distil model invoke <model-id>
+distil deployment delete <deployment-id>
 ```
 
-This outputs a ready-to-run command. Copy and execute it to query the model.
+Or download the model and run it yourself:
+
+```bash
+distil slm download <slm-id> --destination ./my-slm    # model.tar + config.yaml
+```
+
+See `references/tasks/deployment-integration.md` for serving with vLLM, llama-cpp, or Ollama.

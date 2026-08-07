@@ -11,7 +11,7 @@ This workflow adapts based on what the user provides:
 - **USE_CASE** — what the model should do (e.g., "extract structured data from support tickets", "classify customer intent")
 - **TASK_TYPE** — one of the supported task types. **Note:** `question-answering-open-book` is not supported via traces. If the user has RAG-style traces with context embedded in the user message, use `question-answering` and keep the full prompt in the `user` turn's content (see `references/tasks/upload-and-process-traces.md`).
 - **TRACES_LOCATION** — where the raw production logs live (e.g. Langfuse export, OpenAI logs)
-- **MODEL_ID** — created in Step 1, used throughout
+- **Entity IDs** — produced as you go, not up front. `<traces-id>` → `<upload-id>` (Step 3) → `<teacher-evaluation-id>` (Step 5) and `<training-dataset-id>` (Step 9) → `<slm-id>` (Step 10) → `<deployment-id>` (Step 12). Read each out of its command's output. They are also linked on the platform, so a lost one is recoverable — see `references/cli-reference.md` (`### Tracing the Chain`).
 
 ---
 
@@ -31,17 +31,13 @@ If you see "Latest available version is X (currently running Y)" in any command 
 
 ---
 
-## Step 1: Create Model
+## Step 1: Set Up the Run Log
 
-Deterministic. Run directly in Claude Code.
+There is nothing to create on the platform up front — every entity is created by the step that produces it. So this step is bookkeeping only.
 
-```bash
-distil model create <descriptive-name>
-```
+The run log (`model-building-log-<descriptive-name>.md`) should already have been initialized by the top-level router (`SKILL.md`). Confirm it exists. It captures decisions and reasoning as you go — see `references/tasks/maintain-run-log.md` for the entry format and append triggers.
 
-Capture the model ID from the output — it's used in every subsequent command.
-
-The run log (`model-building-log-<descriptive-name>.md`) should already have been initialized by the top-level router (`SKILL.md`). Append an entry for the `distil model create` step. See `references/tasks/maintain-run-log.md`.
+The reasoning matters more on the traces path than the dataset path, because iterating on trace processing produces a new `<upload-id>` every time, and the log is what explains *why* each pass differed. Which upload a teacher evaluation belongs to is recorded on the platform — `distil teacher-evaluation show` reports its `upload_id`.
 
 ---
 
@@ -166,16 +162,17 @@ Trace processing runs a multi-step pipeline:
 
 Poll until complete using the canonical pattern from `references/tasks/polling-jobs.md` (status command `distil upload status <upload-id> --output json`, `sleep 60`). Trace processing typically takes several minutes. Do not proceed until status is `JOB_SUCCESS`. If it fails, read `distil upload logs <upload-id>`.
 
-Then move the processed data onto the model, so teacher evaluation and training can read it:
+That is the whole upload step. `create-from-traces` produces a real upload, and teacher evaluation and synthetic data generation both take an `<upload-id>` directly, so there is **no download-and-re-upload round-trip** — the rest of this workflow uses `<upload-id>` exactly as the dataset workflow does.
+
+Download the processed data only when you want to read or edit it, which Step 4 does need:
 
 ```bash
-distil upload download <upload-id> --data-destination ./processed
-distil model upload-data <model-id> --data ./processed
+distil upload download <upload-id> --destination ./processed
 ```
 
-`distil upload download` writes the filenames `--data` expects, so no renaming is needed. Do not run it before the status is terminal — it errors while the upload is still processing.
+It errors while the upload is still processing, so do not run it before the status is terminal.
 
-Record `<traces-id>` in the run log: every later re-processing pass starts from it.
+Keep the `<traces-id>` to hand: every later re-processing pass starts from it, without re-uploading trace files. It is also recoverable from the upload, which records its `prepared_traces_id`.
 
 **Log:** append a log entry noting the upload (`references/tasks/maintain-run-log.md`).
 
@@ -221,10 +218,13 @@ Deterministic. Run directly.
 Then run:
 
 ```bash
-distil model run-teacher-evaluation <model-id>
+distil teacher-evaluation create-from-upload <upload-id>
+# Output: Teacher evaluation started. Teacher Evaluation ID: <teacher-evaluation-id>
 ```
 
-This takes a few minutes. Poll until complete using the canonical pattern from `references/tasks/polling-jobs.md` (substitute `teacher-evaluation` as the status command, `sleep 60`). Do not proceed until status is `JOB_SUCCESS`.
+Capture the `<teacher-evaluation-id>` from the output — the analysis in Step 6 needs it. It records its own `upload_id`, so which pass it evaluated is never ambiguous.
+
+This takes a few minutes. Poll until complete using the canonical pattern from `references/tasks/polling-jobs.md` (`distil teacher-evaluation status <teacher-evaluation-id> --output json`, `sleep 60`). Do not proceed until status is `JOB_SUCCESS`.
 
 ---
 
@@ -238,12 +238,12 @@ Working directory for this step: the current `iteration-<N>/` (see `workflows/im
 
 1. Get aggregate metrics — **always use `--output json`**, the default text output omits LLM-as-a-Judge and other metrics:
 ```bash
-distil model teacher-evaluation <model-id> --output json | jq '.metrics.teacher_performance'
+distil teacher-evaluation metrics <teacher-evaluation-id> --output json | jq '.teacher_performance'
 ```
 
 2. Download per-example teacher predictions into the iteration dir (see `references/tasks/retrieve-predictions.md` for full options):
 ```bash
-distil model download-teacher-evaluation-predictions <model-id> \
+distil teacher-evaluation download-predictions <teacher-evaluation-id> \
   --file-name iteration-<N>/teacher-predictions.jsonl
 ```
 
@@ -262,7 +262,7 @@ Save the report as `iteration-<N>/teacher-eval-analysis.md`. **After writing the
 ### 6c. Decision point
 
 - **PROCEED** → Go to Step 8 (Confirm Before Training).
-- **ITERATE** → Switch to `workflows/improving-a-model.md` → **Entry Point A** (ITERATE path — work through job description, data, synthgen/mutations, teacher model in that order). The report's "Recommended actions" section tells you which lever to start with. Trace-specific re-processing paths (`traces upload`, `upload create-from-traces`, `upload-data`) are covered there.
+- **ITERATE** → Switch to `workflows/improving-a-model.md` → **Entry Point A** (ITERATE path — work through job description, data, synthgen/mutations, teacher model in that order). The report's "Recommended actions" section tells you which lever to start with. Trace-specific re-processing paths (`traces upload`, `upload create-from-traces`) are covered there.
 - **RETHINK** → Switch to `workflows/improving-a-model.md` → **Entry Point A** (RETHINK path — step back and question task type, task definition, judge instructions before touching individual levers).
 
 **Also switch to Entry Point A if the teacher eval scores look questionable for any reason** — e.g. the judge flagged outputs as "bad" that look correct on inspection, or the metrics look inconsistent. The RETHINK path is the right place to confirm the judge is telling the truth before iterating on the model.
@@ -273,63 +273,89 @@ Save the report as `iteration-<N>/teacher-eval-analysis.md`. **After writing the
 
 This is the return point from `workflows/improving-a-model.md`. After each iteration loop completes there, come back to Step 6 to analyze the new teacher evaluation results. Repeat until the verdict is `PROCEED`.
 
-Every re-run of `distil upload create-from-traces` re-triggers Step 4 (Approve Test Set, hard gate) and re-offers Step 4b (Deep-Dive Uploads). Each run yields a new `<upload-id>`, so re-run Step 3's download and `upload-data` before Step 5 or teacher evaluation will still read the previous pass. The new iteration always gets its own `iteration-<N>/` directory — see `workflows/improving-a-model.md`'s Iteration Discipline section.
+Every re-run of `distil upload create-from-traces` re-triggers Step 4 (Approve Test Set, hard gate) and re-offers Step 4b (Deep-Dive Uploads). Each run yields a **new** `<upload-id>`, and everything downstream reads that ID — so carry the new one into Step 5, or teacher evaluation will keep reporting on the previous pass. The new iteration always gets its own `iteration-<N>/` directory — see `workflows/improving-a-model.md`'s Iteration Discipline section.
 
 ---
 
 ## Step 8: Confirm Before Training
 
-Training is a **6+ hour, credit-burning operation**. Before kicking it off, confirm with the user:
+Getting from an upload to a trained SLM is two commands, and **both are billable**: synthetic data generation costs 2 credits, and training is a 6+ hour credit-burning run. Confirm once, for the pair, before starting either:
 
 1. Show the final `config.yaml` contents (or summarize the key fields if it's long).
 2. List the student and teacher models being used.
-3. Mention the expected duration (~6 hours, but can be longer for larger students).
-4. Ask explicitly: *"Reply 'go' (or similar) to start training, or tell me what to change first."*
+3. Mention the expected duration (generation: minutes. training: ~6 hours, longer for larger students).
+4. Ask explicitly: *"Reply 'go' (or similar) to start synthetic data generation and then training, or tell me what to change first."*
 
-Do NOT run `distil model run-training` until the user confirms. This checkpoint exists because:
+Do NOT run `distil training-dataset create-from-upload` or `distil slm create-from-training-dataset` until the user confirms. This checkpoint exists because:
 - Training mistakes (wrong model, wrong config) are expensive to discover after 6 hours.
 - Once started, training consumes credits that are hard to refund.
 - The user often has context the analysis report doesn't (deployment constraints, deadlines, budget).
 
 ---
 
-## Step 9: Train
+## Step 9: Generate the Training Dataset
 
-Deterministic. Run only after the user confirms in Step 8.
+Deterministic. Run only after the user confirms in Step 8. Use the `<upload-id>` from the most recent trace-processing pass.
 
 ```bash
-distil model run-training <model-id>
+distil training-dataset create-from-upload <upload-id>
+# Output: Synthetic data generation started. Training Dataset ID: <training-dataset-id>
 ```
 
-Training takes several hours (typically 6+). The pipeline has three stages:
-1. **Evaluate Teacher** — confirms teacher performance on the test set
-2. **Generate Synthetic Data** — teacher generates training data from your seed examples + unstructured data
-3. **Finetune Student** — student model is trained on the synthetic data, then evaluated against the test set
+Costs 2 credits and takes minutes. Capture the `<training-dataset-id>` from the output, and poll until `JOB_SUCCESS` per `references/tasks/polling-jobs.md` (`sleep 60`).
 
-Poll until complete using the canonical pattern from `references/tasks/polling-jobs.md`. Swap `sleep 60` for `sleep 600` — training is multi-hour, so minute-scale polling is wasteful.
+### 9a. Look at what was generated
 
-Suggest the user check back periodically. They can close the session and come back — `distil model training <model-id>` always shows current state.
+Free, seconds, and worth doing every time — especially on the traces path, where the seed data was machine-relabeled rather than written by hand:
 
-Do not proceed to Step 10 until status is `JOB_SUCCESS`.
+```bash
+distil training-dataset sample <training-dataset-id>
+```
+
+If the sampled rows look off-topic, malformed, or badly distributed, that is a synthgen or job-description problem, and training on them wastes six hours. Go to `workflows/improving-a-model.md` → **Entry Point A** instead of continuing.
+
+**Log:** append an entry noting the dataset and what the sample showed (`references/tasks/maintain-run-log.md`).
 
 ---
 
-## Step 10: Analyze Training Results
+## Step 10: Train
+
+Deterministic. Run once the sample in Step 9a looks right.
+
+```bash
+distil slm create-from-training-dataset <training-dataset-id>
+# Output: Training started. SLM ID: <slm-id>
+```
+
+Capture the `<slm-id>` from the output.
+
+Training takes several hours (typically 6+): the student model is fine-tuned on the generated data, then evaluated against your test set.
+
+Poll until complete using the canonical pattern from `references/tasks/polling-jobs.md` (`distil slm status <slm-id> --output json`). Swap `sleep 60` for `sleep 600` — training is multi-hour, so minute-scale polling is wasteful.
+
+Suggest the user check back periodically. They can close the session and come back — `distil slm status <slm-id>` always shows current state, and `distil slm logs <slm-id>` explains a failure.
+
+Do not proceed to Step 11 until status is `JOB_SUCCESS`.
+
+---
+
+## Step 11: Analyze Training Results
 
 Same analysis pattern as Step 6, but now comparing four models: the original production model, the base (untuned) student, the teacher, and the tuned student.
 
-### 10a. Gather data
+### 11a. Gather data
 
 Working directory for this step: the current `iteration-<N>/` (see `workflows/improving-a-model.md`'s Iteration Discipline section). Pass it as the working dir to `references/tasks/analyze-predictions.md`.
 
-1. Get aggregate metrics — **always use `--output json`**, the default text output omits LLM-as-a-Judge and other metrics:
+1. Get aggregate metrics — **always use `--output json`**, the default text output omits LLM-as-a-Judge and other metrics. `distil slm metrics` reports the tuned student and the untuned baseline side by side:
 ```bash
-distil model training <model-id> --output json | jq '.aggregateMetrics'
+distil slm metrics <slm-id> --output json | jq '.tuned_model_performance'
+distil slm metrics <slm-id> --output json | jq '.base_model_performance'
 ```
 
 2. Download tuned student predictions into the iteration dir:
 ```bash
-distil model download-training-predictions <model-id> \
+distil slm download-predictions <slm-id> \
   --file-name iteration-<N>/student-predictions.jsonl
 ```
 
@@ -348,44 +374,51 @@ base_predictions_url = response.json()["base_student_evaluation_predictions_down
 
 You now have four sets of predictions: **original production model**, **base student** (untuned baseline), **teacher** (upper bound), and **tuned student** (the trained model).
 
-### 10b. Produce the Training Analysis Report
+### 11b. Produce the Training Analysis Report
 
 Use the **Training Analysis Report** template from `references/tasks/analyze-predictions.md`. Follow the **"Training from traces?"** note in Section 4 of the template — add an Original Model column to the metrics table. The most important comparison becomes Tuned vs. Original, since that's whether the trained student beats the production model it's meant to replace.
 
-Save as `iteration-<N>/training-analysis.md`. **After writing the report, tell the user**: the file path, the headline metric (tuned student primary score), the deltas vs. teacher and original model, and the verdict. The user needs this to decide whether to deploy or retune.
+Save as `iteration-<N>/training-analysis.md`. **After writing the report, tell the user**: the file path, the headline metric (tuned student primary score), the deltas vs. teacher and original model, and the verdict. The user needs this to decide whether to deploy or try different tuning.
 
 **Log:** append a log entry with the verdict and headline (`references/tasks/maintain-run-log.md`).
 
-### 10c. Decision point
+### 11c. Decision point
 
-- **DEPLOY** → Go to Step 11. Tuned student is within ~0.05 of teacher AND beats the original model on the primary metric.
-- **RETUNE** → Switch to `workflows/improving-a-model.md` → **Entry Point B** (retune levers). After retuning completes, return here and re-run Step 10 analysis.
+- **DEPLOY** → Go to Step 12. Tuned student is within ~0.05 of teacher AND beats the original model on the primary metric.
+- **RETUNE** → Switch to `workflows/improving-a-model.md` → **Entry Point B** (different student, different tuning parameters). After the new SLM finishes, return here and re-run Step 11 analysis.
 - **ESCALATE** → Switch to `workflows/improving-a-model.md` → **Entry Point B** (ESCALATE section). Likely needs to go back to Entry Point A — the data, task definition, or distillation has a fundamental issue.
 
 ---
 
-## Step 11: Deploy
+## Step 12: Deploy
 
-Once satisfied with training results, deploy the model.
+Once satisfied with training results, serve the model.
 
-**Log:** append a final entry noting deployment (`references/tasks/maintain-run-log.md`).
+**Log:** append a final entry noting the deployment and its ID (`references/tasks/maintain-run-log.md`).
 
-### Local deployment (recommended for testing)
-
-```bash
-distil model download <model-id>
-distil model deploy local <model-id>
-distil model invoke <model-id>  # Get the invocation command
-```
-
-### Remote deployment (testing only, not production)
+### Hosted deployment (recommended for testing)
 
 ```bash
-distil model deploy remote <model-id>
-distil model invoke <model-id>
+distil deployment create-from-slm <slm-id>
+# Output: Deployment started. Deployment ID: <deployment-id>
+
+distil deployment status <deployment-id>     # wait for endpoint_status == "running"
+distil deployment endpoint <deployment-id>   # prints the URL and API key
 ```
 
-See `references/tasks/deployment-integration.md` for details on deployment options, the OpenAI-compatible API, and production deployment.
+Poll on `endpoint_status`, not `deployment_status` — a finished deploy whose endpoint is still `stopped` cannot answer a request yet. Remind the user to shut it down when they are done testing, since a running deployment consumes inference credits:
+
+```bash
+distil deployment delete <deployment-id>
+```
+
+### Local serving
+
+```bash
+distil slm download <slm-id> --destination ./my-slm   # model.tar + config.yaml
+```
+
+Extract the tarball and serve `model/` with vLLM. See `references/tasks/deployment-integration.md` for the per-backend commands (vLLM, llama-cpp, Ollama), the OpenAI-compatible API, and production deployment.
 
 ---
 

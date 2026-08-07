@@ -1,6 +1,6 @@
 # Analyze Model Predictions
 
-Produce a structured analysis report from per-example model predictions. Used after teacher evaluation (to decide whether to proceed to training) and after training (to decide whether to deploy or retune).
+Produce a structured analysis report from per-example model predictions. Used after teacher evaluation (to decide whether to proceed to training) and after training (to decide whether to deploy or re-train with different tuning).
 
 The report is the basis for iteration decisions — it surfaces *patterns*, not just aggregate scores. Aggregate metrics tell you *whether* the model is good enough; per-example analysis tells you *what to fix* when it isn't.
 
@@ -11,7 +11,7 @@ The report is the basis for iteration decisions — it surfaces *patterns*, not 
 This task takes two inputs:
 
 1. **Working directory** — where the report and prediction files are read from and written to. For iterative work this is the current `iteration-<N>/` dir owned by `workflows/improving-a-model.md`'s Iteration Discipline section.
-2. **Model ID** — the distil model being analyzed.
+2. **The entity IDs for this attempt** — whichever apply: `<upload-id>`, `<teacher-evaluation-id>`, `<training-dataset-id>`, `<slm-id>`. Each report variant below names the ones it needs. If you only have the `<slm-id>`, the rest follow from it: `distil slm show` gives `training_dataset_id`, which gives `upload_id` (see `references/cli-reference.md` `### Tracing the Chain`).
 
 Predictions are read from the working directory if already there (downloaded in an earlier step). If not, download them using the snippet in `references/tasks/retrieve-predictions.md`, saving to the unsuffixed filenames below.
 
@@ -30,13 +30,20 @@ This file does not decide where the report lives — it accepts a working direct
 
 ## Always Use `--output json` to Get Metrics
 
-The default text output of `distil model teacher-evaluation`, `distil model training`, etc. **omits some metrics** (notably LLM-as-a-Judge) and only surfaces the strict metrics like ROUGE and tool_call_equivalence. This has caused real iteration loops where users were ready to discard a fine model because the visible scores looked low — when LLM-as-a-Judge was actually passing.
+The default text output of the `metrics` commands **omits some metrics** (notably LLM-as-a-Judge) and only surfaces the strict metrics like ROUGE and tool_call_equivalence. This has caused real iteration loops where users were ready to discard a fine model because the visible scores looked low — when LLM-as-a-Judge was actually passing.
 
 For analysis, always pull the full metric set:
 
 ```bash
-distil model teacher-evaluation <model-id> --output json | jq '.metrics.teacher_performance'
-distil model training <model-id> --output json | jq '.aggregateMetrics'
+# Teacher scores
+distil teacher-evaluation metrics <teacher-evaluation-id> --output json | jq '.teacher_performance'
+
+# Tuned student and untuned baseline, side by side
+distil slm metrics <slm-id> --output json | jq '.tuned_model_performance'
+distil slm metrics <slm-id> --output json | jq '.base_model_performance'
+
+# Original production model, on the traces path
+distil upload metrics <upload-id> --output json | jq '.base_model_performance'
 ```
 
 Use the JSON output as the source of truth for the report's "Aggregate Metrics" section.
@@ -53,7 +60,7 @@ The report structure is shared. The variants differ in which model(s) are being 
 | **Predictions used** | Original production model (from traces) | Teacher only | Base student + Teacher + Tuned student (+ Original if from traces) |
 | **Metrics table** | Single column (Original) | Single column (Teacher) | Multi-column with deltas |
 | **Verdict** | INFORMATIONAL (no gate) | PROCEED / ITERATE / RETHINK | DEPLOY / RETUNE / ESCALATE |
-| **Decides** | How much relabeling changed the data | Whether to start training | Whether to deploy or retune |
+| **Decides** | How much relabeling changed the data | Whether to start training | Whether to deploy or re-train |
 
 The shared sections (Overview, Input/Output, Test Set Statistics, Configuration Summary, Patterns, Recommended Actions) follow the same structure across all three.
 
@@ -67,7 +74,8 @@ Used in the traces workflow only, after trace processing produces the relabeled 
 # Original Model Analysis Report
 
 ## 1. Overview
-- **Model ID:** <model-id>
+- **Prepared traces ID:** <traces-id>
+- **Upload ID:** <upload-id>
 - **Task type:** <task-type>
 - **Original model:** <model that generated the production traces, if known>
 - **Goal:** <one-line description of what the model should do>
@@ -140,7 +148,8 @@ For each disagreement (or a representative sample):
 # Teacher Evaluation Analysis Report
 
 ## 1. Overview
-- **Model ID:** <model-id>
+- **Upload ID:** <upload-id>
+- **Teacher evaluation ID:** <teacher-evaluation-id>
 - **Task type:** <task-type>
 - **Goal:** <one-line description of what the model should do>
 
@@ -210,7 +219,9 @@ For each incorrect prediction (or a representative sample if there are many):
 # Training Analysis Report
 
 ## 1. Overview
-- **Model ID:** <model-id>
+- **Upload ID:** <upload-id>
+- **Training dataset ID:** <training-dataset-id>
+- **SLM ID:** <slm-id>
 - **Task type:** <task-type>
 - **Student model:** <student-model>
 - **Teacher model:** <teacher-model>
