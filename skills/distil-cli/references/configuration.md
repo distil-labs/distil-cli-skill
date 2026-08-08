@@ -1,271 +1,109 @@
-# Configuration Reference
-
-The `config.yaml` file controls the training pipeline through five sections: `base`, `tuning`, `evaluation`, `synthgen`, and `trace_processing`.
-
-For most use cases the defaults work well. You only need to specify the task type.
-
-## Parameter Tiers
-
-When preparing `config.yaml` for a user, only include parameters from the tier that matches their situation. Don't expose expert-level params unless the user asks.
-
-- **Always set:** `task` (required), `student_model_name`, `teacher_model_name`
-- **Optional on the first run, often revisited when iterating:** `basic_mutators_to_use`, `mutation_topics`, `generation_target`, `num_generations_per_llm_call`. You don't *need* to set these on the first training run — the defaults are reasonable. But if the user's task description names specific patterns/scenarios/length characteristics to cover (e.g., "short/medium/long conversations", "billing vs. cancellation vs. tech support"), it's worth translating them into `mutation_topics` / `basic_mutators_to_use` upfront rather than waiting for iteration.
-- **Expert only (leave defaults):** everything else (LoRA rank, batch sizes, warmup ratio, learning rate, RLVR, etc.)
-
-## File Format
-
-Config files use YAML format (`config.yaml`).
-
-## Minimal Configuration
-
-```yaml
-base:
-  task: classification
-```
-
-With a custom student model:
-
-```yaml
-base:
-  task: question-answering
-  student_model_name: Qwen3.5-2B
-```
-
-With a custom teacher model:
-
-```yaml
-base:
-  task: question-answering
-  student_model_name: Qwen3.5-2B
-  teacher_model_name: openai.gpt-oss-120b
-```
-
-## Configuration Structure
-
-```yaml
-base:
-  task: classification
-
-tuning:
-  num_train_epochs: 4
-
-evaluation:
-  num_few_shot_examples: 1
-
-synthgen:
-  generation_target: 10000
-
-trace_processing:
-  relabel: true
-```
-
----
-
-## 1. Base Configuration
-
-General parameters for task and model selection.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `task` | `string` | *required* | Type of NLP task to solve. See supported task types below. |
-| `student_model_name` | `string` | `Qwen3.5-2B` | Base model to fine-tune for the use case. |
-| `teacher_model_name` | `string` | `openai.gpt-oss-120b` | Teacher model used for synthetic data generation and knowledge distillation. |
-| `random_seed` | `integer \| null` | `123` | Random seed for reproducible sampling across the pipeline. |
-| `llm_num_parallel_requests` | `integer` | `4` | Maximum number of LLM requests sent in parallel across the teacher, synthgen, and judge pipelines. Set to 1 to disable parallelism. |
-
-### Supported Task Types
-
-| Task | Value |
-|------|-------|
-| Question Answering | `question-answering` |
-| Classification | `classification` |
-| Tool Calling | `tool-calling-closed-book` |
-| Multi-Turn Tool Calling | `multi-turn-tool-calling-closed-book` |
-| Open Book QA (RAG) | `question-answering-open-book` |
-| Closed Book QA | `question-answering-closed-book` |
-
-### Supported Models
-
-Student and teacher model lists, task compatibility, and default recommendations live in `references/model-catalog.md`. Read that file before recommending a specific model or judging whether a config value is valid.
-
----
-
-## 2. Tuning Configuration
-
-Parameters controlling fine-tuning of the student model.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `learning_rate` | `float` | `5e-5` | Initial learning rate for the AdamW optimizer. |
-| `learning_rate_scheduler` | `string` | `linear` | Scheduler type. Options: `cosine`, `linear`, `constant`. |
-| `weight_decay` | `float` | `0.0` | Weight decay applied to all layers except bias and LayerNorm weights in the AdamW optimizer. |
-| `warmup_ratio` | `float` | `0.05` | Ratio of total training steps used for linear warmup from 0 to `learning_rate`. |
-| `bf16` | `boolean` | `true` | Use bf16 16-bit (mixed) precision training instead of 32-bit training. |
-| `use_lora` | `boolean` | `true` | Use LoRA for student training. |
-| `lora_r` | `integer` | `64` | LoRA attention dimension (rank). Only used if `use_lora` is true. |
-| `lora_alpha_multiplier` | `integer` | `1` | LoRA scaling factor. Alpha is computed as `lora_r * lora_alpha_multiplier`. Only used if `use_lora` is true. |
-| `per_device_train_batch_size` | `integer` | `1` | Batch size per GPU/device for training. |
-| `per_device_eval_batch_size` | `integer` | `1` | Batch size per GPU/device for evaluation. |
-| `num_train_epochs` | `integer` | `4` | Total number of training epochs. |
-| `train_eval_split` | `float` | `0.2` | Fraction of training data used for evaluation. Must be between 0 and 1 (exclusive). |
-| `gradient_accumulation_steps` | `integer` | `1` | Number of update steps to accumulate gradients before performing a backward/update pass. Effectively multiplies batch size by this factor without increasing memory usage. |
-| `num_few_shot_examples_student` | `integer` | `0` | Number of few-shot examples for student evaluation and tuning. If above 0, at least one example per class is used for classification tasks. |
-| `memory_optimized_training` | `boolean` | `false` | Enable activation offloading and gradient checkpointing to reduce GPU memory usage at the cost of significantly slower training. Only enable this if training runs out of GPU memory. |
-| `use_qlora` | `boolean` | `false` | Load the base model in 4-bit NF4 (QLoRA) during finetuning, then attach LoRA adapters in higher precision. Reduces base-model VRAM by roughly 3x at the cost of slightly slower training. Only takes effect when `use_lora` is true. Requires bitsandbytes (Linux only). |
-
-### RLVR (Reinforcement Learning with Verifiable Rewards)
-
-RLVR is an optional reinforcement learning stage that runs after SFT fine-tuning. It uses reward signals from an LLM-as-a-judge to further improve model performance. Set `rlvr_dataset_size` to a value greater than 0 to enable it.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `rlvr_dataset_size` | `float` | `0.0` | Proportion of the dataset to use for the RLVR split. Must be between 0.0 and 1.0. `0.0` means RLVR is disabled. |
-| `rlvr_llm_as_a_judge_model_name` | `string` | `openai.gpt-oss-120b` | Model used for the LLM-as-a-judge reward signals in RLVR. |
-| `rlvr_per_device_batch_size` | `integer` | `6` | Batch size per GPU/device for RLVR training and evaluation. Must be a multiple of `rlvr_num_generations`. |
-| `rlvr_num_generations` | `integer` | `6` | Number of generations per prompt during RLVR training. |
-| `rlvr_num_train_epochs` | `integer` | `1` | Number of training epochs for RLVR fine-tuning. |
-
----
-
-## 3. Evaluation Configuration
-
-Parameters used in teacher evaluation.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `num_few_shot_examples` | `integer` | `1` | Number of few-shot examples for teacher evaluation. If above 0, at least one example per class is used for classification tasks. |
-| `llm_as_a_judge_model_name` | `string` | `openai.gpt-oss-120b` | Model used to power the LLM-as-a-judge evaluation. |
-| `expand_tool_calling_turns` | `boolean` | `true` | If true, each line in multi-turn tool calling test files is expanded into multiple evaluation lines, each ending at a tool call. |
-
----
-
-## 4. Synthgen Configuration
-
-Parameters for fine-grained control over synthetic data generation.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `generation_target` | `integer` | `10000` | Target number of synthetic examples to generate. For Closed-Book QA, calculated as `len(unstructured_data) * generation_per_unstructured_context`. |
-| `generation_in_single_call` | `integer` | `4` | Number of examples to generate per teacher/LLM invocation. |
-| `generation_iteration_size` | `integer` | `128` | Batch size for the generate-validate cycle. |
-| `generation_per_unstructured_context` | `integer \| null` | `null` | Examples to generate per unstructured context. Only used with `question-answering-closed-book` task. Overwrites `generation_target` when set. |
-| `num_positive_exemplars_per_generation` | `integer` | `2` | Number of in-context examples for the class/task being generated. |
-| `num_negative_exemplars_per_generation` | `integer` | `2` | Number of in-context examples for classes not being generated. Only used for classification tasks. |
-| `num_unlabelled_exemplars_per_generation` | `integer` | `2` | Number of unlabelled examples provided during each teacher invocation. |
-| `validation_max_total_length` | `integer` | `10000` | Maximum total length (input + output) of examples in characters. Applied to both uploaded traces/test data and generated synthetic data. **Over-length data is silently truncated, not rejected** — examples lose content with no warning, and structured (train/test) and unstructured data are capped differently, so surface long examples to the user before uploading. Increase this if your production inputs are long (e.g., full documents, injected schemas). |
-| `validation_similarity_threshold` | `float` | `0.95` | Similarity threshold for deduplication. Generated data with similarity above this threshold to seed data are removed. |
-| `teacher_temperature` | `float` | `0.7` | Temperature for teacher output. Controls the balance between predictability and creativity. Must be between 0.0 and 1.0. |
-| `teacher_max_tokens` | `integer` | `32000` | Maximum number of tokens in the generated response. Kept well below typical model context limits so the reserved output budget does not crowd out large (e.g. multi-image) prompts. |
-| `match_generated_distribution_to_seed` | `boolean` | `false` | Match generated data class distribution to seed data. Only used for classification tasks. |
-| `num_distractor_context_blocks` | `integer` | `0` | Number of distractor context blocks per example. Setting above zero enables [RAFT training](https://arxiv.org/pdf/2403.10131). |
-| `output_is_json` | `boolean` | `false` | Only generate synthetic data with valid JSON outputs. Only relevant for QA tasks. |
-| `basic_mutators_to_use` | `list[string]` | `["complexity"]` | List of basic mutators for data generation. Supported options: `complexity`, `length`, `specificity`. |
-| `mutation_topics` | `list[list[string]] \| list[string]` | `[]` | Topics to sample from to guide the generation process. |
-
----
-
-## 5. Trace Processing Configuration
-
-Parameters for the trace processing pipeline, which converts production traces into training and testing data. They are read when an upload is built from prepared traces -- either from the config uploaded with `distil traces upload`, or from the config passed to `distil upload create-from-traces --config`, which is merged over it on top-level keys.
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `relabel` | `boolean` | `true` | If true, use a committee of models to relabel trace examples. If false, use the original labels from traces. |
-| `relevance_filtering` | `boolean` | `true` | If true, score each trace with an LLM and drop those below the relevance / coherence thresholds. If false, relevance filtering is skipped entirely and every seed trace flows straight to the next step. |
-| `relevance_filtering_batch_size` | `integer` | `32` | Number of examples scored per batch during relevance filtering. |
-| `min_relevance_score` | `integer` | `4` | Minimum relevance score (1-5) for a trace to pass relevance filtering. |
-| `min_coherence_score` | `integer` | `3` | Minimum coherence score (1-5) for a trace to pass coherence filtering. Lower values allow more corrupted traces through for committee repair. |
-| `num_traces_as_training_base` | `integer` | `200` | Number of traces to use as the seed for generating training examples. Unused traces beyond this count are used as unstructured data. **Recommended:** set equal to `num_traces_as_testing_base`. Keep `min_generated_examples` low enough that the examples derived from this count aren't rejected by the floor. |
-| `num_traces_as_testing_base` | `integer` | `200` | Number of traces to use as the seed for generating testing examples. Unused traces beyond this count are used as unstructured data. Ignored if a test set is provided. **Recommended:** set equal to `num_traces_as_training_base` — keeping the two in sync avoids train/test distribution skew where one side is seeded from far more traces than the other. |
-| `min_generated_examples` | `integer` | `20` | Minimum number of examples that trace processing must produce. Raises an error if fewer are generated, to prevent training with too few examples. **Keep this low enough** that the examples produced from `num_traces_as_training_base` / `num_traces_as_testing_base` clear the floor — filtering and relabelling typically drop a significant fraction of traces, so setting `min_generated_examples` close to the trace count will cause spurious errors. |
-| `max_unstructured` | `integer` | `10000` | Maximum number of unstructured data examples to include. |
-| `observation_format` | `string` | `openai_messages` | Format of trace observations in `traces.jsonl`. Options: `langfuse` (Langfuse observation objects with id, input, output), `openai_messages` (objects with a `messages` array of chat completion messages), `openai_messages_with_images` (OpenAI messages that may include images), `unstructured_with_openai_messages` (unstructured data with OpenAI messages). |
-| `remove_system_prompt_from_traces` | `boolean` | `true` | If true, strip leading system messages from traces (before unstructured export) and from processed examples. Defaults to true because the system prompt is typically captured by the job description, and keeping it in the conversation breaks the single-turn `[user, assistant]` shape expected at the training boundary. |
-| `compress_job_description` | `boolean` | `false` | If true, compress the job description using the teacher model before relevance filtering. Useful when the task description is very long and would overwhelm the filtering LLM. |
-| `teacher_model_name` | `string` | `zai.glm-5` | Teacher model used for relevance filtering and picking the best relabelled answer from the committee. |
-| `relabelling_committee_models` | `list[string]` | `[]` | If the list is non-empty, models in the list are used to produce candidate relabels. Each model generates an output for every example and the trace processing teacher aggregates them into the final relabel. Only used when `relabel` is true. |
-
-**Default relabelling committee:** empty (`[]`). With no committee, the single `teacher_model_name` does the relabelling. Provide a list of teacher models to enable committee-based relabelling — each model produces a candidate relabel and the trace processing teacher aggregates them into the final label.
-
-> **All traces are processed as multi-turn conversations.** A simple single-exchange trace is just a two-turn conversation (one user message, one assistant message); longer conversations are preserved in full and rewritten as a whole. There is no single-turn/multi-turn conversion toggle.
-
----
-
-## Full Configuration Example
-
-```yaml
-base:
-  task: question-answering-open-book
-  student_model_name: Qwen3-1.7B
-  teacher_model_name: openai.gpt-oss-120b
-  random_seed: 42
-
-tuning:
-  learning_rate: 1e-4
-  learning_rate_scheduler: cosine
-  use_lora: true
-  lora_r: 32
-  num_train_epochs: 3
-  train_eval_split: 0.15
-
-evaluation:
-  num_few_shot_examples: 2
-
-synthgen:
-  generation_target: 5000
-  generation_in_single_call: 8
-  teacher_temperature: 0.6
-  validation_similarity_threshold: 0.9
-
-trace_processing:
-  relabel: true
-  num_traces_as_training_base: 5000
-  num_traces_as_testing_base: 5000
-```
-
----
-
-## Notes
-
-### Common configurations
-
-**Classification with balanced generation:**
-```yaml
-base:
-  task: classification
-synthgen:
-  match_generated_distribution_to_seed: true
-```
-
-**Open Book QA with RAFT (distractor contexts):**
-```yaml
-base:
-  task: question-answering-open-book
-synthgen:
-  num_distractor_context_blocks: 3
-```
-
-**Training from traces with relabelling disabled:**
-```yaml
-base:
-  task: question-answering
-trace_processing:
-  relabel: false
-```
-
-**Enabling RLVR after SFT:**
-```yaml
-tuning:
-  rlvr_dataset_size: 0.3
-  rlvr_num_train_epochs: 1
-```
-
-### Model-specific notes
-
-Model compatibility constraints (tool calling student restrictions, multi-turn tool calling teacher restrictions, etc.) live in `references/model-catalog.md`. Notes here only cover config-parameter behavior.
-
-- **GPT OSS 120B Thinking**: The `openai.gpt-oss-120b-thinking` model uses a `medium` reasoning effort setting by default for enhanced chain-of-thought capabilities.
-- **Trace processing teacher model**: The `trace_processing.teacher_model_name` is independent from `base.teacher_model_name`. The trace processing teacher handles relevance filtering and relabel arbitration, while the base teacher handles synthetic data generation.
-- **`generation_per_unstructured_context`**: Only applies to `question-answering-closed-book`. When set, it overwrites `generation_target`. See `references/tasks/prepare-data/closed-book-qa.md` for how this interacts with unstructured data.
-- **`rlvr_per_device_batch_size`**: Must be a multiple of `rlvr_num_generations`.
-- **`train_eval_split`**: Must be strictly between 0 and 1 (exclusive). A value of 0.2 means 20% of training data is held out for evaluation during training.
+# Configuration
+
+`config.yaml` has five sections: `base`, `tuning`, `evaluation`, `synthgen`,
+`trace_processing`. Only `base.task` is required; every other parameter has a sensible
+default.
+
+Tiers: always set `task`, `student_model_name`, `teacher_model_name`. Revisit `synthgen`
+mutator/target params when iterating (see `mutators.md`). Treat the rest as expert-only.
+
+## base
+
+| Parameter | Default | Notes |
+|---|---|---|
+| `task` | required | See `task-types.md` |
+| `visual_task` | `false` | Inputs carry images; QA tasks only, and every model must be vision-capable |
+| `student_model_name` | `Llama-3.2-1B-Instruct` | See `model-catalog.md` |
+| `teacher_model_name` | `openai.gpt-oss-120b` | See `model-catalog.md` |
+| `random_seed` | `123` | Seeds sampling everywhere, incl. mutators |
+| `llm_num_parallel_requests` | `4` | Parallel LLM calls across teacher/synthgen/judge; raising it helps only until per-call latency and between-batch validation dominate |
+
+## tuning
+
+| Parameter | Default | Notes |
+|---|---|---|
+| `learning_rate` | `5e-5` | AdamW |
+| `learning_rate_scheduler` | `linear` | `cosine`, `linear`, `constant` |
+| `weight_decay` | `0.0` | |
+| `warmup_ratio` | `0.05` | |
+| `bf16` | `true` | |
+| `use_lora` | `true` | |
+| `lora_r` | `64` | alpha = `lora_r * lora_alpha_multiplier` |
+| `lora_alpha_multiplier` | `1` | |
+| `per_device_train_batch_size` | `1` | **Not just a memory/speed knob.** At a fixed `num_train_epochs` it divides the optimizer-step count, so raising it trains the model less. Raise `num_train_epochs` proportionally when you raise it |
+| `per_device_eval_batch_size` | `1` | |
+| `num_train_epochs` | `4` | Steps ≈ rows x epochs / (batch x `gradient_accumulation_steps`); keep that product stable when changing batch size |
+| `train_eval_split` | `0.2` | Held out to pick the best checkpoint; must be in (0, 1) |
+| `gradient_accumulation_steps` | `1` | Multiplies effective batch size |
+| `num_few_shot_examples_student` | `0` | Few-shot for student eval/tuning |
+| `enable_trainer_internal_eval` | `false` | Per-epoch validation during training; final metrics come from the post-training suite either way |
+| `memory_optimized_training` | `false` | Only when training runs out of GPU memory; much slower |
+| `use_qlora` | `false` | 4-bit NF4 base model; needs `use_lora`, Linux-only bitsandbytes |
+
+RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
+`rlvr_dataset_size` 0.0, `rlvr_llm_as_a_judge_model_name` inherits `base.teacher_model_name`,
+`rlvr_per_device_batch_size` 6 (must be a multiple of `rlvr_num_generations` 6),
+`rlvr_num_train_epochs` 1.
+
+## evaluation
+
+| Parameter | Default | Notes |
+|---|---|---|
+| `num_few_shot_examples` | `1` | Teacher evaluation few-shot; at least one per class for classification |
+| `llm_as_a_judge_model_name` | inherits `base.teacher_model_name` | Set only to judge with a different model than the teacher |
+
+## synthgen
+
+| Parameter | Default | Notes |
+|---|---|---|
+| `generation_target` | `10000` | A target, not an exact count: generation runs in `generation_iteration_size` batches until the target is met, so the result can exceed it by up to one batch, and validation losses shift where that boundary lands. Ignored for closed-book QA when `generation_per_unstructured_context` is set |
+| `generation_in_single_call` | `4` | Examples per teacher call. |
+| `generation_iteration_size` | `128` | Generate-validate batch size; also the granularity `generation_target` rounds up to |
+| `generation_per_unstructured_context` | `null` | Closed-book QA only; target becomes this x len(unstructured) |
+| `num_positive_exemplars_per_generation` | `2` | Also a per-class floor on train data (see data-preparation) |
+| `num_negative_exemplars_per_generation` | `2` | Classification only |
+| `num_unlabelled_exemplars_per_generation` | `1` | Unstructured dataset must be at least this size |
+| `validation_max_total_length` | `30000` | Chars, question+answer+context; applies to uploaded data too |
+| `validation_similarity_threshold` | `0.95` | Dedup vs seed data; lower it if synthgen produces near-duplicates |
+| `teacher_temperature` | `0.7` | Reasoning teachers require 0.5-0.7 (validation error otherwise) |
+| `teacher_max_tokens` | `32000` | |
+| `match_generated_distribution_to_seed` | `false` | Classification and tool calling |
+| `num_distractor_context_blocks` | `0` | Above zero enables RAFT (open-book) |
+| `output_is_json` | `false` | QA only; also forces answers in uploaded data to be valid JSON |
+| `basic_mutators_to_use` | `["complexity"]` | See `mutators.md` |
+| `mutation_topics` | `[]` | See `mutators.md` |
+| `clean_training_targets` | `false` | Final teacher pass that minimally repairs corrupted/truncated training targets; multi-turn data is expanded into per-turn examples first so every turn is covered |
+
+## trace_processing
+
+| Parameter | Default | Notes |
+|---|---|---|
+| `relabel` | `true` | Teacher/committee rewrites labels; `false` keeps original trace labels |
+| `relevance_filtering` | `false` | `true` has an LLM score traces and drop low relevance/coherence, at one LLM pass over every trace |
+| `relevance_filtering_batch_size` | `32` | |
+| `min_relevance_score` | `4` | 1-5 |
+| `min_coherence_score` | `3` | 1-5; lower lets corrupted traces through for committee repair |
+| `num_traces_as_training_base` | `200` | Leftover traces become unstructured data |
+| `num_traces_as_testing_base` | `200` | Must be ≥ 1; ignored when a test set is provided; keep equal to the training base |
+| `min_generated_examples` | `1` | Floor checked per split, after filtering and relabeling; keep it below the smaller of the two base counts |
+| `evaluate_original_model` | `true` | Judges the original model on the test split; `false` skips it and writes null metrics. This stage's LLM-judge cost — off for smokes |
+| `max_unstructured` | `10000` | |
+| `observation_format` | `openai_messages` | See `data-preparation/traces.md` |
+| `remove_system_prompt_from_traces` | `true` | System prompt should live in the job description instead |
+| `compress_job_description` | `false` | For very long task descriptions |
+| `teacher_model_name` | inherits `base.teacher_model_name` | Does filtering + relabel arbitration; set only to differ from the base teacher |
+| `relabelling_committee_models` | `[]` | Non-empty list enables committee relabelling |
+| `committee_max_input_length` | `250000` | Chars; traces whose projected committee-aggregator input exceeds this skip the committee (direct teacher edit) |
+
+## Cross-field validation (fails at config load)
+
+- Reasoning teacher (every teacher except `Qwen2.5-VL-72B-Instruct`,
+  `Qwen3-235B-A22B-Instruct-2507`, `Qwen3-480B-A35B-Coder`) requires
+  `synthgen.teacher_temperature` in [0.5, 0.7].
+- Tool-calling tasks require a supported student; multi-turn additionally requires a supported
+  teacher. See `model-catalog.md`.
+
+Inert: `evaluation.batch_size`, `synthgen.validation_max_answer_length`,
+`synthgen.parallel_llm_calls`, `tuning.awq_quantize_tuned_model`. They carry defaults and
+appear in every config the platform returns, but have no effect. Leave them untouched in a
+config you override; do not add them to one you author.

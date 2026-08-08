@@ -1,101 +1,90 @@
 # Evaluation Metrics
 
-When evaluating teacher models or trained SLMs, Distil Labs uses different metrics depending on your task type.
+Metrics per task plus the canonical verdict thresholds. Aggregated scores come back inline as
+the `*_performance` object in an entity's metrics response; per-example predictions are a
+separate download alongside it (the execution backend § Fetch metrics).
 
-## Text Generation Metrics
+## Metrics by task
 
-Used for question answering, classification, open book QA, closed book QA, and other text generation tasks.
+| Suite | Tasks | Metric keys |
+|---|---|---|
+| QA | `question-answering`, `-open-book`, `-closed-book` (and deprecated QA variants) | `rouge`, `binary`, `llm-as-a-judge`, `llm-as-a-judge-reference-free` |
+| Classification | `classification` | `accuracy`, plus one key per class label (see below) |
+| Tool calling | `tool-calling-closed-book`, `multi-turn-tool-calling-closed-book` | `rouge`, `tool_call_equivalence`, `binary_tool_call`, `staged_tool_call`, `llm-as-a-judge`, `llm-as-a-judge-reference-free` |
 
-### LLM-as-a-Judge (Recommended)
+All 0-1:
 
-A large language model acts as a human grader to evaluate whether the answer is semantically correct. Scores reflect quality even when wording differs from the reference answer.
+- `llm-as-a-judge` — LLM verdict (good=1, bad=0) vs the reference; `-reference-free` omits
+  the reference. The judge sees the full prefix (question and context). Unparseable verdicts
+  become NaN and drop from the mean.
+- `binary` — exact string equality on the raw strings. Only useful as an extra check but
+  should not be relied on.
+- `rouge` — text overlap; secondary signal.
+- `accuracy` — exact label match.
 
-- **What it measures:** Semantic correctness -- does the answer mean the right thing, regardless of phrasing?
-- **When to use:** Most text generation tasks. Best for tasks where many valid phrasings are possible.
-- **Returns:** A quality score reflecting how well the answer matches the reference meaning.
+The classification performance object is **not flat**. Alongside `accuracy` it carries one key
+per class label, each holding a per-class breakdown, which gives precision and recall for free:
 
-### Exact-Match (Binary)
+```json
+{"accuracy": 1.0,
+ "lane_cold":    {"precision": 1.0, "recall": 1.0, "f1-score": 1.0, "support": 9.0},
+ "lane_general": {"precision": 1.0, "recall": 1.0, "f1-score": 1.0, "support": 7.0}}
+```
 
-Checks whether the model output exactly matches the reference answer, character for character.
+So iterate the object by key rather than assuming every value is a number — `accuracy` is a
+float and every other entry is a dict.
+- `tool_call_equivalence` — exact match, except an argument set to its schema default equals
+  omitting it.
+- `binary_tool_call` — strict name + arguments equality.
+- `staged_tool_call` — 0.25 per stage: one call each side → name matches → argument keys
+  match → arguments match. 0.5 means right tool, wrong arguments.
 
-- **What it measures:** Exact textual equivalence.
-- **When to use:** Facts with one correct phrasing, classification labels, or tasks requiring a specific output string.
-- **Returns:** 1 if the output exactly matches the reference, 0 otherwise.
-- **Limitation:** Harsh on synonyms and paraphrases. A correct answer worded differently scores 0.
+## Primary metric per task
 
-### ROUGE-L
+- Classification → `accuracy`.
+- QA (all variants) → `llm-as-a-judge`.
+- Tool calling (all variants) → `llm-as-a-judge`.
 
-Measures the longest common subsequence (word overlap) between the model output and the reference answer.
+## Verdicts (relative gates)
 
-- **What it measures:** How much wording is shared between the two texts.
-- **When to use:** Summarization tasks and cases where reusing reference phrasing matters.
-- **Returns:** A score from 0 to 1. Higher values indicate more shared wording.
-- **Limitation:** Favors longer answers that reuse reference phrases. Does not capture semantic equivalence.
+Judge results against reference points on the primary metric, not against absolute numbers.
+The thresholds below are on the *relative* gap closed, never on a raw score: 0.72 is a good
+result against a teacher at 0.75 and a poor one against a teacher at 1.00.
 
-## Tool Calling Metrics
+**Teacher evaluation** — the teacher score is the ceiling everything downstream distills
+from. Review the score and failure patterns with the user and confirm this quality would be
+acceptable in production: that is PROCEED. Otherwise iterate on the teacher choice (ITERATE)
+or re-examine the task setup (RETHINK).
 
-Used for tool calling and multi-turn tool calling tasks.
+**Scores are samples, not constants.** Evaluation runs the judge at non-zero temperature, so
+the same model on the same test set scores differently run to run — a measured ±0.03 on a
+50-row set. Any difference smaller than that band is noise.
 
-### tool_call_equivalence (Recommended)
+The per-example predictions file behind each `/metrics` response is where failure patterns
+live. Group the rows the model got wrong by whatever the task's failure modes are — a class, a
+format, a rule — rather than reading the aggregate and guessing.
 
-Compares the prediction and reference with intelligent handling of default values. Parameters that were not explicitly set are treated as having their default values.
+**Training** — compare the tuned student against its reference points. Express the result as
+the **fraction of the base→teacher gap the student closed**, which makes one number decide the
+branch:
 
-- **What it measures:** Whether the predicted tool call is functionally equivalent to the reference, accounting for defaults.
-- **When to use:** Most tool calling evaluation. Best for real-world correctness where unset parameters fall back to defaults.
-- **Returns:** 1 if the tool calls are equivalent, 0 otherwise.
+```
+closed = (tuned - base) / (teacher - base)
+```
 
-### binary_tool_call
+| `closed` | Verdict | Action |
+|---|---|---|
+| **≥ 0.8** | Deploy candidate | Continue to deployment; for a sweep take the smallest student clearing the bar |
+| **0.4 – 0.8** | Retune | Clearly transferring but short of the ceiling. Re-enter `../stages/model-training.md` from the same data with a different student or tuning parameters — nothing regenerates, so this is the cheap loop |
+| **< 0.4** | Rerun the process | Barely above base despite a good teacher score: the knowledge is not transferring and retuning will not fix it. Go to `../workflows/improving-a-model.md` |
 
-Compares the prediction and reference as exact dictionaries. All keys must be present with identical values. Key order does not matter. Does not account for default parameter values.
+These are gates for judgement, not thresholds to apply mechanically: when `teacher - base` is
+small the ratio is unstable, and when the gap is within the noise band above, no branch is
+decidable from the numbers alone. Say so rather than picking one.
 
-- **What it measures:** Strict dictionary equivalence between prediction and reference.
-- **When to use:** Strict validation where all parameters must be explicitly provided and exactly correct.
-- **Returns:** 1 if exactly equivalent, 0 otherwise.
-
-### staged_tool_call
-
-Evaluates predictions incrementally across four stages. Useful during development to understand where the model is failing.
-
-| Stage | Score | What it checks |
-|-------|-------|----------------|
-| 1 | 0.25 | Is the output valid JSON? |
-| 2 | 0.50 | Is the function name correct? |
-| 3 | 0.75 | Are the parameter keys correct? |
-| 4 | 1.00 | Is the full prediction an exact match? |
-
-**Interpreting staged_tool_call scores:**
-
-- **0.25** -- Valid JSON but wrong function called.
-- **0.50** -- Right function but wrong parameter keys or values.
-- **0.75** -- Right function and parameter keys but wrong values.
-- **1.00** -- Perfect match.
-
-## Interpretation Guide
-
-### Text Generation Scorecards
-
-| Scenario | What it means | Action |
-|----------|---------------|--------|
-| High LLM-as-a-Judge, low Exact-Match | Answers are semantically correct but worded differently from the reference. | This is usually fine. Consider adding alternate phrasings to your reference set if exact wording matters. |
-| High ROUGE-L, low LLM-as-a-Judge | Model is copying words from the reference but missing the actual meaning. | Revisit your task description and training examples for clarity. |
-| All metrics low | The task may be under-specified or the data quality may be insufficient. | Revisit the task description, add more context, improve data quality, or check for inconsistencies in the dataset. |
-| High LLM-as-a-Judge, high ROUGE-L | Model is both semantically correct and uses similar wording to the reference. | Strong performance. Proceed with confidence. |
-
-### Tool Calling Scorecards
-
-| Scenario | What it means | Action |
-|----------|---------------|--------|
-| High tool_call_equivalence, low binary_tool_call | Model produces correct calls but omits parameters that have defaults. | This is usually fine -- the calls are functionally equivalent. |
-| Low staged_tool_call (around 0.25) | Model produces valid JSON but calls the wrong function. | Check that your tool descriptions are distinct enough and training examples cover each tool. |
-| Low staged_tool_call (around 0.50) | Model picks the right function but gets parameters wrong. | Improve parameter descriptions in your tool schemas and add more varied training examples. |
-
-## Quick Reference: Recommended Metrics by Task Type
-
-| Task Type | Recommended Metric | Other Available Metrics |
-|-----------|--------------------|------------------------|
-| Question Answering | LLM-as-a-Judge | Exact-Match, ROUGE-L |
-| Classification | LLM-as-a-Judge | Exact-Match, ROUGE-L |
-| Open Book QA (RAG) | LLM-as-a-Judge | Exact-Match, ROUGE-L |
-| Closed Book QA | LLM-as-a-Judge | Exact-Match, ROUGE-L |
-| Tool Calling | tool_call_equivalence | binary_tool_call, staged_tool_call |
-| Multi-Turn Tool Calling | tool_call_equivalence | binary_tool_call, staged_tool_call |
+**A trace-derived build has a fourth reference point, and it is a floor rather than a gate.**
+The original production model is the one being replaced, so a student that scores below it is
+not shippable whatever `closed` says — a strong `closed` against a weak base still loses to the
+incumbent. Treat it as a veto over the table above: below it, the verdict is Retune at best,
+never Deploy. Read it from `base_model_performance` on the SeedDataset, which carries it only
+when the SeedDataset came from prepared traces.

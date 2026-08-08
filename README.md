@@ -1,16 +1,12 @@
 # Distil CLI Skill for Claude
 
-A Claude skill for training task-specific small language models (SLMs) using the [Distil Labs](https://distillabs.ai) CLI and platform.
+An agent skill for building task-specific small language models on the [distil labs](https://distillabs.ai)
+platform: from raw data or production traces, through teacher evaluation and synthetic data
+generation, to a finetuned, evaluated, deployable student model.
 
-## What This Skill Does
-
-This skill teaches Claude how to help you:
-
-- **Train specialized SLMs** — Create models up to 70x smaller than large models while maintaining accuracy
-- **Prepare training data** — Generate proper data files for classification, QA, tool calling, and multi-turn tool calling tasks
-- **Run the Distil CLI** — Execute commands for the full training workflow
-- **Deploy models locally or remotely** — Set up your trained models with llama-cpp, vLLM, or Distil-managed infrastructure
-- **Train from production traces** — Convert existing LLM logs into fine-tuned small models
+Everything runs on the distil labs platform through the `distil` CLI. The only prerequisite is an
+account. Where the CLI cannot be installed, the skill falls back to the REST API and needs
+`pip install requests pyyaml` instead.
 
 ## Installation
 
@@ -30,10 +26,20 @@ This skill teaches Claude how to help you:
 
 ## Prerequisites
 
-Install the Distil Labs CLI:
+Install the CLI and authenticate:
 
 ```bash
 curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
+distil auth
+```
+
+The skill does this itself at the start of a project if you skip it. On a platform the installer
+does not support — Windows without WSL, or any environment that permits no new binary — set
+credentials for the API fallback instead:
+
+```bash
+export DL_USERNAME="you@example.com"
+export DL_PASSWORD="…"
 ```
 
 ## Supported Task Types
@@ -47,68 +53,36 @@ curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
 | Open Book QA (RAG) | Answer questions using provided context | Document QA, support from docs |
 | Closed Book QA | Answer from knowledge learned during training | FAQ bots, domain assistants |
 
-## Skill Structure
+## Layout
 
-```
-distil-cli-skill/
-├── .claude-plugin/
-│   ├── marketplace.json
-│   └── plugin.json
-└── skills/
-    └── distil-cli/
-        ├── SKILL.md                          # Router + core instructions
-        ├── references/
-        │   ├── getting-started.md            # Install CLI, auth, quickstart
-        │   ├── platform-overview.md          # What Distil Labs is, concepts, value prop
-        │   ├── cli-reference.md              # All CLI commands with args and flags
-        │   ├── task-selection-guide.md       # Choosing the right task type
-        │   ├── model-catalog.md              # Student + teacher models, compatibility, defaults
-        │   ├── job-description-guide.md      # Writing job_description.json
-        │   ├── configuration.md              # Full config.yaml reference
-        │   ├── mutations-guide.md            # Controlling synthetic data diversity
-        │   ├── evaluation-metrics.md         # Metrics reference + interpretation
-        │   ├── api-reference.md              # REST API setup + endpoints
-        │   └── tasks/
-        │       ├── prepare-data/
-        │       │   ├── overview.md
-        │       │   ├── question-answering.md
-        │       │   ├── classification.md
-        │       │   ├── tool-calling.md
-        │       │   ├── multi-turn-tool-calling.md
-        │       │   ├── open-book-qa.md
-        │       │   └── closed-book-qa.md
-        │       ├── upload-dataset.md
-        │       ├── upload-and-process-traces.md
-        │       ├── teacher-evaluation.md      # Incl. canonical verdict thresholds
-        │       ├── training.md
-        │       ├── deployment-integration.md
-        │       ├── retrieve-predictions.md
-        │       ├── analyze-predictions.md
-        │       ├── polling-jobs.md            # Canonical polling loop
-        │       └── verify-auth.md
-        └── workflows/
-            ├── dataset-to-model.md            # E2E: dataset → eval → train → deploy
-            ├── traces-to-model.md             # E2E: traces → process → eval → train → deploy
-            └── improving-a-model.md           # Iteration: ITERATE/RETHINK/RETUNE/ESCALATE
-```
+| Path | What it is |
+|---|---|
+| `SKILL.md` | Entry point: architecture, stage protocol, routing |
+| `stages/` | One unit of pipeline work each, directly invocable |
+| `workflows/` | Sequencers over stages, owning the gates and decision points |
+| `references/` | Shared knowledge: data formats, config, models, metrics |
+| `references/execution/` | The only files that know how stages actually run; its `README.md` picks the backend |
+
+The skill separates *what to do* from *how to run it*. Stages and workflows hold the
+model-building logic; the execution backends under `references/execution/` hold the commands and
+request shapes. Swapping the CLI for the REST API changes the commands and nothing else.
 
 ## Quick Start
 
-Once the skill is installed, just ask Claude to help you train a model:
+Once the skill is installed, just ask Claude to build you a model:
 
-> "Help me train a classification model for customer support intent detection"
+> "Help me build a classification model for customer support intent detection"
 
-Claude will guide you through:
-1. Preparing your data files
-2. Uploading them with `distil upload create`
-3. Running teacher evaluation to check the task is feasible
-4. Generating a training dataset and training the SLM
-5. Deploying it, or downloading it to serve yourself
+Claude asks whether you are starting from a labeled dataset or from production traces, routes you
+to the matching workflow, and walks the pipeline with you: preparing the input directory, checking
+feasibility with a teacher evaluation, generating synthetic training data, training the student,
+and deploying it. Every stage confirms the setup and the expected credit cost with you before it
+submits anything, and runs a cheap smoke first where a smoke is worth running.
 
 ## Documentation
 
-- [Distil Labs Documentation](https://www.distillabs.ai/docs)
-- [CLI Reference](https://www.distillabs.ai/docs/getting-started/cli)
+- [distil labs documentation](https://www.distillabs.ai/docs)
+- [CLI reference](https://www.distillabs.ai/docs/getting-started/cli)
 
 ## License
 

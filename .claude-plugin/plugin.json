@@ -1,6 +1,6 @@
 {
   "name": "distil-cli",
-  "description": "Train task-specific small language models (SLMs) using the Distil Labs CLI and platform",
+  "description": "Build task-specific small language models (SLMs) on the distil labs platform, from raw data or production traces through to a deployed student model",
   "author": {
     "name": "Distil Labs",
     "email": "contact@distillabs.ai"
