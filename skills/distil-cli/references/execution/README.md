@@ -28,12 +28,18 @@ prefers it, whenever the work is already scripted in Python, or when the install
 3. Run `distil --version` again. If the command answers, use `cli.md`. If the shell does not
    find the binary, add `~/.local/bin` to `PATH` and run the command again. If the install
    failed, use `backend-api.md` and write the reason in `run.md`.
-4. Run `distil whoami`. If it prints no user, authenticate:
+4. Run `distil whoami`. If it prints a user, the CLI is ready. If it prints no user, ask whether
+   the user already has a distil labs account, then run the matching command:
 
    ```bash
-   distil auth                                             # opens a browser
-   distil auth --email <email> --password <password>       # no browser
+   distil signup                                           # no account yet; opens a browser
+   distil auth                                             # has an account; opens a browser
+   distil auth --email <email> --password <password>       # has an account; no browser
    ```
+
+   `distil signup` finishes signed in, so it needs no `distil auth` after it. Both browser
+   commands wait up to 20 minutes and print a URL to paste if the browser does not open. There is
+   no headless `signup`, so on a machine without a browser the account has to exist already.
 
 Record the backend in `run.md` at the start of the project. Each later stage uses that backend.
 

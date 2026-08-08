@@ -19,7 +19,7 @@ and edits to the files take effect directly. The schema version comes from `meta
 when present and is otherwise inferred from the first train row (chat-format rows mean V1),
 so directories in this skill's format need no metadata file.
 
-All data files are JSONL; CSV is not supported internally.
+All data files are JSONL.
 
 ## Row format (chat format, JobInput V1)
 

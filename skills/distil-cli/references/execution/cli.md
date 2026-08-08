@@ -3,7 +3,7 @@
 How stages run on the platform through the `distil` command; stage files link here by operation
 name. Every stage is an entity created by one command, and every entity is created either from
 local files or by running a job over the entity before it. The only prerequisite is a distil
-labs account.
+labs account, which `distil signup` creates from the terminal.
 
 This is the default backend and `backend-api.md` is the alternative — take that one when the
 user prefers it, when the work is already scripted in Python, or when the CLI cannot be
@@ -18,10 +18,14 @@ rather than a JSON body: read the parent's config to disk, edit it, pass it to `
 
 ```bash
 curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
-distil auth                                          # opens a browser
-distil auth --email <email> --password <password>    # headless
+distil signup                                        # create an account; opens a browser
+distil auth                                          # sign in; opens a browser
+distil auth --email <email> --password <password>    # sign in, headless
 distil whoami                                        # prints the current user
 ```
+
+`distil signup` and `distil auth` are the same browser handoff against a different page, and both
+finish signed in, so signup needs no separate login. There is no headless `signup`.
 
 The snippets also use `jq`. `README.md` § Choose the backend gives the full install procedure
 and the conditions that make the API backend necessary.

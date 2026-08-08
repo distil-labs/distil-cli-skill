@@ -3,6 +3,8 @@
 How stages run on the platform; stage files link here by operation name. Every stage is an
 entity created through the REST API, and every entity is created either by staging files or
 by running a job over the entity before it. The only prerequisite is a distil labs account.
+There is no API route that creates one: sign up with `distil signup` or at
+`https://app.distillabs.ai/sign-up`, then use those credentials below.
 
 `cli.md` is the default backend and this one is the alternative — take it when the user
 prefers it, when the work is already scripted in Python, or when the CLI cannot be installed.
