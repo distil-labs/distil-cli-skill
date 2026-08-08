@@ -614,7 +614,7 @@ distil slm download-metadata <slm-id>
 distil slm download-metadata <slm-id> --destination ./metadata    # -d also works
 ```
 
-Writes only `config.yaml` and `job_description.json`, into `<slm-id>-metadata` by default. Skips the `model.tar` that `download` pulls, so it is the cheap way to check what an SLM was trained with.
+Writes `config.yaml`, `job_description.json` and `model_client.py`, into `<slm-id>-metadata` by default. Skips the `model.tar` that `download` pulls, so it is the cheap way to check what an SLM was trained with and to get the inference client without the weights.
 
 ## Deployments
 
@@ -725,7 +725,7 @@ The tarball holds exactly two directories and nothing else:
 
 ### distil credits-balance
 
-Report how many further calls the account may make to each metered endpoint. Routes the platform does not meter print `unlimited`; in JSON they come back as the string `"inf"`.
+Report how many further calls the account may make to each metered endpoint. An endpoint appears only when calling it can be refused for want of credit; routes the platform never charges for are absent rather than listed as unlimited.
 
 ```bash
 distil credits-balance
