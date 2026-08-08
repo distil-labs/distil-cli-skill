@@ -10,7 +10,7 @@ assistant = the class label.
 Rules beyond the shared checklist (`overview.md`):
 
 - Labels must exactly match keys of `classes_description` in job_description.json
-  (fields: `../job-description.md`): the label sets in train, test, and the job description
+  (fields: `../job-description.md`). The label sets in train, test, and the job description
   must be identical.
 - Each class needs at least `synthgen.num_positive_exemplars_per_generation` and
   `num_negative_exemplars_per_generation` train examples (defaults 2).

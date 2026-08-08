@@ -2,15 +2,16 @@
 
 ## Defaults
 
-**Recommended default student: a 4B-class model** (e.g. `Qwen3.5-4B` or
-`Qwen3-4B-Instruct-2507`); go smaller only when the deployment target demands it. Note: the
-config default when `student_model_name` is omitted is `Llama-3.2-1B-Instruct`, so always set
-the student explicitly. Default teacher: `openai.gpt-oss-120b`. The judge and trace-processing
-models default to `base.teacher_model_name`, but that resolves **once**, when the config is
-first expanded. A config read back for an override already carries them as explicit values, so
-**switching the teacher on an existing config leaves the judge on the old model** — change
-`evaluation.llm_as_a_judge_model_name` and `trace_processing.teacher_model_name` in the same
-edit.
+**Recommended default student: a 4B-class model**, for example `Qwen3.5-4B` or
+`Qwen3-4B-Instruct-2507`. Go smaller only when the deployment target demands it. The config
+default when `student_model_name` is omitted is `Llama-3.2-1B-Instruct`, so always set the
+student explicitly. Default teacher: `openai.gpt-oss-120b`.
+
+The judge and trace-processing models default to `base.teacher_model_name`, but that resolves
+once, when the config is first expanded. A config read back for an override already carries
+them as explicit values. So switching the teacher on an existing config leaves the judge on the
+old model. Change `evaluation.llm_as_a_judge_model_name` and
+`trace_processing.teacher_model_name` in the same edit.
 
 ## Student models (`base.student_model_name`)
 
@@ -57,9 +58,9 @@ All teachers count as reasoning models except `Qwen2.5-VL-72B-Instruct`,
 - **Students**: only Llama 3, Qwen3, Qwen3.5, LFM2/LFM2.5, Gemma 4, and FunctionGemma. Config
   validation rejects others for both tool-calling tasks.
 - **Teachers**: everything except `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3.1`,
-  `Qwen3-480B-A35B-Coder`, `Qwen2.5-VL-72B-Instruct`.
-  Note: config validation enforces this only for `multi-turn-tool-calling-closed-book`;
-  single-turn tool calling only validates the student. Respect the deny-list for both anyway.
+  `Qwen3-480B-A35B-Coder`, `Qwen2.5-VL-72B-Instruct`. Config validation enforces this only for
+  `multi-turn-tool-calling-closed-book`, and single-turn tool calling validates the student
+  alone. Respect the deny-list for both anyway.
 
 ## LLM providers
 

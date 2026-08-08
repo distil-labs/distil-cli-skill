@@ -33,8 +33,8 @@ curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
 distil auth
 ```
 
-The skill does this itself at the start of a project if you skip it. On a platform the installer
-does not support — Windows without WSL, or any environment that permits no new binary — set
+The skill does this itself at the start of a project if you skip it. If the installer does not
+support your platform (Windows without WSL, or any environment that permits no new binary), set
 credentials for the API fallback instead:
 
 ```bash
@@ -61,15 +61,15 @@ export DL_PASSWORD="…"
 | `stages/` | One unit of pipeline work each, directly invocable |
 | `workflows/` | Sequencers over stages, owning the gates and decision points |
 | `references/` | Shared knowledge: data formats, config, models, metrics |
-| `references/execution/` | The only files that know how stages actually run; its `README.md` picks the backend |
+| `references/execution/` | The only files that know how stages actually run. Its `README.md` picks the backend |
 
 The skill separates *what to do* from *how to run it*. Stages and workflows hold the
-model-building logic; the execution backends under `references/execution/` hold the commands and
+model-building logic. The execution backends under `references/execution/` hold the commands and
 request shapes. Swapping the CLI for the REST API changes the commands and nothing else.
 
 ## Quick Start
 
-Once the skill is installed, just ask Claude to build you a model:
+Once the skill is installed, ask Claude to build you a model:
 
 > "Help me build a classification model for customer support intent detection"
 
@@ -77,7 +77,7 @@ Claude asks whether you are starting from a labeled dataset or from production t
 to the matching workflow, and walks the pipeline with you: preparing the input directory, checking
 feasibility with a teacher evaluation, generating synthetic training data, training the student,
 and deploying it. Every stage confirms the setup and the expected credit cost with you before it
-submits anything, and runs a cheap smoke first where a smoke is worth running.
+submits anything. Where a smoke run is worth running, it runs a cheap one first.
 
 ## Documentation
 
@@ -86,4 +86,4 @@ submits anything, and runs a cheap smoke first where a smoke is worth running.
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE) for details.
+Apache 2.0. See [LICENSE](LICENSE) for details.

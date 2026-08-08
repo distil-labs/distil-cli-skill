@@ -17,7 +17,8 @@ fields are rejected at validation.
 
 `synthetic_data_generation_instructions` is also accepted here and steers generation as it
 does for the other task types. But `llm_as_a_judge_instructions` is NOT valid for
-classification (the create fails); classification is judged by label accuracy anyway.
+classification, and the create fails if you send it. Classification is judged by label
+accuracy anyway.
 
 **QA family** (`question-answering`, `-open-book`, `-closed-book`):
 
@@ -45,29 +46,29 @@ classification (the create fails); classification is judged by label accuracy an
 ```
 
 `tools` is OpenAI function-calling spec: at least one tool, unique names. Parameter schemas
-may declare `default` values; `tool_call_equivalence` treats an argument at its default as
+can declare `default` values. `tool_call_equivalence` treats an argument at its default as
 equal to omitting it.
 
 ## What each field feeds
 
-- `task_description` — in every teacher prompt (eval, synthgen, judge). Derive it from the
+- `task_description`: in every teacher prompt (eval, synthgen, judge). Derive it from the
   system prompt the user's production system runs, with the same care: output format with an
   example, include/exclude rules, edge cases. It must stay compliant with that production
-  prompt and constant across iterations; it is not a tuning lever (pick a better teacher or
-  fix data instead).
-- `classes_description` / `tools` — define the label/call space; their descriptions directly
-  shape generated data.
-- `synthetic_data_generation_instructions` (optional, all task types) — extra guidance
-  injected into every synthetic-data-generation prompt. Use it to describe what generated
-  inputs should look like: formats, domains, variation, noise.
-- `llm_as_a_judge_instructions` (optional, every task type except classification) — the
+  prompt and constant across iterations. It is not a tuning lever, so pick a better teacher or
+  fix the data instead.
+- `classes_description` and `tools`: define the label and call space. Their descriptions
+  directly shape generated data.
+- `synthetic_data_generation_instructions` (optional, all task types): extra guidance injected
+  into every synthetic-data-generation prompt. Use it to describe the generated inputs:
+  formats, domains, variation, noise.
+- `llm_as_a_judge_instructions` (optional, every task type except classification): the
   instructions the judge model is given when it scores a prediction against the reference.
   State pass/fail criteria: what must match, what to ignore (order, whitespace,
   paraphrasing). A workable shape is "Output 'good' if the prediction matches the reference
   or is semantically equivalent, otherwise output 'bad'", then the criteria that decide it.
   Vague criteria make every downstream verdict noisy.
-- `trace_processing_instructions` (optional, all task types) — task-specific guidance
-  appended to the trace-processing rewrite and fix instructions only; unused outside trace
-  processing. Use it when the edits must respect something unusual about the traces, e.g.
-  "this is a live phone call; preserve the caller's interruptions and any cut-off utterances
-  verbatim". Leave it out when no special handling is needed.
+- `trace_processing_instructions` (optional, all task types): task-specific guidance appended
+  to the trace-processing rewrite and fix instructions only. It is unused outside trace
+  processing. Use it when the edits must respect something unusual about the traces, for
+  example "this is a live phone call; preserve the caller's interruptions and any cut-off
+  utterances verbatim". Leave it out when no special handling is needed.

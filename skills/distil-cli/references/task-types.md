@@ -17,12 +17,12 @@ Job description types: `job-description.md`.
 
 ## Deprecated task types
 
-Accepted with a warning; do not use for new work:
+Accepted with a warning. Do not use them for new work:
 
 | Deprecated | Use instead |
 |---|---|
 | `information-extraction` | `question-answering` |
-| `question-answering-open-book-synthetic-context` | `question-answering-open-book` (synthetic context generation no longer supported) |
+| `question-answering-open-book-synthetic-context` | `question-answering-open-book` (there is no synthetic context generation) |
 
 ## Choosing a task type
 
@@ -40,9 +40,8 @@ The QA rule:
 - Open book is exclusively for RAG: the model expects a retrieved chunk in `context` at
   inference. No retriever in production means it is the wrong choice.
 - Closed book is exclusively for memorizing a knowledge database that exists but is not
-  retrieved at inference; the knowledge is baked in during training.
+  retrieved at inference. The knowledge is baked in during training.
 - Every non-RAG application uses plain `question-answering`.
 
-Notes:
-- `question-answering` is the catch-all for any text-in text-out problem, at the cost of the
-  schema validation that classification and tool calling get.
+`question-answering` is the catch-all for any text-in text-out problem, at the cost of the
+schema validation that classification and tool calling get.

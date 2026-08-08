@@ -1,12 +1,12 @@
 # Execution Backend: distil labs API
 
-How stages run on the platform; stage files link here by operation name. Every stage is an
+How stages run on the platform. Stage files link here by operation name. Every stage is an
 entity created through the REST API, and every entity is created either by staging files or
 by running a job over the entity before it. The only prerequisite is a distil labs account.
 There is no API route that creates one: sign up with `distil signup` or at
 `https://app.distillabs.ai/sign-up`, then use those credentials below.
 
-`cli.md` is the default backend and this one is the alternative — take it when the user
+`cli.md` is the default backend and this one is the alternative. Take it when the user
 prefers it, when the work is already scripted in Python, or when the CLI cannot be installed.
 `README.md` § Choose the backend decides between them, and the choice goes in `run.md`.
 
@@ -205,7 +205,7 @@ def poll(collection, entity_id, timeout_seconds, status_field="status"):
 
 The routes for each stage. What the entities are and how they chain: `../platform.md`
 § Entities and jobs. The `Override` column says whether a job's configuration can be varied at
-submission — see § Overrides.
+submission. See § Overrides.
 
 | Stage | Entity | Submit | Read | Override |
 |---|---|---|---|---|
@@ -218,18 +218,19 @@ submission — see § Overrides.
 | model-deployment | Deployment | `POST /deployments/from-slms` | `GET /deployments/<id>/{status,endpoint,logs}`, `DELETE /deployments/<id>` | no config of its own |
 
 The `/uploads`, `/staging-uploads-s3-urls`, `/teacher-evaluations/from-uploads` and
-`/training-datasets/from-uploads` paths answer **410 Gone** naming the route to use instead, so
+`/training-datasets/from-uploads` paths answer 410 Gone naming the route to use instead, so
 a 410 means the path is the problem, not the payload.
 
 Staging files is a three-step exchange: `GET /staging-<kind>-s3-urls` returns a presigned PUT
 URL per file, each file is PUT to its URL, and those URLs are posted back as the create body.
-`stage()` in the preamble does all three, and owns the one detail worth not re-deriving: the
-staging response names a file by extension (`train_data_jsonl`) while the create body names it
-by field (`train_data`). Staged bundles expire (`../platform.md` § Entities and jobs).
+`stage()` in the preamble does all three. The staging response names a file by extension
+(`train_data_jsonl`) while the create body names it by field (`train_data`), and `stage()` is
+the only place that mapping is spelled out. Staged bundles expire (`../platform.md`
+§ Entities and jobs).
 
 `download-metadata` returns presigned URLs for an entity's `config.yaml` and
 `job_description.json` at no credit cost. `GET /slms/<id>/download-metadata` returns a third
-field, `model_client_url`; every other entity returns exactly two.
+field, `model_client_url`. Every other entity returns exactly two.
 
 ## Credits
 
@@ -243,12 +244,12 @@ print(balances["training_datasets_from_seed_datasets_post"])
 ```
 
 Routes the platform never charges for are absent from the response, so read an unfamiliar key
-with `.get()`. A submission against an exhausted route fails **402**.
+with `.get()`. A submission against an exhausted route fails 402.
 
 ## Submitting jobs
 
 Every job is created by posting the id of the entity before it. Nothing is uploaded at this
-point — the parent's files are already on the platform.
+point, because the parent's files are already on the platform.
 
 | Stage | Collection | Typical timeout |
 |---|---|---|
@@ -317,11 +318,11 @@ body = stage(
 seed_dataset_id = post("/seed-datasets", body)["id"]
 ```
 
-`POST /seed-datasets` validates the bundle and returns **400** with the validation error when
+`POST /seed-datasets` validates the bundle and returns 400 with the validation error when
 it fails. That is this backend's dryrun, and `raise_with_body` is what makes the message
 visible instead of a bare `HTTPError`.
 
-The route is metered (`seed_datasets_post`), but only a successful create spends a credit: the
+The route is metered (`seed_datasets_post`), but only a successful create spends a credit. The
 balance is checked first, and the call is recorded only after validation passes. So validating
 a broken bundle repeatedly is free, and a 402 here means the balance was already zero before
 the bundle was ever read.
@@ -353,11 +354,11 @@ Validation runs the same rules as `POST /seed-datasets`
 
 ### Overrides: how a job is parameterised
 
-The four job creates — `POST /seed-datasets/from-prepared-traces`,
+Four job creates each accept optional `config` and `job_description` objects inline, alongside
+`from`: `POST /seed-datasets/from-prepared-traces`,
 `POST /teacher-evaluations/from-seed-datasets`, `POST /training-datasets/from-seed-datasets`
-and `POST /slms/from-training-datasets` — each accept optional `config` and `job_description`
-objects inline, alongside `from`. Both are optional and independent, and there is no staging
-step for either.
+and `POST /slms/from-training-datasets`. The two are independent, and there is no staging step
+for either.
 
 Each replaces the parent's file whole, and anything you leave out reverts to a library default
 (`../platform.md` § Overrides). So an override is read-edit-resend, never hand-built:
@@ -368,9 +369,9 @@ config_of(collection, id)  →  edit one field  →  POST it whole
 
 `config_of()` and `job_description_of()` do the read. Two shapes to know:
 
-- `{"config": {"base": {"student_model_name": …}}}` — the shape most people guess — is a
-  **400**. `base` is required and has no default, so a config naming only one field under it
-  is not a config.
+- A config naming only one field under `base`, such as
+  `{"config": {"base": {"student_model_name": …}}}` (the shape most people guess), is a 400.
+  `base` is required and has no default, so that is not a config.
 - A config carrying a valid `base` but omitting `synthgen` or `tuning` is *accepted*, and those
   sections take defaults. Dropping one field from a section you do send reverts that field the
   same way. Nothing errors.
@@ -473,12 +474,12 @@ for student, slm_id in slm_ids.items():
 
 The deep copy matters: mutating one dict across iterations would send every student the last
 one's value. `per_device_train_batch_size`, `memory_optimized_training` and `use_qlora` vary
-the same way — read, edit, resend — which is how OOM is handled without touching the data.
+the same way (read, edit, resend), which is how OOM is handled without touching the data.
 Submissions run concurrently, so poll them after they are all in.
 
 ## Monitor
 
-Poll `GET /<collection>/<id>/status` every 20 seconds; `poll()` in the preamble does this. The
+Poll `GET /<collection>/<id>/status` every 20 seconds. `poll()` in the preamble does this. The
 status values and how to run a poller: `../platform.md` § Job status.
 
 ```python
@@ -494,21 +495,21 @@ tail attached.
 ## Output layout
 
 Nothing is fetched by object-storage path. Outputs arrive either as JSON in the response or as
-presigned URLs, and a `/download` route returns one URL per file, with `null` for a file the
-entity does not have. Which outputs each stage produces, and the conditions on them:
+presigned URLs. A `/download` route returns one URL per file, with `null` for a file the entity
+does not have. Which outputs each stage produces, and the conditions on them:
 `../platform.md` § What each stage produces.
 
 | Entity | `/metrics` | `/download` | `/download-metadata` | Other |
 |---|---|---|---|---|
-| PreparedTraces | — | `traces_url`, `config_url`, `job_description_url`, `test_data_url` | free | — |
-| SeedDataset | `base_model_performance`, `base_model_predictions_download_url` | `train_data_url`, `test_data_url`, `unstructured_data_url`, `config_url`, `job_description_url` | free | — |
-| TeacherEvaluation | `teacher_performance`, `predictions_download_url` | — | free | — |
+| PreparedTraces | none | `traces_url`, `config_url`, `job_description_url`, `test_data_url` | free | none |
+| SeedDataset | `base_model_performance`, `base_model_predictions_download_url` | `train_data_url`, `test_data_url`, `unstructured_data_url`, `config_url`, `job_description_url` | free | none |
+| TeacherEvaluation | `teacher_performance`, `predictions_download_url` | none | free | none |
 | TrainingDataset | `train_data_size_bytes`, `test_data_size_bytes` | credit gated | free | `/sample` |
-| SLM | `base_model_performance`, `tuned_model_performance`, `predictions_download_url` | `model_url`, `config_url` | free; also `model_client_url` | — |
-| Deployment | — | — | — | `/endpoint` |
+| SLM | `base_model_performance`, `tuned_model_performance`, `predictions_download_url` | `model_url`, `config_url` | free; also `model_client_url` | none |
+| Deployment | none | none | none | `/endpoint` |
 
 A field that is not ready yet reads `null`. `config_of()` turns that null into an error naming
-the entity and its status, because the raw failure — `Invalid URL 'None'` — names neither.
+the entity and its status, because the raw failure (`Invalid URL 'None'`) names neither.
 
 ## Fetch metrics
 
@@ -528,13 +529,13 @@ predictions = requests.get(slm_metrics["predictions_download_url"]).text
 
 Two things about the predictions file:
 
-- **It is JSONL**, one test example per line, with `prompt`, `completion`, `prediction` and
+- It is JSONL, one test example per line, with `prompt`, `completion`, `prediction` and
   that example's own scores. Read a row and work from what is there.
-- For classification the performance object is not flat: alongside `accuracy` it carries **one
-  key per class label**, each holding `{precision, recall, f1-score, support}`, which gives
+- For classification the performance object is not flat. Alongside `accuracy` it carries one
+  key per class label, each holding `{precision, recall, f1-score, support}`, which gives
   per-class precision and recall for free. There is no `confusion_matrix` and no
-  `classification_report`. Iterate by key rather than assuming numeric values — `accuracy` is
-  a float and every other entry is a dict:
+  `classification_report`. Iterate by key rather than assuming numeric values: `accuracy` is
+  a float and every other entry is a dict.
 
   ```python
   performance = get(f"/slms/{slm_id}/metrics")["tuned_model_performance"]
@@ -544,7 +545,7 @@ Two things about the predictions file:
 
 ### Reading a TrainingDataset
 
-`/sample` is free and returns `{"rows": [...]}`; `/download` returns every file and is metered
+`/sample` is free and returns `{"rows": [...]}`. `/download` returns every file and is metered
 on `training_datasets_download_get`. What the sample contains and what it leaves out:
 `../platform.md` § What each stage produces.
 
@@ -575,8 +576,8 @@ The tarball expands to the layout `../deployment.md` § Artifacts describes.
 ### The inference client on its own
 
 `download-metadata` presigns `model_client.py` separately from the tarball, a few kilobytes
-rather than several gigabytes. This is the only `download-metadata` response with three fields;
-every other entity returns `config_url` and `job_description_url` alone.
+rather than several gigabytes. This is the only `download-metadata` response with three fields.
+Every other entity returns `config_url` and `job_description_url` alone.
 
 ```python
 client_url = metadata_url("slms", slm_id, "model_client_url")
@@ -625,6 +626,6 @@ requests.delete(f"{PLATFORM_URL}/deployments/{deployment_id}", headers=auth())
 ```
 
 The job does not return until vLLM answers, so `JOB_SUCCESS` means serving rather than merely
-scheduled. After the delete, `deployment_status` stays `JOB_SUCCESS`; `endpoint_status` going
-to `stopped` is what confirms the deployment is down. **A running deployment bills until its
-idle timeout**, so delete it when finished and check that field.
+scheduled. After the delete, `deployment_status` stays `JOB_SUCCESS`. `endpoint_status` going
+to `stopped` is what confirms the deployment is down. Delete the deployment when finished and
+check that field, because a running deployment bills until its idle timeout.

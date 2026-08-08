@@ -14,7 +14,7 @@ Trained-model artifacts, the inference client, and serving. Procedure:
 | `model.tar` | Tarball of the above plus LICENSE / TEACHER_LICENSE / STUDENT_LICENSE |
 
 `model_client.py` also has its own presigned URL, a few kilobytes instead of the several
-gigabytes of the tarball, so a client can be fetched without downloading the model. The
+gigabytes of the tarball. So a client can be fetched without downloading the model. The
 execution backend has the call.
 
 Each model carries its own client, generated for it at training time and matching the prompt
@@ -74,7 +74,7 @@ vllm serve model --api-key EMPTY          # port 8000
 python model_client.py --conversation '[{"role": "user", "content": "..."}]'
 ```
 
-Both `model/` and the model's `config.yaml` are needed; the config is not inside the tarball.
+Both `model/` and the model's `config.yaml` are needed. The config is not inside the tarball.
 
 ## Serving hosted
 

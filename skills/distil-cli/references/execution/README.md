@@ -14,21 +14,21 @@ prefers it, whenever the work is already scripted in Python, or when the install
 
 ## Choose the backend
 
-0. Ask the user, or take the choice your operator already made. A stated preference settles it
-   — record which backend and why in `run.md`, whether the reason is a failed install or a
-   plain preference, and skip to step 4 for the API backend.
-1. Run `distil --version`. If the command answers, use `cli.md` and go to step 4.
-2. Tell the user that you install the CLI, then run the install script:
+1. Ask the user, or take the choice your operator already made. A stated preference settles it.
+   Record which backend and why in `run.md`, whether the reason is a failed install or a plain
+   preference, and skip to step 5 for the API backend.
+2. Run `distil --version`. If the command answers, use `cli.md` and go to step 5.
+3. Say that you will install the CLI, then run the install script:
 
    ```bash
    curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
    ```
 
    The script writes one binary to `~/.local/bin/distil`. It changes nothing else.
-3. Run `distil --version` again. If the command answers, use `cli.md`. If the shell does not
+4. Run `distil --version` again. If the command answers, use `cli.md`. If the shell does not
    find the binary, add `~/.local/bin` to `PATH` and run the command again. If the install
    failed, use `backend-api.md` and write the reason in `run.md`.
-4. Run `distil whoami`. If it prints a user, the CLI is ready. If it prints no user, ask whether
+5. Run `distil whoami`. If it prints a user, the CLI is ready. If it prints no user, ask whether
    the user already has a distil labs account, then run the matching command:
 
    ```bash
@@ -38,8 +38,9 @@ prefers it, whenever the work is already scripted in Python, or when the install
    ```
 
    `distil signup` finishes signed in, so it needs no `distil auth` after it. Both browser
-   commands wait up to 20 minutes and print a URL to paste if the browser does not open. There is
-   no headless `signup`, so on a machine without a browser the account has to exist already.
+   commands wait up to 20 minutes. If the browser does not open, they print a URL to paste.
+   There is no headless `signup`, so on a machine without a browser the account has to exist
+   already.
 
 Record the backend in `run.md` at the start of the project. Each later stage uses that backend.
 
@@ -64,10 +65,10 @@ Both backends create the same entities on the same platform. They accept the sam
 overrides, and they identify each entity by the same UUID. Stage files cite operations by § name,
 and both backend files use the same § names.
 
-Thus the choice of backend changes the commands only. It changes no result, and it changes no
+So the choice of backend changes the commands only. It changes no result, and it changes no
 stage protocol. A project can also move from one backend to the other, because an id from one
 works in the other.
 
 Both files also use the same entity names, so a citation such as § The SeedDataset resolves in
-either. The CLI called that entity an Upload before 0.24.1 and still accepts `distil upload` as
-an alias; `cli.md` § The entity model has the detail.
+either. `cli.md` § The entity model lists the command aliases the CLI accepts on top of those
+names.

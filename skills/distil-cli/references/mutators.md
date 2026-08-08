@@ -24,21 +24,22 @@ synthgen:
 ```
 
 Each list renders as `Generated examples should focus on: <topic>`. Nested lists produce
-combinations ("billing disputes" + "enterprise customers"), covering a grid of scenarios
+combinations ("billing disputes" plus "enterprise customers"), covering a grid of scenarios
 without enumerating it. A flat list is treated as one pool.
 
 Use 1-2 lists of 3-10 topics each: more dilutes the signal per topic, fewer limits diversity.
 
-A single-item list is a useful special case: it applies the same directive to EVERY call,
-turning the mutator into a constant extra generation instruction (e.g. steering output
+A single-item list is a useful special case. It applies the same directive to EVERY call,
+which turns the mutator into a constant extra generation instruction (for example, output
 length or document realism) without touching the job description.
-And when you introduce custom mutators, set `basic_mutators_to_use: []` explicitly: the
-default `["complexity"]` stays active otherwise, and the stacked directives start tripping
-over one another.
+
+When you introduce custom mutators, set `basic_mutators_to_use: []` explicitly. The default
+`["complexity"]` stays active otherwise, and the stacked directives start tripping over one
+another.
 
 ## Built-in mutators
 
-`synthgen.basic_mutators_to_use` (default `["complexity"]`). Use at most one; combined
+`synthgen.basic_mutators_to_use` (default `["complexity"]`). Use at most one. Combined
 built-ins give conflicting instructions. `[]` disables them.
 
 | Mutator | Samples uniformly from |
@@ -62,7 +63,7 @@ Sampling is seeded from `base.random_seed`, so a config reproduces its mutation 
 ## When to touch this
 
 - First run: defaults are fine unless the task already names patterns, domains, or length
-  characteristics to cover; then set topics upfront.
+  characteristics to cover. Then set topics upfront.
 - Diversity gaps while iterating: add or refine topic lists.
 - Wrong length or difficulty profile: swap the built-in.
 - Near-duplicates of seed data: that is `validation_similarity_threshold`

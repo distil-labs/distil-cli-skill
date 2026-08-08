@@ -23,18 +23,18 @@ Print this map to the user when starting the workflow, before the first step:
 ## Step 1: Trace Processing
 
 Run `../stages/trace-processing.md`: convert the raw logs, iterate on smokes until processing
-is right, and review the generated test set before accepting the full run; that test set
+is right, and review the generated test set before accepting the full run. That test set
 gates everything downstream. The processed output is the input directory for the next step,
 and the original-model evaluation is the baseline to record.
 
 ## Steps 2-6: Continue as Dataset to Model
 
-Follow `dataset-to-model.md` from Step 2 (teacher evaluation) onward; the data-preparation
+Follow `dataset-to-model.md` from Step 2 (teacher evaluation) onward. The data-preparation
 work of its Step 1 is already done. Two trace-specific additions:
 
-- In the training decision (its Step 5), the original-model baseline is a **floor**: a student
+- In the training decision (its Step 5), the original-model baseline is a floor. A student
   that does not beat the model it replaces is not deployable, whatever `closed` says
-  (`../references/evaluation-metrics.md` § Verdicts). The two can disagree — a good `closed`
-  against a weak base can still lose to the incumbent — and the floor wins.
+  (`../references/evaluation-metrics.md` § Verdicts). The two can disagree, because a good
+  `closed` against a weak base can still lose to the incumbent. The floor wins.
 - When iteration points at the data itself (bad test set, bad labels), the fix is usually
   re-running trace processing with different settings rather than editing files by hand.
