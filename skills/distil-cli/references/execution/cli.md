@@ -35,7 +35,7 @@ that is set) and refreshes it, so a run spanning hours needs no second login. Th
 re-authenticates per request. `distil --version` prints the installed version, and
 `distil update` replaces the binary in place.
 
-This file describes CLI 0.25.0. Check the version before trusting a flag.
+This file describes CLI 0.25.2. Check the version before trusting a flag.
 
 ## Preamble
 
@@ -581,7 +581,8 @@ protects the endpoint. The tunnel has no authentication of its own, and the URL 
 
 **A deployment is a session, not a permanent endpoint.** It stops after six hours, or after one
 hour with no traffic. It cannot be restarted, and a new deployment carries a new URL and a new
-key.
+key. Replacing a stopped one spends another `deployments_from_slms_post` credit, so collect the
+inputs to send before you create the deployment.
 
 CAUTION: delete the deployment when finished. A running deployment bills until its idle timeout.
 After the delete, `deployment_status` stays `JOB_SUCCESS`. `endpoint_status` going to `stopped`
