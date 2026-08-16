@@ -98,11 +98,12 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 
 ## Cross-field validation (fails at config load)
 
-- Reasoning teacher (every teacher except `Qwen2.5-VL-72B-Instruct`,
-  `Qwen3-235B-A22B-Instruct-2507`, `Qwen3-480B-A35B-Coder`) requires
-  `synthgen.teacher_temperature` in [0.5, 0.7].
+- Reasoning teacher (every teacher except `Qwen3-235B-A22B-Instruct-2507` and
+  `Qwen3-480B-A35B-Coder`) requires `synthgen.teacher_temperature` in [0.5, 0.7].
 - Tool-calling tasks require a supported student. Multi-turn additionally requires a supported
   teacher. See `model-catalog.md`.
+- `visual_task: true` requires a vision-capable model in every teacher and judge role, and a
+  vision-capable student. See `model-catalog.md`.
 
 Inert: `evaluation.batch_size`, `synthgen.validation_max_answer_length`,
 `synthgen.parallel_llm_calls`, `tuning.awq_quantize_tuned_model`. They carry defaults and

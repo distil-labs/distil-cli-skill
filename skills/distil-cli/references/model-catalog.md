@@ -38,31 +38,51 @@ old model. Change `evaluation.llm_as_a_judge_model_name` and
 
 ## Teacher models (`base.teacher_model_name`)
 
+All open-weight. All available on the default provider.
+
 | Family | Values |
 |---|---|
 | GPT OSS | `openai.gpt-oss-20b`, `openai.gpt-oss-20b-thinking`, `openai.gpt-oss-120b`, `openai.gpt-oss-120b-thinking` |
-| DeepSeek | `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3.1`, `deepseek.v3.2` |
-| Qwen | `Qwen3-235B-A22B-Instruct-2507`, `Qwen3-480B-A35B-Coder`, `Qwen2.5-VL-72B-Instruct` |
-| GLM | `zai.glm-5` |
-| Kimi | `moonshotai.kimi-k2-thinking`, `moonshotai.kimi-k2.5` |
-| MiniMax | `minimax.minimax-m2-thinking` |
+| DeepSeek | `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3.1`, `deepseek.v3.2`, `deepseek.v3.2-thinking`, `deepseek.v4-pro`, `deepseek.v4-pro-thinking` |
+| Qwen | `Qwen3-235B-A22B-Instruct-2507`, `Qwen3-480B-A35B-Coder`, `Qwen3.5-397B-A17B`, `Qwen3.5-397B-A17B-thinking` |
+| GLM | `zai.glm-5`, `zai.glm-5-thinking`, `zai.glm-5.1`, `zai.glm-5.1-thinking`, `zai.glm-5.2`, `zai.glm-5.2-thinking` |
+| Kimi | `moonshotai.kimi-k2-thinking`, `moonshotai.kimi-k2.5`, `moonshotai.kimi-k2.5-thinking`, `moonshotai.kimi-k2.6`, `moonshotai.kimi-k2.6-thinking`, `moonshotai.kimi-k3`, `moonshotai.kimi-k3-thinking` |
+| MiniMax | `minimax.minimax-m2-thinking`, `minimax.minimax-m3`, `minimax.minimax-m3-thinking` |
+| Nemotron | `nvidia.nemotron-3-ultra` |
 
-All teachers count as reasoning models except `Qwen2.5-VL-72B-Instruct`,
-`Qwen3-235B-A22B-Instruct-2507`, and `Qwen3-480B-A35B-Coder`. Reasoning models require
-`synthgen.teacher_temperature` in [0.5, 0.7].
+A plain value and its `-thinking` twin point at the same model. The `-thinking` value turns the
+reasoning mode on, the plain value turns it off. `deepseek.r1`, `moonshotai.kimi-k2-thinking` and
+`minimax.minimax-m2-thinking` have no toggle: they always reason.
 
-`openai.gpt-oss-120b-thinking` runs at `medium` reasoning effort by default.
+All teachers count as reasoning models except `Qwen3-235B-A22B-Instruct-2507` and
+`Qwen3-480B-A35B-Coder`. Reasoning models require `synthgen.teacher_temperature` in [0.5, 0.7].
+
+`openai.gpt-oss-20b` and `openai.gpt-oss-120b` run at `low` reasoning effort. Their `-thinking`
+values run at `medium`.
+
+## Vision compatibility (`base.visual_task`)
+
+Vision teachers: `moonshotai.kimi-k2.6`, `moonshotai.kimi-k2.6-thinking`, `moonshotai.kimi-k3`,
+`moonshotai.kimi-k3-thinking`, `minimax.minimax-m3`, `minimax.minimax-m3-thinking`.
+
+`visual_task: true` requires one of these in every teacher and judge role:
+`base.teacher_model_name`, `trace_processing.teacher_model_name`,
+`evaluation.llm_as_a_judge_model_name`, and each entry of
+`trace_processing.relabelling_committee_models`. One non-vision model in any role fails config
+load. Vision students: `Qwen3.5-0.8B`, `Qwen3.5-2B`, `Qwen3.5-4B`, `Qwen3.5-9B`, `gemma-4-E2B-it`,
+`gemma-4-E4B-it`.
 
 ## Tool-calling compatibility
 
 - **Students**: only Llama 3, Qwen3, Qwen3.5, LFM2/LFM2.5, Gemma 4, and FunctionGemma. Config
   validation rejects others for both tool-calling tasks.
-- **Teachers**: everything except `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3.1`,
-  `Qwen3-480B-A35B-Coder`, `Qwen2.5-VL-72B-Instruct`. Config validation enforces this only for
+- **Teachers**: everything except `deepseek.r1`, `deepseek.r1-thinking`, `deepseek.v3.1`, and
+  `Qwen3-480B-A35B-Coder`. Config validation enforces this only for
   `multi-turn-tool-calling-closed-book`, and single-turn tool calling validates the student
   alone. Respect the deny-list for both anyway.
 
 ## LLM providers
 
-`bedrock` (default), `together_ai`, `openrouter`. Selected via the `DISTIL_LIB_LLM_PROVIDER`
-env var or the submission script's `--llm-provider` flag.
+`openrouter` (default), `together_ai`, `bedrock`. Selected via the `DISTIL_LIB_LLM_PROVIDER`
+env var or the submission script's `--llm-provider` flag. Not every teacher runs on every
+provider. Keep the default unless you have a reason to change it.
