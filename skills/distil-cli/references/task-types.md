@@ -12,6 +12,8 @@
 | Closed Book QA | `question-answering-closed-book` | No | Yes | QA |
 | Tool Calling | `tool-calling-closed-book` | No | No | Tool Calling |
 | Multi-Turn Tool Calling | `multi-turn-tool-calling-closed-book` | No | No | Tool Calling |
+| Chat Completion | `chat-completion` | No | No | Conversation |
+| Agentic Chat Completion | `chat-completion-agentic` | No | No | Conversation |
 
 Job description types: `job-description.md`.
 
@@ -31,7 +33,9 @@ Accepted with a warning. Do not use them for new work:
 | Free text, any non-RAG application (answers, extractions, transformations, JSON documents) | `question-answering` |
 | One label from a fixed set | `classification` |
 | A structured call against a fixed tool schema | `tool-calling-closed-book` |
-| The next tool call given a conversation history | `multi-turn-tool-calling-closed-book` |
+| The next tool call given a conversation history (calls only, no free text) | `multi-turn-tool-calling-closed-book` |
+| A conversational turn: free text, tool calls, or both; the model never sees tool results | `chat-completion` |
+| An agentic loop: tool calls whose results feed back, ending in a grounded answer | `chat-completion-agentic` |
 | RAG only: answer grounded in a retrieved chunk supplied at inference | `question-answering-open-book` |
 | Memorize a RAG-like database, no retrieval at inference, answers from memory | `question-answering-closed-book` |
 
@@ -45,3 +49,18 @@ The QA rule:
 
 `question-answering` is the catch-all for any text-in text-out problem, at the cost of the
 schema validation that classification and tool calling get.
+
+The conversation rule:
+
+- Both chat completion tasks allow assistant turns with content, tool calls, or both, and
+  parallel tool calls. Multi-turn tool calling forces every assistant turn to be exactly one
+  call with empty content.
+- `chat-completion` never admits `tool` (result) messages: assistant → user only. Data with
+  tool results in it needs `chat-completion-agentic`, where a tool result may follow an
+  assistant turn that made calls.
+- `tools` in the job description: optional for `chat-completion` (omit for a pure chat model),
+  required for `chat-completion-agentic`.
+- Neither supports `visual_task`, `context` columns, or `system` messages (the
+  `task_description` becomes the system prompt).
+
+Data format for both: `data-preparation/chat-completion.md`.

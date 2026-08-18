@@ -32,12 +32,16 @@ are chat-format conversations.
 | `question-answering-open-book` | `{"messages": [<user>, <assistant>], "context": "..."}` |
 | `tool-calling-closed-book` | `{"messages": [<user>, <assistant with tool_calls>]}` |
 | `multi-turn-tool-calling-closed-book` | `{"messages": [<user>, ..., <assistant with tool_calls>]}` |
+| `chat-completion` | `{"messages": [<user>, <assistant>, ...]}`, assistant turns carry content, `tool_calls`, or both |
+| `chat-completion-agentic` | `{"messages": [<user>, <assistant with tool_calls>, <tool>, ..., <assistant>]}` |
 
 - `<user>` and `<assistant>` are `{"role": ..., "content": "<non-empty>"}`. The final assistant
   message carries the answer or label as `content`.
 - Tool-call assistant messages instead have EMPTY `content` and
   `"tool_calls": [{"type": "function", "function": {"name": ..., "arguments": {...}}}]`. The
   key is `arguments`, and it is a JSON object, not a string.
+- Chat completion tasks relax this: their assistant turns carry content, `tool_calls`, or both
+  (at least one), and parallel calls are allowed. See `chat-completion.md`.
 - `unstructured.jsonl` rows are `{"context": "..."}` (string).
 
 Full examples: the task-specific pages.
@@ -56,6 +60,10 @@ Full examples: the task-specific pages.
 - [ ] tool calling: every tool call validates against the `tools` schemas. Multi-turn
       conversations start with a user message, end with an assistant tool call, and have a
       valid role sequence
+- [ ] chat completion: conversations start with a user message, end with an assistant message,
+      and have a valid role sequence. Tool results only in `chat-completion-agentic`, and only
+      after an assistant turn that made calls. Calls validate against `tools`; tool calls in
+      the data with no declared tools fail
 
 There is no hard minimum row count. Aim for 20+ diverse train examples and a test set covering
 the production distribution.

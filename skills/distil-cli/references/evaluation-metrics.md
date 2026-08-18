@@ -11,6 +11,7 @@ separate download alongside it (the execution backend § Fetch metrics).
 | QA | `question-answering`, `-open-book`, `-closed-book` (and deprecated QA variants) | `rouge`, `binary`, `llm-as-a-judge`, `llm-as-a-judge-reference-free` |
 | Classification | `classification` | `accuracy`, plus one key per class label (see below) |
 | Tool calling | `tool-calling-closed-book`, `multi-turn-tool-calling-closed-book` | `rouge`, `tool_call_equivalence`, `binary_tool_call`, `staged_tool_call`, `llm-as-a-judge`, `llm-as-a-judge-reference-free` |
+| Conversation | `chat-completion`, `chat-completion-agentic` | Same keys as tool calling |
 
 All 0-1:
 
@@ -26,6 +27,11 @@ All 0-1:
 - `binary_tool_call`: strict name and arguments equality.
 - `staged_tool_call`: 0.25 per stage, one call each side → name matches → argument keys
   match → arguments match. 0.5 means right tool, wrong arguments.
+
+Conversation suite specifics: a predicted turn can carry text, tool calls, or both. Parallel
+calls are compared positionally (right calls, wrong order = 0), and extra or missing parallel
+calls are penalised. A turn with no calls on either side scores 1 on the tool metrics, so they
+stay meaningful for tool-free rows; the judge metrics carry the text signal.
 
 The classification performance object is not flat. Alongside `accuracy` it carries one key
 per class label, each holding a per-class breakdown, which gives precision and recall for free:
@@ -44,6 +50,7 @@ float and every other entry is a dict.
 - Classification → `accuracy`.
 - QA (all variants) → `llm-as-a-judge`.
 - Tool calling (all variants) → `llm-as-a-judge`.
+- Chat completion (both variants) → `llm-as-a-judge`.
 
 ## Verdicts (relative gates)
 

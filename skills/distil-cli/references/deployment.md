@@ -27,10 +27,14 @@ setup exactly:
 
 - The trained system prompt, baked in as `SYSTEM_PROMPT`.
 - `temperature=0`, with thinking disabled (`chat_template_kwargs: {"enable_thinking": false}`).
-- Tool-calling models call with `tools=TOOLS, tool_choice="required"` and return the first
-  tool call.
+- Tool-calling models call with `tools=TOOLS, tool_choice="required"`; chat completion models
+  use `tool_choice="auto"`, so the model decides whether to call. `invoke` returns the whole
+  assistant message, content and tool calls included.
 - QA context inlined into the first user message as `<context>...</context>`, matching training
   and evaluation.
+- The client sends one request per call and does not run the agentic loop: for
+  `chat-completion-agentic`, the caller executes the calls, appends the assistant message plus
+  one `{"role": "tool", "tool_call_id": ..., "content": ...}` per call, and invokes again.
 
 A hand-built chat-completions request matches none of that, and it fails quietly: the endpoint
 answers `200`, reasoning text leaks into the answer, and the score falls well below what the

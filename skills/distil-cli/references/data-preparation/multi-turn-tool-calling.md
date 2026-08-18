@@ -3,6 +3,8 @@
 Task value: `multi-turn-tool-calling-closed-book`. Rows are whole conversations in one
 `messages` array. They must start with a user message and end with an assistant tool call.
 In between, user, assistant-tool-call, and tool-result messages alternate in a valid order.
+Every assistant turn is exactly one tool call with empty content; if assistant turns need free
+text (instead of or alongside calls), use a chat completion task (`chat-completion.md`).
 
 ```jsonl
 {"messages": [{"role": "user", "content": "What is 7 * 2?"}, {"role": "assistant", "content": "", "tool_calls": [{"id": "call_1", "type": "function", "function": {"name": "calculator", "arguments": {"expression": "7*2"}}}]}, {"role": "tool", "content": "14", "tool_call_id": "call_1"}, {"role": "user", "content": "What is 2 + 2?"}, {"role": "assistant", "content": "", "tool_calls": [{"type": "function", "function": {"name": "calculator", "arguments": {"expression": "2+2"}}}]}]}

@@ -80,6 +80,9 @@ load. Vision students: `Qwen3.5-0.8B`, `Qwen3.5-2B`, `Qwen3.5-4B`, `Qwen3.5-9B`,
   `Qwen3-480B-A35B-Coder`. Config validation enforces this only for
   `multi-turn-tool-calling-closed-book`, and single-turn tool calling validates the student
   alone. Respect the deny-list for both anyway.
+- **Chat completion tasks** (`chat-completion`, `chat-completion-agentic`): the same student
+  AND teacher restrictions apply whenever the job description declares tools (always, for
+  agentic). A tool-free `chat-completion` job has no model restriction.
 
 ## LLM providers
 

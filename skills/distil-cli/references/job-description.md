@@ -49,6 +49,24 @@ accuracy anyway.
 can declare `default` values. `tool_call_equivalence` treats an argument at its default as
 equal to omitting it.
 
+**Conversation** (`chat-completion`, `chat-completion-agentic`):
+
+```json
+{
+  "task_description": "...",
+  "tools": [...],  # Optional for chat-completion, REQUIRED for chat-completion-agentic
+  "llm_as_a_judge_instructions": "...",
+  "synthetic_data_generation_instructions": "...",
+  "trace_processing_instructions": "..."
+}
+```
+
+Same `tools` spec as tool calling, except `chat-completion` may omit the field (or pass null
+or `[]`) for a tool-free conversational model. If the data contains tool calls or tool-role
+messages while no tools are declared, the create fails. There is no system-prompt field:
+`task_description` is rendered into the system prompt the model trains and serves with, so
+write it as one.
+
 ## What each field feeds
 
 - `task_description`: in every teacher prompt (eval, synthgen, judge). Derive it from the

@@ -73,6 +73,7 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 | `output_is_json` | `false` | QA only. Also forces answers in uploaded data to be valid JSON |
 | `basic_mutators_to_use` | `["complexity"]` | See `mutators.md` |
 | `mutation_topics` | `[]` | See `mutators.md` |
+| `max_tool_calls_per_turn` | `null` | Chat completion tasks only. Cap on tool calls per assistant turn. `null` resolves to 1 with tools declared, 0 without. Integer or `"unlimited"` to allow parallel calls; `0` requires a tool-free job description, and above 0 requires tools |
 | `clean_training_targets` | `false` | Final teacher pass that minimally repairs corrupted/truncated training targets. Multi-turn data is expanded into per-turn examples first, so every turn is covered |
 
 ## trace_processing
@@ -104,6 +105,10 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
   teacher. See `model-catalog.md`.
 - `visual_task: true` requires a vision-capable model in every teacher and judge role, and a
   vision-capable student. See `model-catalog.md`.
+- Chat completion tasks with tools declared require a tool-calling student AND teacher. With no
+  tools (plain `chat-completion` only), no model restriction applies.
+- `synthgen.max_tool_calls_per_turn` must be consistent with the job description: above 0
+  requires declared tools, and 0 (or unset) is required when there are none.
 
 Inert: `evaluation.batch_size`, `synthgen.validation_max_answer_length`,
 `synthgen.parallel_llm_calls`, `tuning.awq_quantize_tuned_model`. They carry defaults and
