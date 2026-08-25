@@ -5,6 +5,29 @@ test set. That yields the tuned-vs-teacher-vs-base comparison and the deployment
 Training is the multi-hour GPU stage, so how much you experiment here is a budget decision
 the user makes, not you.
 
+Both splits of the dataset gate this stage, in opposite ways
+(`../references/data-preparation/overview.md` § Empty splits):
+
+- **An empty train split stops the run.** Synthetic data generation is what fills it, so run
+  that first. The refusal is deliberate, and it names itself:
+
+  ```
+  Finetuning needs a training set, and this job has none: train.jsonl is empty.
+  Generate synthetic data first, or provide training examples.
+  ```
+
+- **An empty test split does not stop the run.** Training completes and produces a model, but
+  there is no evaluation at all: no base-vs-tuned comparison, no metric values, and no
+  evaluation output directories. Both quantization sweeps are skipped, so neither `eval/` nor
+  `eval-4bit/` is written, and there is no `metrics-eval-aggregated.json` to read. The metrics
+  are recorded as "not available" rather than as a score, so the run is not mistaken for one
+  whose scoring failed. Do not read a missing metrics file as a job failure. Check the test
+  split first.
+
+  Step 7's analysis rests entirely on those numbers, so a run with no test set cannot produce
+  a deployment verdict. Tell the user before submitting: they get a model they cannot yet
+  measure. A test set can be added later, and the model evaluated then.
+
 ## Working Directory
 
 ```
@@ -146,7 +169,8 @@ and the whole sweep is N ordinary calls (the execution backend § Submitting job
 ## Step 7: Analyze the Results
 
 Confirm each job succeeded, then pull the base and tuned student metrics into `output/`
-(the execution backend § Fetch metrics). Analyze with a three-way comparison on
+(the execution backend § Fetch metrics). With no test set there are no metrics to pull and no
+verdict to render, so stop here and report that. Otherwise analyze with a three-way comparison on
 the primary metric (`../references/evaluation-metrics.md`): base student (floor), teacher
 (ceiling), tuned student. For a sweep, one row per student. What to do with the result
 (deploy, retune, or start a new workflow iteration) is decided in the workflow's Decide step

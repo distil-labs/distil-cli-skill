@@ -23,8 +23,8 @@ A standard job-input directory with the datasets INVERTED, so generation mimics 
 examples:
 
 - `train.jsonl` := the current test set, the seed that anchors format, style, and difficulty
-- `test.jsonl` := the current train set. This satisfies validation (non-empty, no overlap)
-  and plays no quality role here
+- `test.jsonl` := the current train set. This satisfies validation (no overlap with the
+  inverted train split) and plays no quality role here
 - `unstructured.jsonl`: include the project's unstructured data when it exists. In-domain
   contexts help generate realistic test cases, and the open/closed-book QA tasks require it
   anyway

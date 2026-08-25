@@ -13,7 +13,9 @@ Rules beyond the shared checklist (`overview.md`):
   (fields: `../job-description.md`). The label sets in train, test, and the job description
   must be identical.
 - Each class needs at least `synthgen.num_positive_exemplars_per_generation` and
-  `num_negative_exemplars_per_generation` train examples (defaults 2).
+  `num_negative_exemplars_per_generation` train examples (defaults 1). This applies to a
+  populated train split. An empty one is exempt, because there are no labels to cover
+  (`overview.md` § Empty splits).
 - Optional `unstructured.jsonl` (`context` rows) with unlabelled in-domain texts improves
   synthetic input realism.
 - `synthgen.match_generated_distribution_to_seed: true` keeps generated class balance equal

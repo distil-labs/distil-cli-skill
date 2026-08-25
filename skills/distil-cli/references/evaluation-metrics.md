@@ -89,6 +89,10 @@ These are gates for judgment, not thresholds to apply mechanically. When `teache
 small the ratio is unstable, and when the gap is within the noise band above, no branch is
 decidable from the numbers alone. Say so rather than picking one.
 
+A job with an empty test split has no reference points at all: teacher evaluation cannot run
+and training produces no scores (`../data-preparation/overview.md` § Empty splits). No verdict
+is available, so report that the model is unmeasured rather than reaching for a branch.
+
 **A trace-derived build has a fourth reference point, and it is a floor rather than a gate.**
 The original production model is the one being replaced, so a student that scores below it is
 not shippable whatever `closed` says. A strong `closed` against a weak base still loses to the

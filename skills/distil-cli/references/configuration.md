@@ -36,7 +36,7 @@ expert-only.
 | `num_train_epochs` | `4` | Steps ≈ rows x epochs / (batch x `gradient_accumulation_steps`). Keep that product stable when changing batch size |
 | `train_eval_split` | `0.2` | Held out to pick the best checkpoint. Must be in (0, 1) |
 | `gradient_accumulation_steps` | `1` | Multiplies effective batch size |
-| `num_few_shot_examples_student` | `0` | Few-shot for student eval/tuning |
+| `num_few_shot_examples_student` | `0` | Few-shot for student eval/tuning. Cannot exceed the train row count |
 | `enable_trainer_internal_eval` | `false` | Per-epoch validation during training. Final metrics come from the post-training suite either way |
 | `memory_optimized_training` | `false` | Only when training runs out of GPU memory; much slower |
 | `use_qlora` | `false` | 4-bit NF4 base model. Needs `use_lora`, Linux-only bitsandbytes |
@@ -50,7 +50,7 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 
 | Parameter | Default | Notes |
 |---|---|---|
-| `num_few_shot_examples` | `1` | Teacher evaluation few-shot. At least one per class for classification |
+| `num_few_shot_examples` | `1` | Teacher evaluation few-shot. At least one per class for classification. Cannot exceed the train row count |
 | `llm_as_a_judge_model_name` | inherits `base.teacher_model_name` | Set only to judge with a different model than the teacher |
 
 ## synthgen
@@ -61,8 +61,8 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 | `generation_in_single_call` | `4` | Examples per teacher call |
 | `generation_iteration_size` | `128` | Generate-validate batch size, and also the granularity `generation_target` rounds up to |
 | `generation_per_unstructured_context` | `null` | Closed-book QA only; target becomes this x len(unstructured) |
-| `num_positive_exemplars_per_generation` | `2` | Also a per-class floor on train data (see data-preparation) |
-| `num_negative_exemplars_per_generation` | `2` | Classification only |
+| `num_positive_exemplars_per_generation` | `1` | In-context examples for the class or tool being generated. Also a per-class floor on train data (see data-preparation). Cannot exceed the train row count |
+| `num_negative_exemplars_per_generation` | `1` | In-context examples for the classes or tools NOT being generated. Classification and tool calling. Cannot exceed the train row count |
 | `num_unlabelled_exemplars_per_generation` | `1` | Unstructured dataset must be at least this size |
 | `validation_max_total_length` | `30000` | Chars, question+answer+context; applies to uploaded data too |
 | `validation_similarity_threshold` | `0.95` | Dedup vs seed data. Lower it if synthgen produces near-duplicates |
@@ -87,7 +87,7 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 | `min_coherence_score` | `3` | 1-5. Lower lets corrupted traces through for committee repair |
 | `num_traces_as_training_base` | `200` | Leftover traces become unstructured data |
 | `num_traces_as_testing_base` | `200` | Must be ≥ 1. Ignored when a test set is provided. Keep equal to the training base |
-| `min_generated_examples` | `1` | Floor checked per split, after filtering and relabeling. Keep it below the smaller of the two base counts |
+| `min_generated_examples` | `1` | Floor checked per split, after filtering, relabeling AND schema checking. Keep it below the smaller of the two base counts. It is the only floor: without it a split is written out empty |
 | `evaluate_original_model` | `true` | Judges the original model on the test split. `false` skips it and writes null metrics. This is the stage's LLM-judge cost, so turn it off for smokes |
 | `max_unstructured` | `10000` | |
 | `observation_format` | `openai_messages` | See `data-preparation/traces.md` |
@@ -109,6 +109,21 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
   tools (plain `chat-completion` only), no model restriction applies.
 - `synthgen.max_tool_calls_per_turn` must be consistent with the job description: above 0
   requires declared tools, and 0 (or unset) is required when there are none.
+- No in-context exemplar count may exceed the number of train rows. The four counts are
+  `synthgen.num_positive_exemplars_per_generation`,
+  `synthgen.num_negative_exemplars_per_generation`, `evaluation.num_few_shot_examples` and
+  `tuning.num_few_shot_examples_student`. The counts are not reduced silently, they are
+  rejected up front:
+
+  ```
+  {'synthgen.num_positive_exemplars_per_generation': 3} asks for more in-context exemplars
+  than the training dataset holds (1). Lower the counts, or provide more training data.
+  ```
+
+  Trace processing is the one place that lowers them for you. It caps all four to the size of
+  the train split it produced, so it cannot emit an input its own validator would reject, and
+  logs a warning when it does. A count set in config.yaml therefore does not always survive
+  trace processing verbatim.
 
 Inert: `evaluation.batch_size`, `synthgen.validation_max_answer_length`,
 `synthgen.parallel_llm_calls`, `tuning.awq_quantize_tuned_model`. They carry defaults and

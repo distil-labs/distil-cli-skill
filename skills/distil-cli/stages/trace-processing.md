@@ -49,9 +49,29 @@ Trace processing is controlled by the `trace_processing` config section. The ful
   higher when you want a larger test set than training set. Leftover traces become
   unstructured context.
 - `min_generated_examples` (default 1) is a floor checked per split, train and test each
-  separately, after filtering and relabeling have dropped a fraction of the traces. Its
-  ceiling is therefore the SMALLER of the two base counts, and well below that in practice.
-  A supplied `test.jsonl` is rejected up front when it has fewer rows than this.
+  separately, after filtering, relabeling AND schema checking have each dropped a fraction of
+  the traces. Its ceiling is therefore the SMALLER of the two base counts, and well below that
+  in practice. A supplied `test.jsonl` is rejected up front when it has fewer rows than this.
+
+  **This is the only floor.** With nothing left to write, the stage writes the split out
+  empty rather than failing, so `min_generated_examples` is what makes a thinned split fail
+  loudly instead. Because the check runs after schema checking, the message names the real
+  cause:
+
+  ```
+  Unable to produce enough clean examples for the train split: got 0, need at least 1.
+  The schema for task tool-calling-closed-book rejected all but 0 of 12. The traces likely
+  do not match the task type, for example multi-turn for a single-turn task.
+  ```
+
+  Read that as a task-type mismatch first, not as a filtering problem.
+- **Trace processing can lower your exemplar counts.** No in-context exemplar count may
+  exceed the number of train rows (`../references/configuration.md` § Cross-field
+  validation), so this stage caps all four counts to the size of the train split it actually
+  produced, and logs a warning when it does. Otherwise it would emit an input directory the
+  platform then rejects. So a count you set in config.yaml is not guaranteed to survive trace
+  processing verbatim. Read the counts back out of the processed config before relying on
+  them.
 - `evaluate_original_model` (default true) produces the baseline the student must beat, and is
   this stage's LLM-judge cost. Set it false on smokes (Step 3).
 - `synthgen.validation_max_total_length` also applies to processed examples. When traces embed
@@ -87,8 +107,8 @@ trace_processing:
 ```
 
 **`min_generated_examples` must come down with the base counts.** It is a floor checked per
-split *after* filtering and relabeling have dropped a fraction of the traces, so a value tuned
-for a full run fails outright at smoke scale.
+split *after* filtering, relabeling and schema checking have dropped a fraction of the traces,
+so a value tuned for a full run fails outright at smoke scale.
 
 The subsample is a data change, so it stages a PreparedTraces of its own. Submit against it
 via the execution backend (§ Trace processing) and record the identifiers in `run.md`.
@@ -131,7 +151,7 @@ Copy the last passing smoke `input/` to `full-1/input/`, then:
 
 - restore the full `traces.jsonl` and the intended base counts (defaults 200/200)
 - raise `min_generated_examples` to a fraction of the smaller base count, so a thinned split
-  fails loudly
+  fails loudly instead of being written out empty
 - drop the smoke's `evaluate_original_model: false`, so the run produces the baseline
 
 Then submit.
@@ -143,7 +163,8 @@ is an override on it: a retry, a settings change, a later iteration.
 
 Repeat the Step 4 analysis on the full output, and review the generated test set closely
 with the user (size, label and length distribution, edge-case coverage) together with the
-original-model baseline. This test set gates every downstream verdict. If it is not
+original-model baseline. Check the row count of each split and the four exemplar counts in the
+processed config, since both can have come out lower than the settings asked for. This test set gates every downstream verdict. If it is not
 trustworthy, fix it now, supply a curated test.jsonl, or grow it with
 `test-set-expansion.md`. The processed output doubles as the input directory for teacher
 evaluation (`teacher-evaluation.md` and `synthetic-data-generation.md`).

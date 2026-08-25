@@ -8,8 +8,8 @@ Input directory contract for all stages. Read it before any task-specific page.
 input-dir/
 ├── config.yaml                 # training configuration (../configuration.md)
 ├── job_description.json        # task definition (../job-description.md)
-├── train.jsonl                 # seed training data
-├── test.jsonl                  # held-out test data
+├── train.jsonl                 # seed training data (present; may be empty)
+├── test.jsonl                  # held-out test data (present; may be empty)
 ├── unstructured.jsonl          # required for open-book and closed-book QA
 └── metadata.json               # optional: {"major_version": "1", "minor_version": "0"}
 ```
@@ -48,15 +48,20 @@ Full examples: the task-specific pages.
 
 ## Validation rules (enforced at parse/job start, so check before submitting)
 
-- [ ] train and test are non-empty. Every message `content` is non-empty, except the
-      tool-call assistant messages noted above, whose `content` is empty by design
+- [ ] `train.jsonl` and `test.jsonl` are both PRESENT. Either can be empty (§ Empty
+      splits); a missing file is an error. Every message `content` is non-empty, except
+      the tool-call assistant messages noted above, whose `content` is empty by design
 - [ ] context present when the task requires it
 - [ ] per row, total length <= `synthgen.validation_max_total_length`
 - [ ] train and test share NO identical rows (exact duplicates fail)
 - [ ] unstructured (when provided): non-empty string `context` rows, at least
       `synthgen.num_unlabelled_exemplars_per_generation` of them
 - [ ] classification: the label sets in train, test, and `classes_description` are
-      identical. Each class has at least the configured exemplar counts (defaults 2)
+      identical. Each class has at least the configured exemplar counts (defaults 1)
+- [ ] no in-context exemplar count exceeds the number of train rows. The four counts are
+      `synthgen.num_positive_exemplars_per_generation`,
+      `synthgen.num_negative_exemplars_per_generation`,
+      `evaluation.num_few_shot_examples` and `tuning.num_few_shot_examples_student`
 - [ ] tool calling: every tool call validates against the `tools` schemas. Multi-turn
       conversations start with a user message, end with an assistant tool call, and have a
       valid role sequence
@@ -67,6 +72,55 @@ Full examples: the task-specific pages.
 
 There is no hard minimum row count. Aim for 20+ diverse train examples and a test set covering
 the production distribution.
+
+## Empty splits
+
+`train.jsonl` and `test.jsonl` must both be there. Either can be empty. The file itself is the
+statement: an empty file says "no labelled data of this kind", and a missing file is almost
+always a wrong path.
+
+This is a narrow allowance, not a starting point to recommend. The normal shape is a populated
+train split and a populated test split, and a populated split is held to every rule above:
+the classification label sets must still match, and a class too thin for
+the exemplar counts still fails. Use an empty split only when the user genuinely has no data of
+that kind, for example a job that would otherwise carry one dummy row to satisfy the parser.
+
+What each stage does with an empty split:
+
+| Stage | Empty split | Behavior |
+|---|---|---|
+| trace processing | either | Writes it out. `min_generated_examples` is the only floor |
+| synthgen | train | Runs. Prompt blocks drop to zero-shot, and the output becomes the train split |
+| teacher evaluation | test | REFUSES. There is nothing to score the teacher against |
+| model training | train | REFUSES. There is nothing to train on |
+| model training | test | Runs and produces a model, but no evaluation results at all |
+
+Consequences to state to the user before they choose this:
+
+- **No test set means no scores.** Teacher evaluation cannot run. Training still produces a
+  model, but no base-vs-tuned comparison, no metric values, and no evaluation output
+  directories. The metrics are recorded as "not available" rather than as a score, so a run
+  with no test set is not mistaken for one whose scoring failed. Add a test set later and
+  evaluate then.
+- **No train set is workable at the start and fatal at the end.** Synthgen fills the split from
+  the task description, the tool or class definitions, and `unstructured.jsonl`. Training
+  refuses if the split is still empty when it starts. So synthgen must run first.
+
+Order matters, and the two refusals name themselves:
+
+```
+Teacher evaluation scores the teacher against a test set, and this job has none:
+test.jsonl is empty. Provide test examples, or skip this stage.
+
+Finetuning needs a training set, and this job has none: train.jsonl is empty.
+Generate synthetic data first, or provide training examples.
+```
+
+A test set with no train set is the more useful of the two shapes: teacher evaluation runs
+zero-shot, synthgen and training both run, and every score is still available.
+
+Empty splits apply to the chat format (JobInput V1) only. The older format still requires both
+splits.
 
 ## Validate before submitting
 

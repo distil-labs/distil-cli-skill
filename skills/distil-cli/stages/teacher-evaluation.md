@@ -24,6 +24,20 @@ unstructured.jsonl where required). Prepare it following
 validation checklist before submitting. If the data came from trace processing, the processed
 output is already a valid input directory.
 
+**This stage needs a populated test split.** The test set is the only thing there is to score
+the teacher against, so an empty `test.jsonl` stops the job:
+
+```
+Teacher evaluation scores the teacher against a test set, and this job has none:
+test.jsonl is empty. Provide test examples, or skip this stage.
+```
+
+Check the test split before submitting. If it is empty and the user has no test data, skip
+this stage rather than submitting it, and tell them what they give up: the teacher ceiling is
+the reference point every later score is read against
+(`../references/evaluation-metrics.md`). An empty train split is fine here. The evaluation
+runs zero-shot, since few-shot examples are drawn from the train split.
+
 The evaluation is controlled by the `evaluation` config section
 (`../references/configuration.md`) and the job description:
 
@@ -35,9 +49,11 @@ The evaluation is controlled by the `evaluation` config section
   defines what the judge accepts, and a vague one makes the whole verdict noisy
   (`../references/job-description.md`). Not valid for classification.
 - `evaluation.num_few_shot_examples` (default 1) is how many worked examples the teacher is
-  shown at evaluation time. It is unrelated to the per-class train-data floor in
-  `../references/data-preparation/classification.md`, which is a minimum on the data you
-  supply.
+  shown at evaluation time. They are drawn from the train split, so the value cannot exceed
+  the number of train rows, and asking for more is a validation error rather than a silent
+  reduction (`../references/configuration.md` § Cross-field validation). It is unrelated to
+  the per-class train-data floor in `../references/data-preparation/classification.md`,
+  which is a minimum on the data you supply.
 - `evaluation.llm_as_a_judge_model_name` picks the judge model. It defaults to
   `base.teacher_model_name`, which is usually what you want. But the default resolves when the
   config is first expanded, so a config read back for an override already names a judge. When

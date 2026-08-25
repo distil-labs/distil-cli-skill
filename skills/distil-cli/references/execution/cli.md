@@ -124,6 +124,10 @@ a directory and the CLI reads the files out of it by name:
 and combining them with `--data` is refused rather than merged. A file missing from the
 directory is named before anything uploads.
 
+"Required" means the file has to be there, not that it has to hold rows. `train.jsonl` and
+`test.jsonl` can be empty (`../data-preparation/overview.md` § Empty splits). Leaving one out
+is still an error.
+
 The download commands write these same names, so a downloaded directory feeds straight back
 into the matching `create --data`. That round trip is how a change to the *data* is made, since
 no override can reach it.

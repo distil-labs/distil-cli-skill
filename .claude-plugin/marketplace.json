@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Claude skill for building task-specific small language models on the distil labs platform",
-    "version": "6.4.0"
+    "version": "6.5.0"
   },
   "plugins": [
     {
@@ -16,7 +16,7 @@
         "url": "https://github.com/distil-labs/distil-cli-skill.git"
       },
       "description": "Build task-specific small language models (SLMs) on the distil labs platform, from raw data or production traces through to a deployed student model",
-      "version": "6.4.0"
+      "version": "6.5.0"
     }
   ]
 }

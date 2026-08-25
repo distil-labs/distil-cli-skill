@@ -303,7 +303,8 @@ staging a new one. Config changes over the same traces are overrides.
 ### The SeedDataset
 
 A job-input directory (`../data-preparation/overview.md`), staged file by file. Omit
-`unstructured_data` for tasks that do not use it.
+`unstructured_data` for tasks that do not use it. `train_data` and `test_data` are always
+staged, but either file can be empty (`../data-preparation/overview.md` § Empty splits).
 
 ```python
 body = stage(

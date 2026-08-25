@@ -25,6 +25,14 @@ unstructured.jsonl where required). Prepare it following
 `../references/data-preparation/overview.md` plus the task-specific page. In most projects
 you start from the input that already passed teacher evaluation.
 
+This stage runs with an empty train split. The exemplar blocks drop to zero-shot, and the
+teacher works from the task description, the tool or class definitions, and
+`unstructured.jsonl`. What it generates becomes the train split, which is why it has to run
+before training when the user has no labelled training data
+(`../references/data-preparation/overview.md` § Empty splits). Say so when presenting the
+setup, because zero-shot generation has no seed examples anchoring format or style, and
+Step 4's distribution axis has nothing to compare against.
+
 ### The three levers on what gets generated
 
 Every generation call is shaped by three inputs:
@@ -61,6 +69,12 @@ table is in `../references/configuration.md`. The ones to set deliberately:
 - When examples are long, lower `generation_in_single_call`,
   `num_positive_exemplars_per_generation`, and `num_unlabelled_exemplars_per_generation`. Each
   multiplies the prompt and output size per teacher call.
+- `num_positive_exemplars_per_generation` and `num_negative_exemplars_per_generation` (both
+  default 1) draw from the train split, so neither can exceed the number of train rows.
+  Asking for more is a validation error rather than a silent reduction
+  (`../references/configuration.md` § Cross-field validation). The negative count applies to
+  classification and to tool calling, where it sets the examples shown for the tools NOT
+  being generated for.
 - `output_is_json: true` whenever answers must be valid JSON (QA tasks only).
 - `base.llm_num_parallel_requests` above the default 4 can help, but do not expect linear
   gains: per-call latency and the between-batch validation usually dominate.

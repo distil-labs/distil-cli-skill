@@ -43,6 +43,11 @@ Present the prepared data to the user for review before moving on.
 Run `../stages/teacher-evaluation.md`. Gate: only continue on PROCEED. On ITERATE or
 RETHINK, work the stage's levers (teacher choice first) and re-run until the teacher passes.
 
+With an empty test split this step cannot run and the gate is unavailable. That is the
+exception, not a path to suggest (`../references/data-preparation/overview.md` § Empty
+splits). Tell the user what they lose before continuing: the feasibility gate, the teacher
+ceiling, and every number in Step 5. Then go to Step 3.
+
 ## Step 3: Synthetic Data Generation
 
 Run `../stages/synthetic-data-generation.md` with the teacher that passed evaluation. The
