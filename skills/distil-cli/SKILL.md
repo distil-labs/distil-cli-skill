@@ -1,6 +1,6 @@
 ---
 name: distil-cli
-version: 6.6.1
+version: 6.6.2
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing
   model-building inputs (config.yaml, job_description.json, train/test data), running or
