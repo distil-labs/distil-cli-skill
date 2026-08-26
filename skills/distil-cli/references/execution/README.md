@@ -37,10 +37,11 @@ prefers it, whenever the work is already scripted in Python, or when the install
    distil auth --email <email> --password <password>       # has an account; no browser
    ```
 
-   `distil signup` finishes signed in, so it needs no `distil auth` after it. Both browser
-   commands wait up to 20 minutes. If the browser does not open, they print a URL to paste.
-   There is no headless `signup`, so on a machine without a browser the account has to exist
-   already.
+   `distil signup` finishes signed in, so it needs no `distil auth` after it, but the user has
+   to sign in on the page after submitting the form — and confirm their email address first, if
+   the page asks for it. Both browser commands wait up to 20 minutes. If the browser does not
+   open, they print a URL to paste. There is no headless `signup`, so on a machine without a
+   browser the account has to exist already.
 
 Record the backend in `run.md` at the start of the project. Each later stage uses that backend.
 

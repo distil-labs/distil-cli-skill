@@ -25,7 +25,10 @@ distil whoami                                        # prints the current user
 ```
 
 `distil signup` and `distil auth` are the same browser handoff against a different page. Both
-finish signed in, so signup needs no separate login. There is no headless `signup`.
+finish signed in, so signup needs no separate login. Submitting the sign-up form creates the
+account but does not sign anyone in: the sign-in on the same page is what hands the session back,
+and if the page asks for an email confirmation, that sits between the two. There is no headless
+`signup`.
 
 The snippets also use `jq`. `README.md` § Choose the backend gives the full install procedure
 and the conditions that make the API backend necessary.
