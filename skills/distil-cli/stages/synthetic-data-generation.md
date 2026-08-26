@@ -41,7 +41,7 @@ Every generation call is shaped by three inputs:
 |---|---|---|
 | `task_description` | job_description.json | **constant**: every call, and every eval and judge prompt |
 | `synthetic_data_generation_instructions` | job_description.json | **constant**: every generation call, generation only |
-| `mutation_topics` / `basic_mutators_to_use` | config.yaml `synthgen` | **sampled**: one value per active mutator, per call |
+| `mutators` | config.yaml `synthgen` | **sampled**: one value per configured mutator, per call |
 
 - `task_description` says how to solve the task. It defines what a correct answer is, so it
   also feeds evaluation and the judge. Changing it changes what "correct" means everywhere.
@@ -50,9 +50,11 @@ Every generation call is shaped by three inputs:
 - `synthetic_data_generation_instructions` says how to generate the data: what the inputs look
   like, their formats, domains, register and noise. It touches generation only, so it is the
   safe place to steer the inputs without redefining the task.
-- Mutators shape the distribution of the generated data. Each call samples one value per
-  active mutator, so the composition of the list sets the proportions: three values asking for
+- Mutators shape the distribution of the generated data. `synthgen.mutators` holds one entry
+  per dimension, each with a `name` and a list of `values`; every call samples one value per
+  mutator, so the composition of the list sets the proportions: three values asking for
   English and one asking for French gives roughly a 75/25 split (`../references/mutators.md`).
+  Nothing is applied by default, and there are no built-in mutators any more.
 
 The two constants shift every example the same way. The mutators decide how the examples are
 distributed. So when the whole dataset is wrong in the same way (a format, a misread rule, the
@@ -80,7 +82,7 @@ table is in `../references/configuration.md`. The ones to set deliberately:
   gains: per-call latency and the between-batch validation usually dominate.
 
 If the task already names patterns, domains or proportions to cover, translate them into
-mutator values now. Otherwise keep the defaults and revisit after the smoke analysis.
+mutators now. Otherwise run without any and revisit after the smoke analysis.
 
 ## Step 2: Confirm the Setup with the User
 
@@ -88,7 +90,7 @@ Before submitting anything, present and confirm:
 
 - the key synthgen config (`validation_max_total_length`, per-call and exemplar counts,
   `output_is_json`, the intended `generation_target`)
-- the mutator plan (topics and built-ins now, or defaults first and revisit after the smoke)
+- the mutator plan (the dimensions and values now, or none first and revisit after the smoke)
 - the remaining `training_datasets_from_seed_datasets_post` credits, one per smoke and one
   for the full run (`../references/platform.md` § Credits)
 - the path: normal (a 64-example smoke, its analysis, then the full run) or fast (skip the
@@ -122,8 +124,8 @@ Then analyze the synthetic examples on three axes:
    multi-turn), topic coverage, style and register, class balance. Pick the dimensions that
    matter for the task and quantify where possible.
 3. **Targeted slices actually materialized**: if mutators or the job description asked for a
-   particular slice (a topic, a class, a value range), count it in the output. Mutation
-   topics are suggestions and can silently yield nothing.
+   particular slice (a topic, a class, a value range), count it in the output. Mutator values
+   are suggestions and can silently yield nothing.
 
    **Only read this axis when the smoke is large enough to answer it.** A run makes
    `generation_target / generation_in_single_call` mutator draws. At the default target of 64

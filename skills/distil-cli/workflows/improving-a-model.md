@@ -11,7 +11,7 @@ iteration id in the same stage directories under the project root.
 Print this map to the user when starting the workflow, before the first step:
 
 ```
-1 Diagnose Gaps ─── name the failure modes; they become mutation topics
+1 Diagnose Gaps ─── name the failure modes; they become mutator values
       │
       ├─ gaps not measurable by the current test set ──► 2 Expand the Test Set ─┐
       │                                                                         │
@@ -21,7 +21,7 @@ Print this map to the user when starting the workflow, before the first step:
       ▼
 4 Iteration-2 Synthgen ─┬─ iter-1 data good ► seed = iter-1 dataset, top-up target
       │                 └─ iter-1 data bad ─► seed = original data, full target
-      │                 (either way: new mutation_topics from Step 1)
+      │                 (either way: new mutators from Step 1)
       ▼
 5 Train ─── fast path with the iteration-1 winner
       │
@@ -35,7 +35,7 @@ Print this map to the user when starting the workflow, before the first step:
 
 From the training analysis, the Decide review, and what the user knows from production, name
 the failure modes concretely: specific scenarios, not "score too low". These names become
-mutation topics.
+mutator values.
 
 ## Step 2: Expand the Test Set (when the original scope was too narrow)
 
@@ -75,7 +75,7 @@ Run `../stages/synthetic-data-generation.md` with two changes:
     `generation_target`, after fixing whatever made iteration 1's data bad (usually the
     synthgen config or the mutators). Blending bad data in would just carry the problem
     forward.
-- **New `mutation_topics` encoding the Step 1 gaps** (`../references/mutators.md`).
+- **New `mutators` encoding the Step 1 gaps** (`../references/mutators.md`).
 
 ## Step 5: Train
 

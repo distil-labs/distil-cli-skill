@@ -3,7 +3,7 @@
 Grows the test set into areas the collected data never covered: rare failure modes and
 scenarios the user cares about that traces cannot show. Mechanically this is a
 synthetic-data-generation job with the datasets inverted: the test set acts as the seed,
-and new mutation topics steer generation into the uncovered areas. Read
+and new mutators steer generation into the uncovered areas. Read
 `synthetic-data-generation.md` first. This file describes only what differs.
 
 ## Working Directory
@@ -29,8 +29,8 @@ examples:
   contexts help generate realistic test cases, and the open/closed-book QA tasks require it
   anyway
 - config.yaml: a small `generation_target` (a fraction of the current test-set size), NEW
-  `mutation_topics` naming the uncovered areas (`../references/mutators.md`, where a
-  single-item list acts as a constant directive), and
+  `mutators` naming the uncovered areas (`../references/mutators.md`, where a single-value
+  mutator acts as a constant directive), and
   `match_generated_distribution_to_seed` OFF, because
   the whole point is to leave the observed distribution
 - job_description.json unchanged, as always

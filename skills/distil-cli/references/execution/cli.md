@@ -308,9 +308,9 @@ Two failure shapes:
 
 - A config carrying a complete `base` but no `synthgen` or `tuning` section is accepted, and
   those sections revert silently. Submitted against a parent that set `generation_target: 512`,
-  `output_is_json: true`, `per_device_train_batch_size: 8` and a list of `mutation_topics`, a
+  `output_is_json: true`, `per_device_train_batch_size: 8` and a list of `mutators`, a
   base-only override ran with `generation_target: 10000`, `output_is_json: false`,
-  `per_device_train_batch_size: 1` and no mutation topics. Nothing errored.
+  `per_device_train_batch_size: 1` and no mutators. Nothing errored.
 
 Because the read-back config is complete, checking what a submission actually ran with is a
 diff rather than an audit:

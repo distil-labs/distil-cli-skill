@@ -71,8 +71,7 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 | `match_generated_distribution_to_seed` | `false` | Classification and tool calling |
 | `num_distractor_context_blocks` | `0` | Above zero enables RAFT (open-book) |
 | `output_is_json` | `false` | QA only. Also forces answers in uploaded data to be valid JSON |
-| `basic_mutators_to_use` | `["complexity"]` | See `mutators.md` |
-| `mutation_topics` | `[]` | See `mutators.md` |
+| `mutators` | `[]` | One entry per dimension to vary, each with a `name` and a list of `values`. No mutators are applied by default. See `mutators.md` |
 | `max_tool_calls_per_turn` | `null` | Chat completion tasks only. Cap on tool calls per assistant turn. `null` resolves to 1 with tools declared, 0 without. Integer or `"unlimited"` to allow parallel calls; `0` requires a tool-free job description, and above 0 requires tools |
 | `clean_training_targets` | `false` | Final teacher pass that minimally repairs corrupted/truncated training targets. Multi-turn data is expanded into per-turn examples first, so every turn is covered |
 
@@ -126,6 +125,10 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
   trace processing verbatim.
 
 Inert: `evaluation.batch_size`, `synthgen.validation_max_answer_length`,
-`synthgen.parallel_llm_calls`, `tuning.awq_quantize_tuned_model`. They carry defaults and
-appear in every config the platform returns, but have no effect. Leave them untouched in a
-config you override. Do not add them to one you author.
+`synthgen.parallel_llm_calls`, `synthgen.basic_mutators_to_use`,
+`tuning.awq_quantize_tuned_model`. They carry defaults and appear in every config the platform
+returns, but have no effect. Leave them untouched in a config you override. Do not add them to
+one you author.
+
+Deprecated but still honored: `synthgen.mutation_topics` is translated into `mutators`, and
+setting both is a config error (`mutators.md` § Deprecated parameters).

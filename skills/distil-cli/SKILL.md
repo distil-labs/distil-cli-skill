@@ -1,6 +1,6 @@
 ---
 name: distil-cli
-version: 6.5.0
+version: 6.6.0
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing
   model-building inputs (config.yaml, job_description.json, train/test data), running or
@@ -126,7 +126,7 @@ exactly one owning page.
 | `references/job-description.md` | Writing good job descriptions per task type |
 | `references/configuration.md` | config.yaml parameters, defaults, cross-field validation |
 | `references/model-catalog.md` | Teacher and student models, task compatibility, llm providers |
-| `references/mutators.md` | Synthetic data diversity controls (built-in mutators, mutation topics) |
+| `references/mutators.md` | Synthetic data diversity controls (`synthgen.mutators`, value recipes) |
 | `references/evaluation-metrics.md` | Metrics per task type, primary metrics, relative verdict gates |
 | `references/deployment.md` | Model artifacts and serving options |
 | `references/execution/README.md` | Which backend to use: install the CLI, fall back to the API |
