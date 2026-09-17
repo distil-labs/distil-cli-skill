@@ -52,9 +52,10 @@ Every generation call is shaped by three inputs:
   safe place to steer the inputs without redefining the task.
 - Mutators shape the distribution of the generated data. `synthgen.mutators` holds one entry
   per dimension, each with a `name` and a list of `values`; every call samples one value per
-  mutator, so the composition of the list sets the proportions: three values asking for
-  English and one asking for French gives roughly a 75/25 split (`../references/mutators.md`).
-  Nothing is applied by default, and there are no built-in mutators any more.
+  mutator, uniformly unless `target_distribution` weights the values. A `method: adaptive`
+  mutator also measures what survived validation and asks for more of the values that fall
+  behind (`../references/mutators.md`). Nothing is applied by default, and there are no
+  built-in mutators any more.
 
 The two constants shift every example the same way. The mutators decide how the examples are
 distributed. So when the whole dataset is wrong in the same way (a format, a misread rule, the
