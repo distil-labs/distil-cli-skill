@@ -597,3 +597,97 @@ is what confirms it is down.
 
 To serve the model locally, download `model.tar` as above, then read `../deployment.md`
 § Serving locally.
+
+## Inference endpoints (collecting traces)
+
+An inference endpoint is an OpenAI-compatible gateway in front of the model the user already runs
+in production. Their application calls the endpoint instead of the provider, the fallback model
+answers exactly as before, and the platform keeps a copy of every call. Those copies are the
+traces that `stages/trace-processing.md` consumes, so this is the route for a user who wants a
+distilled model but has no trace file to start from.
+
+```bash
+distil inference-endpoint create --name <prefix> --fallback-model <owner/model>
+distil inference-endpoint list --output json          # alias: ls
+distil inference-endpoint show --output json <unique-endpoint-name>
+```
+
+```bash
+distil inference-endpoint create --name support --fallback-model "openai/gpt-4.1-mini"
+# Endpoint Name:   support-yeOdAS
+```
+
+`--name` is a prefix, not the name. The platform appends a suffix and returns the
+`unique_endpoint_name` (eg. `support` → `support-yeOdAS`), which every other command takes and which
+the `model` field of a request carries. Record it in `run.md` as an entity id. There is no
+lookup by prefix and no rename, so a lost name is recovered from `list`.
+
+`create`, `list` and `show` take `--output json`. `link-api-key`, `unlink-api-key` and
+`download-traces` do not (§ Which commands speak JSON).
+
+### Keys
+
+A request to the endpoint authenticates with an inference API key, which is a different
+credential from the CLI session. Keys are created on their own and then linked.
+
+```bash
+distil api-keys create <key-name>      # prints the secret once, writes <key-name>.json
+distil api-keys list --output json
+distil api-keys delete <key-name>
+distil inference-endpoint link-api-key <unique-endpoint-name> <key-name>
+distil inference-endpoint unlink-api-key <unique-endpoint-name> <key-name>
+```
+
+The secret is shown at creation and never again, which is why `create` also writes
+`<key-name>.json` to the current directory. `--no-file` suppresses that for a machine where the
+key must go straight into a secret store. Never echo a secret back into the transcript or into
+`run.md`; name the file it landed in instead. A key authenticates nothing until it is linked, and
+the link is many-to-many.
+
+### The call the user has to make
+
+```bash
+curl https://inference.distillabs.ai/v1/chat/completions \
+  -H "Authorization: Bearer <api-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "support-yeOdAS", "messages": [{"role": "user", "content": "Say hi."}]}'
+```
+
+`model` carries the unique endpoint name rather than a model name. Everything else is an ordinary
+chat completions request, so an existing OpenAI client changes three strings and nothing else:
+base URL to `https://inference.distillabs.ai/v1`, key to the endpoint's key, model to the unique
+name. Send one call like the above with the user before they touch their application, so a failure
+is a `curl` they can read rather than a production incident.
+
+Then it waits. Traces accumulate at the rate of their traffic, and trace processing wants
+hundreds, so the next stage is days or weeks away rather than minutes. Say that plainly when
+proposing this route.
+
+### Download the traces
+
+```bash
+distil inference-endpoint download-traces <unique-endpoint-name>                  # newest 1000
+distil inference-endpoint download-traces --count 5000 <unique-endpoint-name>     # -c
+distil inference-endpoint download-traces --all <unique-endpoint-name>
+distil inference-endpoint download-traces --file-name raw-traces.jsonl <unique-endpoint-name>
+```
+
+Writes JSONL, one trace per line, to `<unique-endpoint-name>-traces.jsonl` unless `--file-name`
+says otherwise. Defaults to the newest 1000.
+
+`--count` caps what is kept, not what is transferred: the platform answers 1000 per request
+whatever is asked for, so `--count 40` costs one request and `--count 5000` costs five. `--all`
+walks every page. Passing both is refused, not reconciled. An endpoint with no traces yet writes
+no file, so a missing file after a successful run means no traffic, not a failed download. The
+platform searches a bounded window, roughly the last 90 days.
+
+**The downloaded file is not a trace processing input.** It is the platform's record of each
+call: identifiers, timings and metadata around the request and the response. Trace processing
+wants one `{"messages": [...]}` object per line. Read a record before writing any conversion:
+
+```bash
+head -1 <file>.jsonl | jq 'keys'
+```
+
+Convert per `../data-preparation/traces.md` § From an inference endpoint, then run
+`stages/trace-processing.md` on the result like any other trace file.

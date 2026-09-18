@@ -632,3 +632,101 @@ The job does not return until vLLM answers, so `JOB_SUCCESS` means serving rathe
 scheduled. After the delete, `deployment_status` stays `JOB_SUCCESS`. `endpoint_status` going
 to `stopped` is what confirms the deployment is down. Delete the deployment when finished and
 check that field, because a running deployment bills until its idle timeout.
+
+## Inference endpoints (collecting traces)
+
+An inference endpoint is an OpenAI-compatible gateway in front of the model the user already runs
+in production. Their application calls the endpoint instead of the provider, the fallback model
+answers as before, and the platform keeps a copy of every call. Those copies are the traces that
+`stages/trace-processing.md` consumes, so this is the route for a user who wants a distilled
+model but has no trace file to start from.
+
+This is not a Deployment. It is permanent, has no idle timeout, and serves no trained model of
+its own.
+
+```python
+endpoint = post("/inference-endpoints", {
+    "name-prefix": "support",
+    "fallback-model": "openai/gpt-4.1-mini",
+})
+name = endpoint["unique_endpoint_name"]     # "support-yeOdAS"
+```
+
+`name-prefix` is a prefix, not the name. The platform appends a suffix and returns
+`unique_endpoint_name`, which every other route takes and which a request body carries. Record it
+in `run.md`. There is no lookup-by-name route, so recover a lost one from
+`get("/inference-endpoints")`, which lists newest first.
+
+### Keys
+
+```python
+key = post("/api-keys", {"api-key-name": "support-prod"})
+secret = key["secret"]      # returned by this response and by nothing else
+
+requests.put(
+    f"{PLATFORM_URL}/inference-endpoints/{name}/api-keys/support-prod", headers=auth()
+).raise_for_status()
+```
+
+`GET /api-keys` lists names and creation dates, never secrets, and nothing reissues one. Tell the
+user where the secret is going before creating it, and never echo it into the transcript or
+`run.md`. `DELETE` on the link path unlinks; `DELETE /api-keys/<name>` revokes the key
+everywhere. A 409 from either link route means the endpoint's datastore has not caught up with a
+write moments earlier: wait and retry rather than reporting a failure.
+
+### The call the user has to make
+
+The endpoint is a different host from `PLATFORM_URL` and takes the key's secret, not a Cognito
+token:
+
+```python
+requests.post(
+    "https://inference.distillabs.ai/v1/chat/completions",
+    headers={"Authorization": f"Bearer {secret}", "Content-Type": "application/json"},
+    json={"model": name, "messages": [{"role": "user", "content": "Say hi."}]},
+)
+```
+
+`model` carries the unique endpoint name rather than a model name. Everything else is an ordinary
+chat completions request, so an existing OpenAI client changes three strings: base URL, key and
+model. Send one call like this with the user before they touch their application. Then it waits:
+traces accumulate at the rate of their traffic, and trace processing wants hundreds, so the next
+stage is days or weeks away rather than minutes. Say that plainly when proposing this route.
+
+### Read the traces
+
+```python
+def traces(endpoint_name, limit=None, **window):
+    """Yield an endpoint's traces, newest first, a page at a time."""
+    cursor, yielded, seen = None, 0, set()
+    while True:
+        params = dict(window, **({"pagination-cursor": cursor} if cursor else {}))
+        response = requests.get(
+            f"{PLATFORM_URL}/inference-endpoints/{endpoint_name}/traces",
+            params=params,
+            headers=auth(),
+        )
+        raise_with_body(response)
+        page = response.json()
+        for trace in page["traces"]:
+            yield trace
+            yielded += 1
+            if limit is not None and yielded >= limit:
+                return
+        cursor = page["pagination_cursor"]
+        if cursor is None or cursor in seen:
+            return
+        seen.add(cursor)
+```
+
+The page size is the platform's, 1000, so `limit` caps what is kept and not what is transferred.
+Terminate on `pagination_cursor` being `null` and on nothing else, because an empty page can
+still carry a cursor; the `seen` guard stops a repeated cursor looping forever. `from-start-time`
+and `to-start-time` narrow the window as ISO 8601 timestamps, and sending neither leaves the
+platform's default, which is bounded at roughly 90 days.
+
+**What comes back is not a trace processing input.** It is the platform's record of each call:
+identifiers, timings and metadata around the request and the response. Trace processing wants one
+`{"messages": [...]}` object per line. Inspect a record before writing any conversion, convert per
+`../data-preparation/traces.md` § From an inference endpoint, then stage the result as
+`traces_jsonl` like any other trace file.
