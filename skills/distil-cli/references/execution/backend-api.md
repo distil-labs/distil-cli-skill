@@ -657,6 +657,12 @@ name = endpoint["unique_endpoint_name"]     # "support-yeOdAS"
 in `run.md`. There is no lookup-by-name route, so recover a lost one from
 `get("/inference-endpoints")`, which lists newest first.
 
+`fallback-model` takes an OpenRouter model slug in `owner/model` form
+(https://openrouter.ai/models lists every slug it accepts). It must name the model the user
+already calls in production, so ask rather than guess. If they are undecided, these are the ones
+distil labs runs today: `openai/gpt-4.1-mini` (small, cheap, the most common), `openai/gpt-5.4`,
+`google/gemini-2.5-flash`, `google/gemini-3.1-flash-lite`.
+
 ### Keys
 
 ```python
@@ -671,8 +677,13 @@ requests.put(
 `GET /api-keys` lists names and creation dates, never secrets, and nothing reissues one. Tell the
 user where the secret is going before creating it, and never echo it into the transcript or
 `run.md`. `DELETE` on the link path unlinks; `DELETE /api-keys/<name>` revokes the key
-everywhere. A 409 from either link route means the endpoint's datastore has not caught up with a
-write moments earlier: wait and retry rather than reporting a failure.
+everywhere.
+
+Key changes take up to a minute to propagate. A 409 from either link route means the endpoint's
+datastore has not caught up with a write moments earlier, and a link that answered 204 can take a
+moment longer before the endpoint honours the key. Wait and retry rather than reporting a
+failure, and do not have the user move traffic onto a new key, or revoke the key it replaces,
+inside that minute.
 
 ### The call the user has to make
 

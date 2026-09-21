@@ -622,6 +622,12 @@ distil inference-endpoint create --name support --fallback-model "openai/gpt-4.1
 the `model` field of a request carries. Record it in `run.md` as an entity id. There is no
 lookup by prefix and no rename, so a lost name is recovered from `list`.
 
+`--fallback-model` takes an OpenRouter model slug in `owner/model` form
+(https://openrouter.ai/models lists every slug it accepts). It must name the model the user
+already calls in production, so ask rather than guess. If they are undecided, these are the ones
+distil labs runs today: `openai/gpt-4.1-mini` (small, cheap, the most common), `openai/gpt-5.4`,
+`google/gemini-2.5-flash`, `google/gemini-3.1-flash-lite`.
+
 `create`, `list` and `show` take `--output json`. `link-api-key`, `unlink-api-key` and
 `download-traces` do not (§ Which commands speak JSON).
 
@@ -643,6 +649,10 @@ The secret is shown at creation and never again, which is why `create` also writ
 key must go straight into a secret store. Never echo a secret back into the transcript or into
 `run.md`; name the file it landed in instead. A key authenticates nothing until it is linked, and
 the link is many-to-many.
+
+Key changes take up to a minute to propagate. A freshly linked key can be rejected by the endpoint.
+Wait and retry rather than reporting a failure, and do not have the user move traffic onto a new key,
+or unlink the key it replaces, inside that minute.
 
 ### The call the user has to make
 
