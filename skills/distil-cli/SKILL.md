@@ -1,6 +1,6 @@
 ---
 name: distil-cli
-version: 6.8.0
+version: 6.9.0
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing
   model-building inputs (config.yaml, job_description.json, train/test data), running or
@@ -106,8 +106,9 @@ diagram of its steps, gates and loops. Print that map to the user when the workf
 
 | File | Purpose |
 |---|---|
+| `workflows/endpoint-to-model.md` | The default: collect traces with an inference endpoint, build, serve the student behind a new endpoint, loop |
 | `workflows/dataset-to-model.md` | End to end from a labeled dataset; owns the decide step |
-| `workflows/traces-to-model.md` | End to end from production traces |
+| `workflows/traces-to-model.md` | End to end from a trace file already in hand |
 | `workflows/improving-a-model.md` | Iteration 2: gap diagnosis, test-set expansion, seed blending, targeted mutators |
 
 ### References
@@ -122,7 +123,7 @@ exactly one owning page.
 | `references/task-types.md` | The task types, which needs context/unstructured data, how to choose |
 | `references/data-preparation/overview.md` | Input directory contract and validation checklist (read first) |
 | `references/data-preparation/<task>.md` | Per-task data format (one page per task type) |
-| `references/data-preparation/traces.md` | Trace input formats, and traces collected by an inference endpoint |
+| `references/data-preparation/traces.md` | Trace input formats, and converting the records an inference endpoint collects |
 | `references/job-description.md` | Writing good job descriptions per task type |
 | `references/configuration.md` | config.yaml parameters, defaults, cross-field validation |
 | `references/model-catalog.md` | Teacher and student models, task compatibility, llm providers |
@@ -136,12 +137,14 @@ exactly one owning page.
 
 ## Routing
 
-- End-to-end request ("build/train a model for X") → ask whether the starting point is a
-  labeled dataset or production traces, then load the matching workflow.
-- Production traffic but no trace file ("we run GPT-4 in production, but I can't export the
-  logs") → collect the traces first, by putting an inference endpoint in front of the model
-  they already use: the execution backend in use, § Inference endpoints (collecting traces).
-  Then `workflows/traces-to-model.md` once enough has accumulated.
+- End-to-end request ("build/train a model for X") → `workflows/endpoint-to-model.md` is the
+  default: it starts from the LLM the user runs in production, collects its traffic through an
+  inference endpoint, and ends with the student serving that traffic. Ask what they start with
+  only to rule it out: a trace file already exported → `workflows/traces-to-model.md`; a labeled
+  dataset and no production LLM → `workflows/dataset-to-model.md`.
+- Endpoint questions on their own ("put an endpoint in front of GPT-4", "download the traces",
+  "put the trained model behind the endpoint") → the execution backend in use, § Inference
+  endpoints, and `stages/model-deployment.md` § Step 2c for the last one.
 - Single-stage request ("run a teacher eval", "regenerate the synthetic data") → load that
   stage file plus the execution backend in use. If none is chosen yet, run
   `references/execution/README.md` § Choose the backend first.

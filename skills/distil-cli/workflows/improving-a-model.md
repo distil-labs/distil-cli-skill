@@ -1,9 +1,9 @@
 # Workflow: Improving an Existing Model
 
-For when a full pass of `dataset-to-model.md` (or `traces-to-model.md`) shipped a model, or
-stalled at Decide, and the analyses or production feedback show gaps. Improvement is a
-second iteration of the same pipeline that reuses the first iteration's artifacts instead of
-starting over. The job description stays constant throughout. Each stage run lands as a new
+For when a full pass of `endpoint-to-model.md`, `dataset-to-model.md` or `traces-to-model.md`
+shipped a model, or stalled at Decide, and the analyses or production feedback show gaps.
+Improvement is a second iteration of the same pipeline that reuses the first iteration's
+artifacts instead of starting over. The job description stays constant throughout. Each stage run lands as a new
 iteration id in the same stage directories under the project root.
 
 ## Workflow Map

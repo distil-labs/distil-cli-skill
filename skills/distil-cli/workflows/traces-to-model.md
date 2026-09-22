@@ -8,13 +8,9 @@ Before Step 1, settle the execution backend: install the `distil` CLI per
 `../references/execution/README.md` § Choose the backend, and record the result in `run.md`.
 
 **No traces yet?** This workflow needs a file of production logs to start. A user who runs an LLM
-in production but cannot export its logs can collect them on the platform instead: put a distil
-labs inference endpoint in front of the model they already use, let it record the traffic, and
-download the result. See the execution backend in use, § Inference endpoints (collecting traces).
-That is not a step of this workflow, because it finishes days or weeks later. Set it up, agree
-when to come back, and start at Step 1 with the downloaded and converted traces
-(`../references/data-preparation/traces.md` § From an inference endpoint). A user with no LLM in
-production at all belongs in `dataset-to-model.md` instead.
+in production but has no export of its logs belongs in `endpoint-to-model.md`, which collects
+them on the platform through an inference endpoint and comes back here once enough have
+accumulated. A user with no LLM in production at all belongs in `dataset-to-model.md`.
 
 ## Workflow Map
 

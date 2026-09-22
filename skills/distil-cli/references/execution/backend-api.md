@@ -641,27 +641,36 @@ answers as before, and the platform keeps a copy of every call. Those copies are
 `stages/trace-processing.md` consumes, so this is the route for a user who wants a distilled
 model but has no trace file to start from.
 
-This is not a Deployment. It is permanent, has no idle timeout, and serves no trained model of
-its own.
+This is not a Deployment. It is permanent, has no idle timeout, cannot be edited or deleted, and
+serves no trained model of its own until one is set as its primary (§ Serve the student behind an
+endpoint).
 
 ```python
 endpoint = post("/inference-endpoints", {
     "name-prefix": "support",
-    "fallback-model": "openai/gpt-4.1-mini",
+    "fallback": {"model": "openai/gpt-4.1-mini"},
+    "trace-sample-rate": 1,
 })
 name = endpoint["unique_endpoint_name"]     # "support-yeOdAS"
 ```
 
 `name-prefix` is a prefix, not the name. The platform appends a suffix and returns
 `unique_endpoint_name`, which every other route takes and which a request body carries. Record it
-in `run.md`. There is no lookup-by-name route, so recover a lost one from
-`get("/inference-endpoints")`, which lists newest first.
+in `run.md`. `get(f"/inference-endpoints/{name}")` reads one back, and
+`get("/inference-endpoints")` lists them newest first, which is how a lost name is recovered.
 
-`fallback-model` takes an OpenRouter model slug in `owner/model` form
+`fallback.model` takes an OpenRouter model slug in `owner/model` form
 (https://openrouter.ai/models lists every slug it accepts). It must name the model the user
 already calls in production, so ask rather than guess. If they are undecided, these are the ones
 distil labs runs today: `openai/gpt-4.1-mini` (small, cheap, the most common), `openai/gpt-5.4`,
 `google/gemini-2.5-flash`, `google/gemini-3.1-flash-lite`.
+
+`trace-sample-rate` is the fraction of calls the endpoint records, 0 to 1. Send 1 unless the
+traffic is very high. An endpoint created without the field records one call in a hundred; the
+response's `trace_sampling_rate` says what an existing one does.
+
+`POST /inference-endpoints` is metered (`inference_endpoints_post`) and answers 402 once that
+balance is spent.
 
 ### Keys
 
@@ -730,7 +739,7 @@ def traces(endpoint_name, limit=None, **window):
         seen.add(cursor)
 ```
 
-The page size is the platform's, 1000, so `limit` caps what is kept and not what is transferred.
+The page size is the platform's, so `limit` caps what is kept and not what is transferred.
 Terminate on `pagination_cursor` being `null` and on nothing else, because an empty page can
 still carry a cursor; the `seen` guard stops a repeated cursor looping forever. `from-start-time`
 and `to-start-time` narrow the window as ISO 8601 timestamps, and sending neither leaves the
@@ -741,3 +750,33 @@ identifiers, timings and metadata around the request and the response. Trace pro
 `{"messages": [...]}` object per line. Inspect a record before writing any conversion, convert per
 `../data-preparation/traces.md` § From an inference endpoint, then stage the result as
 `traces_jsonl` like any other trace file.
+
+Each record holds the request and the response as JSON strings under `input` and `output`, and
+`metadata` carries the HTTP `status` and `source`, which names whether the `fallback` or the
+`primary` answered.
+
+### Serve the student behind an endpoint
+
+The same route puts a trained model in front of the traffic. Deploy the student (§ Deploy
+(hosted)), wait for `JOB_SUCCESS`, smoke-test the deployment directly through `model_client.py`,
+then create a new endpoint with the deployment as `primary`:
+
+```python
+served = get(f"/deployments/{deployment_id}/endpoint")      # {"url": ..., "api_key": ...}
+endpoint = post("/inference-endpoints", {
+    "name-prefix": "support-slm",
+    "fallback": {"model": "openai/gpt-4.1-mini"},
+    "primary": {"url": served["url"], "api-key": served["api_key"]},
+    "trace-sample-rate": 1,
+})
+```
+
+`primary.url` is the deployment's URL as the deployment's endpoint route returns it, without
+`/v1`, since the endpoint appends `/v1/chat/completions` itself; `primary.api-key` is the key from
+the same response; both fields or neither. `primary.readiness-gate-timeout-ms` is optional and for
+internal use. The endpoint calls the primary first and falls back to `fallback.model` whenever
+the primary fails, a timeout included. An endpoint cannot be edited, so this is always a new
+endpoint with a new unique name, and the application's `model` string moves to it. The hosted
+deployment stops on its own, after which every call goes to the fallback and `source` reads
+`fallback`; a permanent primary is a request to contact@distillabs.ai. The new endpoint records
+like the first one, and its records are the traces for the next iteration.

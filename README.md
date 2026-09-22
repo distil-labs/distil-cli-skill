@@ -73,10 +73,11 @@ Once the skill is installed, ask Claude to build you a model:
 
 > "Help me build a classification model for customer support intent detection"
 
-Claude asks whether you are starting from a labeled dataset or from production traces, routes you
-to the matching workflow, and walks the pipeline with you: preparing the input directory, checking
-feasibility with a teacher evaluation, generating synthetic training data, training the student,
-and deploying it. Every stage confirms the setup and the expected credit cost with you before it
+Claude starts from the model you already run in production: it puts an inference endpoint in
+front of it to collect traces, or takes a trace file or a labeled dataset if you have one, and
+walks the pipeline with you: preparing the input directory, checking feasibility with a teacher
+evaluation, generating synthetic training data, training the student, and serving it behind a
+new endpoint so it takes the traffic the traces came from. Every stage confirms the setup and the expected credit cost with you before it
 submits anything. Where a smoke run is worth running, it runs a cheap one first.
 
 ## Documentation

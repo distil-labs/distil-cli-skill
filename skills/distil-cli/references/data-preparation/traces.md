@@ -33,32 +33,70 @@ A user with no trace file can have the platform collect one. A distil labs infer
 an OpenAI-compatible gateway that fronts the model they already run in production and keeps a
 copy of every call it serves. Setting one up and downloading from it is an execution-backend
 operation: `../execution/cli.md` § Inference endpoints (collecting traces), or the section of the
-same name in `../execution/backend-api.md`.
+same name in `../execution/backend-api.md`. `../../workflows/endpoint-to-model.md` sequences it.
 
-What the download writes is the platform's record of each call: identifiers, timings and
-metadata around the request and the response. It is not the observation format above, so convert
-it before running trace processing on it.
+The download is one record per call, and a record is not the observation format above. The
+fields that matter:
 
-Never assume the field names. Look at one record first:
+| Field | What it holds |
+|---|---|
+| `input` | The request body as a JSON string: `model`, `messages`, and `tools` when the caller sent any |
+| `output` | The chat completions response as a JSON string; the reply is `choices[0].message` |
+| `metadata.status` | The HTTP status the caller received |
+| `metadata.source` | Which model answered: `fallback`, or `primary` when a trained model is fronting the endpoint |
+| `start_time`, `latency` | When the call started and how long it took, in seconds |
+
+The rest is identifiers and platform bookkeeping. Inspect one record before converting:
 
 ```bash
-head -1 <endpoint-name>-traces.jsonl | jq 'keys'
-head -1 <endpoint-name>-traces.jsonl | jq '{input, output}'   # adjust to the keys you saw
+head -1 <endpoint-name>-traces.jsonl | jq '{status: .metadata.status, source: .metadata.source, input: (.input | fromjson | keys), output: (.output | fromjson | .choices[0].message | keys)}'
 ```
 
-Then write a conversion that, per line, takes the request's messages and the assistant reply the
-endpoint returned and emits one `{"messages": [...]}` object in the chosen
-`observation_format`. Check the first converted line by eye and the line count against the
-source before uploading anything, and apply the conversion guidance below as for any other
-source.
+Conversion, per line: parse `input` and `output`, append `choices[0].message` as the assistant
+turn to the request's `messages`, carry `tools` across when present, and write one
+`{"messages": [...]}` object. Skip the records that should not become training data:
 
-Two things to expect in endpoint records that a hand-written trace file does not have:
+- **Failed calls.** Keep `metadata.status == 200` only.
+- **Empty replies.** Skip a response with neither `content` nor `tool_calls`, rather than
+  emitting a conversation that ends on the user's turn.
+- **The wrong model's answers**, once a student fronts the endpoint. Filter on
+  `metadata.source` to keep the fallback's answers, the student's, or both, depending on what
+  the iteration is meant to learn from.
+
+```python
+import json
+
+def convert(record):
+    if record["metadata"].get("status") != 200:
+        return None
+    request = json.loads(record["input"])
+    reply = json.loads(record["output"])["choices"][0]["message"]
+    if not reply.get("content") and not reply.get("tool_calls"):
+        return None
+    assistant = {"role": "assistant", "content": reply.get("content") or ""}
+    if reply.get("tool_calls"):
+        assistant["tool_calls"] = reply["tool_calls"]
+    converted = {"messages": [*request["messages"], assistant]}
+    if request.get("tools"):
+        converted["tools"] = request["tools"]
+    return converted
+
+with open("<endpoint-name>-traces.jsonl") as src, open("traces.jsonl", "w") as dst:
+    for line in src:
+        converted = convert(json.loads(line))
+        if converted is not None:
+            dst.write(json.dumps(converted, ensure_ascii=False) + "\n")
+```
+
+Check the first converted line by eye and the kept count against the source before uploading
+anything, and apply the conversion guidance below as for any other source. Two things endpoint
+records have that a hand-written trace file does not:
 
 - **The system prompt is in every record**, because the endpoint saw the real request.
-  `remove_system_prompt_from_traces` (default true) strips it, and its content belongs in the job
-  description instead.
-- **Failed and empty calls are recorded too.** Drop records with no assistant reply rather than
-  emitting a conversation that ends on the user's turn.
+  `remove_system_prompt_from_traces` (default true) strips it, so its content belongs in the job
+  description's `task_description` instead, and the two must say the same thing.
+- **The reply can carry `reasoning`** next to `content` when the fallback is a reasoning model.
+  The conversion above keeps `content` only, which is what the caller's application used.
 
 ## Conversion guidance
 

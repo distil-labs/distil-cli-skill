@@ -38,7 +38,7 @@ that is set) and refreshes it, so a run spanning hours needs no second login. Th
 re-authenticates per request. `distil --version` prints the installed version, and
 `distil update` replaces the binary in place.
 
-This file describes CLI 0.25.2. Check the version before trusting a flag.
+This file describes CLI 0.27.0. Check the version before trusting a flag.
 
 ## Preamble
 
@@ -604,7 +604,11 @@ An inference endpoint is an OpenAI-compatible gateway in front of the model the 
 in production. Their application calls the endpoint instead of the provider, the fallback model
 answers exactly as before, and the platform keeps a copy of every call. Those copies are the
 traces that `stages/trace-processing.md` consumes, so this is the route for a user who wants a
-distilled model but has no trace file to start from.
+distilled model but has no trace file to start from. Later, the same kind of endpoint puts the
+trained student in front of that traffic (§ Serve the student behind an endpoint).
+
+An endpoint is not a Deployment. It is permanent, has no idle timeout, cannot be edited or
+deleted, and serves no model of its own until one is set as its primary.
 
 ```bash
 distil inference-endpoint create --name <prefix> --fallback-model <owner/model>
@@ -615,6 +619,7 @@ distil inference-endpoint show --output json <unique-endpoint-name>
 ```bash
 distil inference-endpoint create --name support --fallback-model "openai/gpt-4.1-mini"
 # Endpoint Name:   support-yeOdAS
+# Endpoint:        https://inference.distillabs.ai/v1/chat/completions
 ```
 
 `--name` is a prefix, not the name. The platform appends a suffix and returns the
@@ -627,6 +632,15 @@ lookup by prefix and no rename, so a lost name is recovered from `list`.
 already calls in production, so ask rather than guess. If they are undecided, these are the ones
 distil labs runs today: `openai/gpt-4.1-mini` (small, cheap, the most common), `openai/gpt-5.4`,
 `google/gemini-2.5-flash`, `google/gemini-3.1-flash-lite`.
+
+`--trace-sample-rate <0-1>` is the fraction of calls the endpoint records, default 1. The rate is
+fixed at creation and `show` reports it as `trace_sampling_rate`. Endpoints created with a CLI
+older than 0.27.0 carry a rate of 0.01, one call in a hundred, so create a new one when every
+call has to be recorded.
+
+`--primary-url` and `--primary-api-key` put a model of the user's own in front of the fallback:
+§ Serve the student behind an endpoint. `--readiness-gate-timeout-ms` belongs to that primary and
+is for internal use.
 
 `create`, `list` and `show` take `--output json`. `link-api-key`, `unlink-api-key` and
 `download-traces` do not (§ Which commands speak JSON).
@@ -648,7 +662,8 @@ The secret is shown at creation and never again, which is why `create` also writ
 `<key-name>.json` to the current directory. `--no-file` suppresses that for a machine where the
 key must go straight into a secret store. Never echo a secret back into the transcript or into
 `run.md`; name the file it landed in instead. A key authenticates nothing until it is linked, and
-the link is many-to-many.
+the link is many-to-many, so one key can serve the collecting endpoint and the one that later
+fronts the student. An account holds at most 5 keys.
 
 Key changes take up to a minute to propagate. A freshly linked key can be rejected by the endpoint.
 Wait and retry rather than reporting a failure, and do not have the user move traffic onto a new key,
@@ -666,8 +681,10 @@ curl https://inference.distillabs.ai/v1/chat/completions \
 `model` carries the unique endpoint name rather than a model name. Everything else is an ordinary
 chat completions request, so an existing OpenAI client changes three strings and nothing else:
 base URL to `https://inference.distillabs.ai/v1`, key to the endpoint's key, model to the unique
-name. Send one call like the above with the user before they touch their application, so a failure
-is a `curl` they can read rather than a production incident.
+name. The system prompt and everything else in the request stay as they are: the endpoint records
+the request whole, and trace processing moves the system prompt's content into the job
+description. Send one call like the above with the user before they touch their application, so a
+failure is a `curl` they can read rather than a production incident.
 
 Then it waits. Traces accumulate at the rate of their traffic, and trace processing wants
 hundreds, so the next stage is days or weeks away rather than minutes. Say that plainly when
@@ -682,22 +699,61 @@ distil inference-endpoint download-traces --all <unique-endpoint-name>
 distil inference-endpoint download-traces --file-name raw-traces.jsonl <unique-endpoint-name>
 ```
 
-Writes JSONL, one trace per line, to `<unique-endpoint-name>-traces.jsonl` unless `--file-name`
+Writes JSONL, one record per line, to `<unique-endpoint-name>-traces.jsonl` unless `--file-name`
 says otherwise. Defaults to the newest 1000.
 
-`--count` caps what is kept, not what is transferred: the platform answers 1000 per request
-whatever is asked for, so `--count 40` costs one request and `--count 5000` costs five. `--all`
-walks every page. Passing both is refused, not reconciled. An endpoint with no traces yet writes
+`--count` caps what is kept; the platform pages the transfer itself. `--all` walks every page.
+Passing both is refused, not reconciled. An endpoint with no traces yet writes
 no file, so a missing file after a successful run means no traffic, not a failed download. The
 platform searches a bounded window, roughly the last 90 days.
 
-**The downloaded file is not a trace processing input.** It is the platform's record of each
-call: identifiers, timings and metadata around the request and the response. Trace processing
-wants one `{"messages": [...]}` object per line. Read a record before writing any conversion:
+**The downloaded file is not a trace processing input.** Each record holds the request and the
+response as JSON strings under `input` and `output`, plus `metadata` with the HTTP `status` and
+`source`, which names whether the `fallback` or the `primary` answered. Trace processing wants one
+`{"messages": [...]}` object per line. Convert per `../data-preparation/traces.md` § From an
+inference endpoint, then run `stages/trace-processing.md` on the result like any other trace
+file.
+
+### Serve the student behind an endpoint
+
+The same command puts a trained model in front of the traffic. Deploy the student (§ Deploy
+(hosted)), wait for `JOB_SUCCESS`, smoke-test the deployment directly through `model_client.py`,
+and only then create a new endpoint with the deployment as its primary:
 
 ```bash
-head -1 <file>.jsonl | jq 'keys'
+distil deployment endpoint --output json <deployment-id>
+# {"url": "https://…/", "api_key": "…"}
+
+distil inference-endpoint create --name support-slm \
+  --fallback-model "openai/gpt-4.1-mini" \
+  --primary-url "https://<deployment-host>" \
+  --primary-api-key "<deployment-api-key>"
+# Endpoint Name:   support-slm-Qk3bZ1
+
+distil inference-endpoint link-api-key support-slm-Qk3bZ1 <key-name>
 ```
 
-Convert per `../data-preparation/traces.md` § From an inference endpoint, then run
-`stages/trace-processing.md` on the result like any other trace file.
+`--primary-url` is the deployment's URL as `deployment endpoint` prints it, without `/v1`: the
+endpoint appends `/v1/chat/completions` itself. `--primary-api-key` is the key from the same
+output. The two flags come together or not at all. The endpoint calls the primary first and
+falls back to the fallback model whenever the primary fails, a timeout included, so the
+application keeps answering when the deployment stops. It forwards the request as received, with
+`model` rewritten to the name the deployment serves.
+
+An endpoint cannot be edited, so fronting the student always means a new endpoint with a new
+unique name: the application's `model` string moves to it, and the old endpoint keeps recording
+until then. The application keeps the same system prompt it sent during collection; the student
+was trained against a job description that mirrors it. Where the caller can use it, the model's
+own `model_client.py` is the safer client, pointed at the endpoint:
+
+```bash
+uv run model/model_client.py --base-url https://inference.distillabs.ai/v1 \
+  --api-key <endpoint-api-key> --model support-slm-Qk3bZ1 \
+  --conversation '[{"role": "user", "content": "…"}]'
+```
+
+The hosted deployment behind the primary stops on its own (§ Deploy (hosted)), and from then on
+`source` in every record reads `fallback`. That setup is for trying the student on real traffic;
+a permanent primary is a request to contact@distillabs.ai. The new endpoint records like the
+first one, so its download is the trace file for the next iteration, with `source` telling the
+student's answers from the fallback's.
