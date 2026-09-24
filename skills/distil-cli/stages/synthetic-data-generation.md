@@ -52,7 +52,9 @@ Every generation call is shaped by three inputs:
   safe place to steer the inputs without redefining the task.
 - Mutators shape the distribution of the generated data. `synthgen.mutators` holds one entry
   per dimension, each with a `name` and a list of `values`; every call samples one value per
-  mutator, uniformly unless `target_distribution` weights the values. A `method: adaptive`
+  mutator, uniformly unless `target_distribution` weights the values. Leave `values` out and
+  give a `description` instead, and the teacher detects the values from the job description
+  and a sample of the seed data at the start of the run. A `method: adaptive`
   mutator also measures what survived validation and asks for more of the values that fall
   behind (`../references/mutators.md`). Nothing is applied by default, and there are no
   built-in mutators any more.
@@ -83,7 +85,9 @@ table is in `../references/configuration.md`. The ones to set deliberately:
   gains: per-call latency and the between-batch validation usually dominate.
 
 If the task already names patterns, domains or proportions to cover, translate them into
-mutators now. Otherwise run without any and revisit after the smoke analysis.
+mutators now. If a dimension (typically topic) clearly matters but its values are not obvious,
+add the mutator with a `description` and no `values` so the teacher detects them. Otherwise run
+without any and revisit after the smoke analysis.
 
 ## Step 2: Confirm the Setup with the User
 
@@ -91,7 +95,8 @@ Before submitting anything, present and confirm:
 
 - the key synthgen config (`validation_max_total_length`, per-call and exemplar counts,
   `output_is_json`, the intended `generation_target`)
-- the mutator plan (the dimensions and values now, or none first and revisit after the smoke)
+- the mutator plan (the dimensions and values now, values left to the teacher to detect, or
+  none first and revisit after the smoke)
 - the remaining `training_datasets_from_seed_datasets_post` credits, one per smoke and one
   for the full run (`../references/platform.md` § Credits)
 - the path: normal (a 64-example smoke, its analysis, then the full run) or fast (skip the

@@ -27,10 +27,11 @@ synthgen:
 | Field | Required | Notes |
 |---|---|---|
 | `name` | yes | The dimension this mutator varies. Keep it unique across mutators: it labels the sampled value and seeds the mutator's own random stream |
-| `values` | yes | At least one value, each a plain string. An empty list is a config error |
+| `values` | no | The values to sample from, each a plain string. Leave the field out and the teacher detects them from the job description and seed data, which then requires a `description` (§ Auto-detected values). An empty list is a config error |
 | `method` | no | `fixed` (the default) samples from the target distribution (constant sampling weights). `adaptive` classifies what survived validation and steers sampling towards values that fall behind (§ Adaptive mutators) |
-| `target_distribution` | no | `uniform` (the default), `match_seed`, or one weight per value, e.g. `[5, 3, 2]`. Weights are normalised, so proportions and relative counts both work. `match_seed` copies the proportions the teacher finds in the seed data (§ Matching the seed distribution) |
-| `description` | no | What the dimension means, e.g. `how many reasoning steps the answer needs`. Read only by the classifier: matters with `adaptive` and `match_seed`, ignored otherwise |
+| `target_distribution` | no | `uniform` (the default), `match_seed`, or one weight per value, e.g. `[5, 3, 2]`. Weights are normalised, so proportions and relative counts both work. `match_seed` copies the proportions the teacher finds in the seed data (§ Matching the seed distribution). A weight list needs listed `values` |
+| `description` | no | What the dimension means, e.g. `how many reasoning steps the answer needs`. Required when `values` is left out (it is the detector's only instruction). Otherwise read only by the classifier: matters with `adaptive` and `match_seed`, ignored with a fixed, uniform mutator |
+| `auto_detect_sample_size` | no | Only used when `values` is left out. How many seed examples the detector sees, a random sample when the seed data is larger. Default `50` |
 | `beta` | no | ADVANCED, `adaptive` only. How far the sampler may drift from the target, 0 to 1. Default `0.9`. Leave it unless a value is rejected constantly (§ Adaptive mutators) |
 
 Unknown fields on a mutator are rejected. So is `method: uniform`, the old name of the default:
@@ -75,6 +76,48 @@ number of values do not move in lockstep. Renaming a mutator changes its draws.
 - A single-value mutator is a useful special case. It applies the same directive to EVERY
   call, which turns the mutator into a constant extra generation instruction (for example
   output length or document realism) without touching the job description.
+
+## Auto-detected values
+
+When the dimension is known but its values are not, leave `values` out and describe the
+dimension. The teacher proposes the values once, at the start of the run, before generation.
+
+```yaml
+synthgen:
+  mutators:
+    - name: topic
+      description: which part of the product the customer is asking about
+```
+
+Mechanics:
+
+- The detector reads the serialized job description (task description, plus tools or classes
+  when the job has them) and a random sample of the seed training data, capped at
+  `auto_detect_sample_size` (default 50; a smaller seed set is passed whole). The sample comes
+  from the mutator's own random stream, so the same `base.random_seed` picks the same examples.
+- It is told to span what the task meets in production, not only what the seed shows, so
+  expect values the seed data lacks. Typically 3-8 values, each a few words, sometimes with a
+  one-sentence explanation after a dash.
+- One teacher call per detecting mutator, on top of any classification the mutator does later.
+  Blank and duplicate values are dropped; an unparsable or empty answer fails the run.
+- The detected values are logged (`Detected <name> values from the job description and N seed
+  examples: [...]`). They are not written back into the config.
+- Works with an empty seed set: the job description alone drives the detection.
+- `method: adaptive` classifies against the detected values, and `target_distribution:
+  match_seed` measures the seed data against them. An explicit weight list is a config error,
+  since there are no listed values to match the weights to.
+
+Constraints:
+
+- `description` is required, and a bare `name: topic` without one is a config error. Write it as
+  carefully as for an adaptive mutator: it is the only instruction the detector gets.
+- `values: []` is still an error. To detect, leave the field out entirely.
+
+When to use it: a first run on an unfamiliar dataset, or a `topic`-style dimension where
+enumerating the values by hand is the hard part. Read the detected values in the logs after the
+smoke run; if they need editing or pinning down, copy them into `values` and take over from
+there. Prefer listed values once the user knows what they want, because a listed mutator is
+free to construct and reproducible across runs without a teacher call.
 
 ## Adaptive mutators
 
@@ -203,6 +246,9 @@ entries are rejected, not flattened, so fold any such detail into one string.
 
 - First run: set mutators upfront if the task already names patterns, domains, or length
   characteristics to cover. Otherwise start with none and add them after reading the smoke.
+- The dimension is clear but its values are not (typically `topic`): give the mutator a
+  `description` and leave `values` out, so the teacher detects them (§ Auto-detected values).
+  Check the detected values in the logs.
 - Diversity gaps while iterating: add a dimension, or add values to an existing one.
 - A value that keeps coming up short in the output despite being listed: switch that mutator
   to `method: adaptive` with a `description`, or give it a heavier weight in
