@@ -65,7 +65,7 @@ Query via `model_client.py` with a handful of test-set rows and compare against 
 answers. Record the results in `analysis.md`.
 
 **Never hand-roll requests, on either route.** The prompt format must match training (the
-system prompt, `temperature: 0` and thinking disabled), and `model_client.py` is what encodes
+system prompt, `temperature: 0` and thinking on or off as in training), and `model_client.py` is what encodes
 it. The same client serves both routes: pass `base_url` to point it at a hosted deployment,
 omit it for a local server. Fetch it from the SLM's `download-metadata` (free) or take it from
 the extracted tarball. On the endpoint route, pass the endpoint's base URL and key and the
@@ -75,3 +75,7 @@ A hand-built request does not fail loudly. It returns `200` with reasoning text 
 and a much worse score than the eval metrics promised. So if quality is worse than expected,
 suspect prompt-format mismatch first, then check you are serving the merged `model/` directory
 and not the base model.
+
+Reasoning text is expected from a model trained with `base.enable_thinking: true`. Check that
+the answer follows it, and that a local server runs the reasoning parser
+(`../references/reasoning-models.md` § Deployment).

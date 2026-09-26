@@ -63,6 +63,11 @@ Key config is the `tuning` section (`../references/configuration.md`):
 `base.student_model_name` (set per run in the next steps), `per_device_train_batch_size`
 (default 1, where higher is faster but risks OOM), and `num_train_epochs` (default 4).
 
+For a reasoning student, `base.enable_thinking: true` must come from the TrainingDataset's
+config: turning it on here for data generated without it trains an empty thinking block. Raise
+`tuning.max_completion_length` if the reasoning is long (`../references/reasoning-models.md`
+§ Length budget).
+
 ## Step 2: Confirm the Setup with the User
 
 Before submitting anything, present and confirm:

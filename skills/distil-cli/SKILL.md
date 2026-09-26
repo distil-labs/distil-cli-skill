@@ -1,6 +1,6 @@
 ---
 name: distil-cli
-version: 6.10.0
+version: 6.11.0
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing
   model-building inputs (config.yaml, job_description.json, train/test data), running or
@@ -127,6 +127,7 @@ exactly one owning page.
 | `references/job-description.md` | Writing good job descriptions per task type |
 | `references/configuration.md` | config.yaml parameters, defaults, cross-field validation |
 | `references/model-catalog.md` | Teacher and student models, task compatibility, llm providers |
+| `references/reasoning-models.md` | Reasoning students (`base.enable_thinking`): supported models, data, stage order, deployment |
 | `references/mutators.md` | Synthetic data diversity controls (`synthgen.mutators`, value recipes) |
 | `references/evaluation-metrics.md` | Metrics per task type, primary metrics, relative verdict gates |
 | `references/deployment.md` | Model artifacts and serving options |
@@ -150,4 +151,6 @@ exactly one owning page.
   `references/execution/README.md` § Choose the backend first.
 - Results are disappointing ("teacher score is low", "student is far below teacher") → the
   relevant stage's levers, or `workflows/improving-a-model.md`.
+- Reasoning student ("train a model that thinks", `enable_thinking`, `reasoning_content`) →
+  `references/reasoning-models.md` before the first stage, then the workflow as usual.
 - Lookup question (a config parameter, a metric, a data format) → the matching reference file.

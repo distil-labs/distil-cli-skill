@@ -66,6 +66,12 @@ All teachers count as reasoning models except `Qwen3-235B-A22B-Instruct-2507`,
 `openai.gpt-oss-20b` and `openai.gpt-oss-120b` run at `low` reasoning effort. Their `-thinking`
 values run at `medium`.
 
+## Reasoning students (`base.enable_thinking`)
+
+`Qwen3-0.6B`, `Qwen3-1.7B`, `Qwen3-8B`, `Qwen3.5-0.8B`, `Qwen3.5-2B`, `Qwen3.5-4B`,
+`Qwen3.5-9B`, `Qwen3.6-35B-A3B`, `Nemotron-3.5-Lightning-30B-A3B`. Not `Qwen3-4B-Instruct-2507`.
+See `reasoning-models.md`.
+
 ## Vision compatibility (`base.visual_task`)
 
 Vision teachers: `moonshotai.kimi-k2.6`, `moonshotai.kimi-k2.6-thinking`, `moonshotai.kimi-k3`,

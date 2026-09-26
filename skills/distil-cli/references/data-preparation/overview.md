@@ -42,6 +42,8 @@ are chat-format conversations.
   key is `arguments`, and it is a JSON object, not a string.
 - Chat completion tasks relax this: their assistant turns carry content, `tool_calls`, or both
   (at least one), and parallel calls are allowed. See `chat-completion.md`.
+- For a reasoning student, an assistant message may carry `reasoning_content`. Optional; see
+  `../reasoning-models.md`.
 - `unstructured.jsonl` rows are `{"context": "..."}` (string).
 
 Full examples: the task-specific pages.

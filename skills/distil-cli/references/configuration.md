@@ -14,6 +14,7 @@ expert-only.
 |---|---|---|
 | `task` | required | See `task-types.md` |
 | `visual_task` | `false` | Inputs carry images; QA tasks only, and every model must be vision-capable |
+| `enable_thinking` | `false` | Reasoning student: synthgen writes reasoning, and training, evaluation and the client run with thinking on. Supported students only; trace processing rejects it. See `reasoning-models.md` |
 | `student_model_name` | `Llama-3.2-1B-Instruct` | See `model-catalog.md` |
 | `teacher_model_name` | `openai.gpt-oss-120b` | See `model-catalog.md` |
 | `random_seed` | `123` | Seeds sampling everywhere, including mutators |
@@ -40,6 +41,7 @@ expert-only.
 | `enable_trainer_internal_eval` | `false` | Per-epoch validation during training. Final metrics come from the post-training suite either way |
 | `memory_optimized_training` | `false` | Only when training runs out of GPU memory; much slower |
 | `use_qlora` | `false` | 4-bit NF4 base model. Needs `use_lora`, Linux-only bitsandbytes |
+| `max_completion_length` | `2048` | Tokens the student may generate in evaluation and RLVR. A reasoning student's reasoning counts against it; raise it when training warns it is below the longest training completion |
 
 RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 `rlvr_dataset_size` 0.0, `rlvr_llm_as_a_judge_model_name` inherits `base.teacher_model_name`,
@@ -99,8 +101,10 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 
 ## Cross-field validation (fails at config load)
 
-- Reasoning teacher (every teacher except `Qwen3-235B-A22B-Instruct-2507` and
-  `Qwen3-480B-A35B-Coder`) requires `synthgen.teacher_temperature` in [0.5, 0.7].
+- Reasoning teacher (every teacher except `Qwen3-235B-A22B-Instruct-2507`,
+  `Qwen3-480B-A35B-Coder` and `Qwen2.5-VL-72B-Instruct`) requires `synthgen.teacher_temperature`
+  in [0.5, 0.7].
+- `base.enable_thinking: true` requires a reasoning student (`reasoning-models.md`).
 - Tool-calling tasks require a supported student. Multi-turn additionally requires a supported
   teacher. See `model-catalog.md`.
 - `visual_task: true` requires a vision-capable model in every teacher and judge role, and a

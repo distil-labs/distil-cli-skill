@@ -33,6 +33,10 @@ before training when the user has no labelled training data
 setup, because zero-shot generation has no seed examples anchoring format or style, and
 Step 4's distribution axis has nothing to compare against.
 
+For a reasoning student, `base.enable_thinking: true` must be in this stage's config: the
+teacher writes the reasoning here, and a backfill pass adds it to rows without it, seed rows
+included (`../references/reasoning-models.md`).
+
 ### The three levers on what gets generated
 
 Every generation call is shaped by three inputs:
@@ -139,6 +143,10 @@ Then analyze the synthetic examples on three axes:
    therefore leaves cells empty by pigeonhole, whatever the config says, and empty cells at
    this scale tell you nothing. Size the smoke to at least ~2x the grid before treating axis 3
    as a gate, or skip it here and check it on the full run.
+
+For a reasoning student, also read the `reasoning_content` of a handful of rows: it should
+work the answer out, not restate it. Rows the backfill could not complete or that grew past
+`validation_max_total_length` are dropped, which also lowers the count.
 
 Problems visible in 64 examples will be everywhere in 10,000. This is the cheap moment to fix
 them.

@@ -26,7 +26,8 @@ A small model degrades sharply outside its training-time setup, and the client r
 setup exactly:
 
 - The trained system prompt, baked in as `SYSTEM_PROMPT`.
-- `temperature=0`, with thinking disabled (`chat_template_kwargs: {"enable_thinking": false}`).
+- `temperature=0`, with thinking as in training (`chat_template_kwargs: {"enable_thinking": false}`,
+  or `true` for a reasoning student; see `reasoning-models.md`).
 - Tool-calling models call with `tools=TOOLS, tool_choice="required"`; chat completion models
   use `tool_choice="auto"`, so the model decides whether to call. `invoke` returns the whole
   assistant message, content and tool calls included.
@@ -37,7 +38,7 @@ setup exactly:
   one `{"role": "tool", "tool_call_id": ..., "content": ...}` per call, and invokes again.
 
 A hand-built chat-completions request matches none of that, and it fails quietly: the endpoint
-answers `200`, reasoning text leaks into the answer, and the score falls well below what the
+answers `200`, reasoning text leaks into the answer of a model trained without thinking, and the score falls well below what the
 evaluation metrics promised.
 
 So query through the client on both routes below, and smoke-test any deployment with it on a
@@ -79,6 +80,7 @@ python model_client.py --conversation '[{"role": "user", "content": "..."}]'
 ```
 
 Both `model/` and the model's `config.yaml` are needed. The config is not inside the tarball.
+A reasoning student also needs `--reasoning-parser` (`reasoning-models.md` § Deployment).
 
 ## Serving hosted
 

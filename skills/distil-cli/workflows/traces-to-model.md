@@ -35,7 +35,7 @@ and the original-model evaluation is the baseline to record.
 ## Steps 2-6: Continue as Dataset to Model
 
 Follow `dataset-to-model.md` from Step 2 (teacher evaluation) onward. The data-preparation
-work of its Step 1 is already done. Two trace-specific additions:
+work of its Step 1 is already done. Three trace-specific additions:
 
 - In the training decision (its Step 5), the original-model baseline is a floor. A student
   that does not beat the model it replaces is not deployable, whatever `closed` says
@@ -43,3 +43,6 @@ work of its Step 1 is already done. Two trace-specific additions:
   `closed` against a weak base can still lose to the incumbent. The floor wins.
 - When iteration points at the data itself (bad test set, bad labels), the fix is usually
   re-running trace processing with different settings rather than editing files by hand.
+- For a reasoning student, trace processing runs with `base.enable_thinking: false`, and
+  synthgen is an override on the seed dataset with it set to `true`
+  (`../references/reasoning-models.md` § Stage order).

@@ -29,6 +29,9 @@ generated test split). Convert raw logs following
 `trace_processing_instructions` field carries task-specific guidance for the rewrite and fix
 edits, for example "preserve the caller's interruptions verbatim" for phone-call transcripts.
 
+Keep `base.enable_thinking: false` here: trace processing rejects `true`. For a reasoning
+student, turn it on at synthgen (`../references/reasoning-models.md` § Stage order).
+
 Trace processing is controlled by the `trace_processing` config section. The full table is in
 `../references/configuration.md`. The ones to set deliberately:
 
