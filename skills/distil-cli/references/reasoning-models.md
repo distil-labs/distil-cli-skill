@@ -34,8 +34,9 @@ includes `Qwen3-4B-Instruct-2507`, so for a 4B-class reasoning student use `Qwen
    `Reasoning backfill: kept X of Y`.
 
 The teacher writes in the first person, works the answer out instead of explaining it, rules
-out the nearest alternative, and invents no facts. There is no length parameter. To steer the
-length or style, say it in `task_description` (`job-description.md`).
+out the nearest alternative, and invents no facts. Put instructions on the style and length of
+the reasoning in `synthetic_data_generation_instructions` (`job-description.md`), for example
+"Keep the reasoning under 250 tokens: one short line per check."
 
 ## Data format
 

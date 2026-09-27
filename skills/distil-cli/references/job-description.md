@@ -78,7 +78,8 @@ write it as one.
   directly shape generated data.
 - `synthetic_data_generation_instructions` (optional, all task types): extra guidance injected
   into every synthetic-data-generation prompt. Use it to describe the generated inputs:
-  formats, domains, variation, noise.
+  formats, domains, variation, noise. For a reasoning student, it also carries the reasoning's
+  style and length (`reasoning-models.md`).
 - `llm_as_a_judge_instructions` (optional, every task type except classification): the
   instructions the judge model is given when it scores a prediction against the reference.
   State pass/fail criteria: what must match, what to ignore (order, whitespace,
