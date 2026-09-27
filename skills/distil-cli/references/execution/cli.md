@@ -491,9 +491,14 @@ Three things about the predictions file:
 
 - It is JSONL, one test example per line, carrying `prompt`, `completion`, `prediction` and
   that example's own score under each metric name. Read one row and work from what is there.
-- `prompt` is the full prompt as a JSON-encoded message list, not the user text alone, and
-  `completion` and `prediction` are JSON-encoded assistant messages. Parse them. Do not compare
-  them as raw strings.
+- `prompt` is the full prompt as a message list, not the user text alone, and `completion` and
+  `prediction` are assistant messages. Parse them before comparing. In the teacher evaluation
+  file they arrive as JSON values. In `slm download-predictions` they, and the per-metric
+  scores, arrive as Python-repr strings (single quotes), so `json.loads` fails: parse them with
+  `ast.literal_eval`.
+- `slm download-predictions` holds the tuned model's predictions only. The base model's
+  per-example predictions are not available through the CLI; only its scores are, in
+  `slm metrics`.
 - For classification the performance object is not flat. Alongside `accuracy` it carries one
   key per class label, each holding `{precision, recall, f1-score, support}`. There is no
   `confusion_matrix` and no `classification_report`. Iterate by key rather than assuming
