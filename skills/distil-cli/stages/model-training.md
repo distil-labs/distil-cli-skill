@@ -28,6 +28,16 @@ Both splits of the dataset gate this stage, in opposite ways
   a deployment verdict. Tell the user before submitting: they get a model they cannot yet
   measure. A test set can be added later, and the model evaluated then.
 
+## Conversation expansion
+
+`base.should_expand_dataset` defaults to `auto`, preserving the prefix-overlap heuristic.
+Use `false` for pre-split rows with selected or rewritten final responses: each row stays one
+example and earlier assistant turns remain masked history, including after sampling/filtering.
+It also limits evaluation to each supplied test row's final target. `true` forces expansion and
+is rejected for single-turn tasks. See `../references/configuration.md` § Conversation expansion
+for the threshold and effects on cleanup. When overriding this field, edit the complete
+parent config and submit the whole file.
+
 ## Working Directory
 
 ```

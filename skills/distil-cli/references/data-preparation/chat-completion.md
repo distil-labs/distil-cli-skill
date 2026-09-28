@@ -53,7 +53,7 @@ or `"unlimited"` for parallel calls; it must stay consistent with whether tools 
 Turn expansion: conversations are automatically split into one example per assistant turn, each
 predicted from the full prefix (tool results included), for training and evaluation both. So
 the model learns intermediate agentic calls AND final answers, and eval line counts exceed
-uploaded row counts. Pre-split data is detected (prefix overlap) and passed through unchanged.
+uploaded row counts. `auto` attempts to detect already-split data (using prefix overlap) and pass it through unchanged.
 
 Evaluation uses the tool-calling metric set plus the LLM judge (`../evaluation-metrics.md`).
 Parallel calls are compared positionally, so reference call order matters. Turns with no calls
