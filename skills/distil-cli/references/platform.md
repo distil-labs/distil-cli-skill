@@ -106,7 +106,7 @@ rather than reported as unlimited.
 | TeacherEvaluation | teacher score, its predictions | none | free |
 | TrainingDataset | train and test size in bytes | **credit gated**; a free sample instead | free |
 | SLM | base and tuned scores, the tuned model's predictions | model tarball | free; also the inference client |
-| Deployment | none | none | endpoint URL and key |
+| Deployment | none | none | none |
 
 Metrics and files answer once that entity's own job reaches `JOB_SUCCESS`. Before that they
 are null. Config and job description fill earlier on some entities than others, so treat a

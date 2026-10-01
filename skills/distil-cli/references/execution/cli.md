@@ -96,7 +96,7 @@ plural (`slms`, `deployments`, `teacher-evaluations`, and so on), and `list` ans
 ### Which commands speak JSON
 
 `--output json` is registered on the read commands (`list`, `show`, `status`, `logs`,
-`metrics`, `sample`, `endpoint`, plus `whoami` and `credits-balance`) and on the job creates
+`metrics`, `sample`, plus `whoami` and `credits-balance`) and on the job creates
 that name a parent id: `teacher-evaluation create-from-seed-dataset`,
 `training-dataset create-from-seed-dataset`, `slm create-from-training-dataset` and
 `deployment create-from-slm`.
@@ -437,7 +437,7 @@ them: `../platform.md` § What each stage produces.
 | TeacherEvaluation | `teacher-evaluation metrics` | none | `teacher-evaluation download-metadata` | `teacher-evaluation download-predictions` |
 | TrainingDataset | `training-dataset metrics` (byte sizes) | `training-dataset download` (metered), `training-dataset sample` (free) | `training-dataset download-metadata` | none |
 | SLM | `slm metrics` | `slm download` | `slm download-metadata` | `slm download-predictions` |
-| Deployment | none | none | none | `deployment endpoint` |
+| Deployment | none | none | none | none |
 
 The `Config + job description` column is the free read every override starts from. Each
 `download-metadata` writes exactly `config.yaml` and `job_description.json`, on every entity,
@@ -566,34 +566,39 @@ This is the sweep command from § Submitting jobs with one field changed instead
 distil deployment create-from-slm --output json <slm-id> | jq -r .id
 distil deployment status --output json <deployment-id> | jq -r .deployment_status
 
-distil deployment endpoint --output json <deployment-id>
-# {"url": "https://…", "api_key": "…"}
+distil inference-endpoint create-from-deployment --output json --name <prefix> \
+  --fallback-model <owner/model> <deployment-id> | jq -r .unique_endpoint_name
+distil inference-endpoint link-api-key <unique-endpoint-name> <key-name>
 ```
 
-`endpoint` carries the `url` and the `api_key`. Take both from that output. Query the
-deployment through the model's own client rather than a hand-built request:
-`../deployment.md` § Serving hosted has the call and says why. The client takes an
-OpenAI-style base URL, so drop the trailing slash from the URL and append `/v1`.
+A deployment is never called directly. `create-from-deployment` puts an inference endpoint in
+front of it (§ Inference endpoints), which calls the deployment first and falls back to
+`--fallback-model` when it fails. Create it once the deployment reports `JOB_SUCCESS`; before
+that it refuses with `Deployment is not ready`. Link an inference API key (§ Keys) and query the
+endpoint through the model's own client rather than a hand-built request:
+`../deployment.md` § Serving hosted has the call and says why.
 
 ```bash
 distil slm download-metadata -d model <slm-id>       # § The inference client on its own
-uv run model/model_client.py --base-url https://<endpoint>/v1 --api-key <api-key> \
+uv run model/model_client.py --base-url https://inference.distillabs.ai/v1 \
+  --api-key <endpoint-api-key> --model <unique-endpoint-name> \
   --conversation '[{"role": "user", "content": "…"}]'
 ```
+
+An answer alone does not say which model gave it. The endpoint's records do: `metadata.source`
+is `primary` for the deployment and `fallback` otherwise (§ Download the traces).
 
 ```bash
 distil deployment delete <deployment-id>
 ```
 
 The deployment serves the model with vLLM, and the job does not return until vLLM answers, so
-`JOB_SUCCESS` means serving rather than merely scheduled. Before that, `endpoint` answers
-`{"url": null, "api_key": null}` in JSON and `This deployment is not serving an endpoint.` for a
-human. It exits 0 either way, so poll the status rather than probing the endpoint. The API key
-protects the endpoint. The tunnel has no authentication of its own, and the URL is open to all.
+`JOB_SUCCESS` means serving rather than merely scheduled, so poll the status before creating the
+endpoint.
 
 **A deployment is a session, not a permanent endpoint.** It stops after six hours, or after one
-hour with no traffic. It cannot be restarted, and a new deployment carries a new URL and a new
-key. Replacing a stopped one spends another `deployments_from_slms_post` credit, so collect the
+hour with no traffic. It cannot be restarted. From then on the endpoint in front of it answers
+from the fallback, and a new deployment needs a new endpoint. Replacing a stopped one spends another `deployments_from_slms_post` credit, so collect the
 inputs to send before you create the deployment.
 
 CAUTION: delete the deployment when finished. A running deployment bills until its idle timeout.
@@ -617,6 +622,7 @@ deleted, and serves no model of its own until one is set as its primary.
 
 ```bash
 distil inference-endpoint create --name <prefix> --fallback-model <owner/model>
+distil inference-endpoint create-from-deployment --name <prefix> --fallback-model <owner/model> <deployment-id>
 distil inference-endpoint list --output json          # alias: ls
 distil inference-endpoint show --output json <unique-endpoint-name>
 ```
@@ -643,11 +649,14 @@ fixed at creation and `show` reports it as `trace_sampling_rate`. Endpoints crea
 older than 0.27.0 carry a rate of 0.01, one call in a hundred, so create a new one when every
 call has to be recorded.
 
-`--primary-url` and `--primary-api-key` put a model of the user's own in front of the fallback:
-§ Serve the student behind an endpoint. `--readiness-gate-timeout-ms` belongs to that primary and
+`create-from-deployment` puts a hosted deployment in front of the fallback: § Serve the student
+behind an endpoint. `--primary-url` and `--primary-api-key` on `create` do the same for a server
+the user runs themselves: the base URL of an OpenAI-compatible server without `/v1`, since the
+endpoint appends `/v1/chat/completions` itself, and its key. The two come together or not at
+all. `--readiness-gate-timeout-ms` belongs to that primary and
 is for internal use.
 
-`create`, `list` and `show` take `--output json`. `link-api-key`, `unlink-api-key` and
+`create`, `create-from-deployment`, `list` and `show` take `--output json`. `link-api-key`, `unlink-api-key` and
 `download-traces` do not (§ Which commands speak JSON).
 
 ### Keys
@@ -721,26 +730,20 @@ file.
 
 ### Serve the student behind an endpoint
 
-The same command puts a trained model in front of the traffic. Deploy the student (§ Deploy
-(hosted)), wait for `JOB_SUCCESS`, smoke-test the deployment directly through `model_client.py`,
-and only then create a new endpoint with the deployment as its primary:
+An endpoint also puts a trained model in front of the traffic. Deploy the student (§ Deploy
+(hosted)), wait for `JOB_SUCCESS`, and create a new endpoint with the deployment as its primary:
 
 ```bash
-distil deployment endpoint --output json <deployment-id>
-# {"url": "https://…/", "api_key": "…"}
-
-distil inference-endpoint create --name support-slm \
-  --fallback-model "openai/gpt-4.1-mini" \
-  --primary-url "https://<deployment-host>" \
-  --primary-api-key "<deployment-api-key>"
+distil inference-endpoint create-from-deployment --name support-slm \
+  --fallback-model "openai/gpt-4.1-mini" <deployment-id>
 # Endpoint Name:   support-slm-Qk3bZ1
 
 distil inference-endpoint link-api-key support-slm-Qk3bZ1 <key-name>
 ```
 
-`--primary-url` is the deployment's URL as `deployment endpoint` prints it, without `/v1`: the
-endpoint appends `/v1/chat/completions` itself. `--primary-api-key` is the key from the same
-output. The two flags come together or not at all. The endpoint calls the primary first and
+`--fallback-model` is the model production ran before. Smoke-test a few test-set rows through
+`model_client.py` pointed at the endpoint (below) before the application moves, and confirm in
+the downloaded records that `source` reads `primary` for them. The endpoint calls the primary first and
 falls back to the fallback model whenever the primary fails, a timeout included, so the
 application keeps answering when the deployment stops. It forwards the request as received, with
 `model` rewritten to the name the deployment serves.

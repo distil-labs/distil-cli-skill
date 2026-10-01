@@ -509,7 +509,7 @@ does not have. Which outputs each stage produces, and the conditions on them:
 | TeacherEvaluation | `teacher_performance`, `predictions_download_url` | none | free | none |
 | TrainingDataset | `train_data_size_bytes`, `test_data_size_bytes` | credit gated | free | `/sample` |
 | SLM | `base_model_performance`, `tuned_model_performance`, `predictions_download_url` | `model_url`, `config_url` | free; also `model_client_url` | none |
-| Deployment | none | none | none | `/endpoint` |
+| Deployment | none | none | none | none |
 
 A field that is not ready yet reads `null`. `config_of()` turns that null into an error naming
 the entity and its status, because the raw failure (`Invalid URL 'None'`) names neither.
@@ -616,13 +616,12 @@ the student.
 ```python
 deployment_id = post("/deployments/from-slms", {"from": slm_id})["id"]
 poll("deployments", deployment_id, 60 * 40, status_field="deployment_status")
-
-endpoint = get(f"/deployments/{deployment_id}/endpoint")
 ```
 
-`endpoint` carries the `url` and the `api_key`. Query the deployment through the model's own
-client, not a hand-built request: `../deployment.md` § Serving hosted has the call and says
-why.
+A deployment is never called directly. Once it reaches `JOB_SUCCESS`, an inference endpoint with
+the deployment id as its `primary` serves it (§ Serve the student behind an endpoint). Query that
+endpoint through the model's own client, not a hand-built request: `../deployment.md` § Serving
+hosted has the call and says why.
 
 ```python
 requests.delete(f"{PLATFORM_URL}/deployments/{deployment_id}", headers=auth())
@@ -758,23 +757,26 @@ Each record holds the request and the response as JSON strings under `input` and
 ### Serve the student behind an endpoint
 
 The same route puts a trained model in front of the traffic. Deploy the student (§ Deploy
-(hosted)), wait for `JOB_SUCCESS`, smoke-test the deployment directly through `model_client.py`,
-then create a new endpoint with the deployment as `primary`:
+(hosted)), wait for `JOB_SUCCESS`, then create a new endpoint with the deployment id as
+`primary`:
 
 ```python
-served = get(f"/deployments/{deployment_id}/endpoint")      # {"url": ..., "api_key": ...}
 endpoint = post("/inference-endpoints", {
     "name-prefix": "support-slm",
     "fallback": {"model": "openai/gpt-4.1-mini"},
-    "primary": {"url": served["url"], "api-key": served["api_key"]},
+    "primary": deployment_id,
     "trace-sample-rate": 1,
 })
 ```
 
-`primary.url` is the deployment's URL as the deployment's endpoint route returns it, without
-`/v1`, since the endpoint appends `/v1/chat/completions` itself; `primary.api-key` is the key from
-the same response; both fields or neither. `primary.readiness-gate-timeout-ms` is optional and for
-internal use. The endpoint calls the primary first and falls back to `fallback.model` whenever
+The route answers 409 until the deployment has reached `JOB_SUCCESS`. Smoke-test a few test-set
+rows through `model_client.py` pointed at the endpoint before the application moves, and confirm
+in the downloaded records that `source` reads `primary` for them.
+
+For a server the user runs themselves, `primary` is an object instead:
+`{"url": "https://<server>", "api-key": "<key>"}`, the base URL without `/v1`, since the endpoint
+appends `/v1/chat/completions` itself; both fields or neither.
+`primary.readiness-gate-timeout-ms` is optional and for internal use. The endpoint calls the primary first and falls back to `fallback.model` whenever
 the primary fails, a timeout included. An endpoint cannot be edited, so this is always a new
 endpoint with a new unique name, and the application's `model` string moves to it. The hosted
 deployment stops on its own, after which every call goes to the fallback and `source` reads

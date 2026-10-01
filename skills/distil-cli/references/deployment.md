@@ -84,17 +84,19 @@ A reasoning student also needs `--reasoning-parser` (`reasoning-models.md` § De
 
 ## Serving hosted
 
-The platform serves the model behind a URL and an API key, which the execution backend's
-deployment call returns. Point the same client at it:
+The platform serves the model, and an inference endpoint with the deployment as primary is how
+it is reached (the execution backend § Serve the student behind an endpoint). Point the same
+client at the endpoint, with the unique endpoint name as the model and an inference API key
+linked to the endpoint:
 
 ```python
 client = DistilLabsLLM(
-    model_name="model",
-    base_url=f"{endpoint['url'].rstrip('/')}/v1",
-    api_key=endpoint["api_key"],
+    model_name="<unique-endpoint-name>",
+    base_url="https://inference.distillabs.ai/v1",
+    api_key="<endpoint-api-key>",
 )
 ```
 
-The API key is load-bearing: the tunnel has no authentication of its own and the URL is
-otherwise open. A hosted deployment bills until its idle timeout, so delete it when the smoke
+A request the deployment cannot serve is answered by the endpoint's fallback model, so check
+`metadata.source` in the endpoint's records to confirm the student answered. A hosted deployment bills until its idle timeout, so delete it when the smoke
 test is done.

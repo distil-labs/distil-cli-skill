@@ -78,9 +78,9 @@ replaces is not served, whatever `closed` says.
 ## Step 8: Serve Behind the Endpoint
 
 Run `../stages/model-deployment.md` and take its route "Behind the inference endpoint": deploy
-the student, smoke-test the deployment directly, then create a new endpoint with the deployment
-as primary and the production model as fallback, and move the application's `model` string to
-the new endpoint name. The endpoint cannot be edited after creation, so this is always a new
+the student, create a new endpoint with the deployment as primary and the production model as
+fallback, smoke-test through it, and move the application's `model` string to the new endpoint
+name. The endpoint cannot be edited after creation, so this is always a new
 endpoint, and the old one keeps recording until the application moves.
 
 Two things to say to the user at this step:
