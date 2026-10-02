@@ -10,8 +10,8 @@ already hold a trace file or a labeled dataset. A user with a trace file starts 
 `traces-to-model.md`; a user with a labeled dataset and no production traffic at
 `dataset-to-model.md`.
 
-Before Step 1, settle the execution backend: install the `distil` CLI per
-`../references/execution/README.md` § Choose the backend, and record the result in `run.md`.
+Before Step 1, install the `distil` CLI and sign in per `../references/execution/README.md`
+§ Set up the CLI.
 
 ## Workflow Map
 
@@ -38,7 +38,7 @@ Print this map to the user when starting the workflow, before the first step:
 ## Step 1: Collect
 
 Create the endpoint, link a key, and have the user point their application at it: the execution
-backend in use, § Inference endpoints. Three things to settle with the user before creating it:
+backend, § Inference endpoints. Three things to settle with the user before creating it:
 
 - **The fallback model** is the model their application calls today, as an OpenRouter slug. Ask.
   The endpoint must answer exactly as production does, or the recorded traces describe a

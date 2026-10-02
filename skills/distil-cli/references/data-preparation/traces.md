@@ -32,8 +32,8 @@ a messages array. Use it for traces doubling as unstructured context.
 A user with no trace file can have the platform collect one. A distil labs inference endpoint is
 an OpenAI-compatible gateway that fronts the model they already run in production and keeps a
 copy of every call it serves. Setting one up and downloading from it is an execution-backend
-operation: `../execution/cli.md` § Inference endpoints (collecting traces), or the section of the
-same name in `../execution/backend-api.md`. `../../workflows/endpoint-to-model.md` sequences it.
+operation: `../execution/cli.md` § Inference endpoints (collecting traces).
+`../../workflows/endpoint-to-model.md` sequences it.
 
 The download is one record per call, and a record is not the observation format above. The
 fields that matter:

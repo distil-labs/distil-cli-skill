@@ -5,14 +5,10 @@ name. Every stage is an entity created by one command, and every entity is creat
 local files or by running a job over the entity before it. The only prerequisite is a distil
 labs account, which `distil signup` creates from the terminal.
 
-This is the default backend and `backend-api.md` is the alternative. Take that one when the
-user prefers it, when the work is already scripted in Python, or when the CLI cannot be
-installed. `README.md` § Choose the backend decides between them, and the choice goes in
-`run.md`.
+`README.md` § Set up the CLI installs it and signs in.
 
-Two things differ from the API backend. The CLI stages and uploads the files for you, so a
-directory is one argument. And an override is a file path rather than a JSON body: read the
-parent's config to disk, edit it, then pass it to `--config`.
+The CLI stages and uploads the files for you, so a directory is one argument. An override is a
+file path: read the parent's config to disk, edit it, then pass it to `--config`.
 
 ## Prerequisites
 
@@ -20,25 +16,28 @@ parent's config to disk, edit it, then pass it to `--config`.
 curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
 distil signup                                        # create an account; opens a browser
 distil auth                                          # sign in; opens a browser
-distil auth --email <email> --password <password>    # sign in, headless
 distil whoami                                        # prints the current user
+distil logout
 ```
 
-`distil signup` and `distil auth` are the same browser handoff against a different page. Both
-finish signed in, so signup needs no separate login. Submitting the sign-up form creates the
-account but does not sign anyone in: the sign-in on the same page is what hands the session back,
-and if the page asks for an email confirmation, that sits between the two. There is no headless
-`signup`.
+`distil signup` and `distil auth` are the same command. Each prints a one-time code and opens the
+distil labs sign-in page, where the user signs in or creates an account and confirms the code.
+Both finish by printing `Logged in as <email>`. If the browser
+does not open, the command prints an address that works from any device, which is also how to
+sign in from a machine with no browser. The code expires after a few minutes:
+`The sign-in code expired before it was confirmed` means run the command again. With a session
+already in place, both print `You are already logged in as <email>`; `distil logout` first to
+switch accounts.
 
-The snippets also use `jq`. `README.md` § Choose the backend gives the full install procedure
-and the conditions that make the API backend necessary.
+The snippets also use `jq`. `README.md` § Set up the CLI gives the full install procedure
+and what to do when the install is impossible.
 
-The CLI holds its own session in `~/.config/distillabs/token` (under `$XDG_CONFIG_HOME` when
-that is set) and refreshes it, so a run spanning hours needs no second login. The API backend
-re-authenticates per request. `distil --version` prints the installed version, and
-`distil update` replaces the binary in place.
+The CLI holds its own session in `~/.config/distillabs/session.json` (under `$XDG_CONFIG_HOME`
+when that is set) and refreshes it, so a run spanning hours needs no second login.
+`distil --version` prints the installed version, and `distil update` replaces the binary in
+place.
 
-This file describes CLI 0.27.0. Check the version before trusting a flag.
+This file describes CLI 0.28.0. Check the version before trusting a flag.
 
 ## Preamble
 
@@ -112,7 +111,7 @@ underneath. Parse the JSON form.
 
 ### Supplying files
 
-The CLI does the presigned-URL exchange that the API backend does by hand. `--data <dir>` names
+The CLI does the presigned-URL upload for you. `--data <dir>` names
 a directory and the CLI reads the files out of it by name:
 
 | Command | Required in `--data <dir>` | Optional |

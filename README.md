@@ -5,8 +5,7 @@ platform: from raw data or production traces, through teacher evaluation and syn
 generation, to a finetuned, evaluated, deployable student model.
 
 Everything runs on the distil labs platform through the `distil` CLI. The only prerequisite is an
-account. Where the CLI cannot be installed, the skill falls back to the REST API and needs
-`pip install requests pyyaml` instead.
+account.
 
 ## Installation
 
@@ -33,14 +32,9 @@ curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
 distil auth
 ```
 
-The skill does this itself at the start of a project if you skip it. If the installer does not
-support your platform (Windows without WSL, or any environment that permits no new binary), set
-credentials for the API fallback instead:
-
-```bash
-export DL_USERNAME="you@example.com"
-export DL_PASSWORD="…"
-```
+`distil auth` shows a one-time code and opens your browser to confirm it. Use `distil signup`
+instead if you don't have an account yet. The skill does this itself at the start of a project
+if you skip it. On Windows, run the CLI inside WSL.
 
 ## Supported Task Types
 
@@ -61,11 +55,10 @@ export DL_PASSWORD="…"
 | `stages/` | One unit of pipeline work each, directly invocable |
 | `workflows/` | Sequencers over stages, owning the gates and decision points |
 | `references/` | Shared knowledge: data formats, config, models, metrics |
-| `references/execution/` | The only files that know how stages actually run. Its `README.md` picks the backend |
+| `references/execution/` | The only files that know how stages actually run. Its `README.md` sets up the CLI |
 
 The skill separates *what to do* from *how to run it*. Stages and workflows hold the
-model-building logic. The execution backends under `references/execution/` hold the commands and
-request shapes. Swapping the CLI for the REST API changes the commands and nothing else.
+model-building logic. The execution backend under `references/execution/` holds the commands.
 
 ## Quick Start
 
@@ -83,7 +76,7 @@ submits anything. Where a smoke run is worth running, it runs a cheap one first.
 ## Documentation
 
 - [distil labs documentation](https://www.distillabs.ai/docs)
-- [CLI reference](https://www.distillabs.ai/docs/getting-started/cli)
+- [CLI reference](https://www.distillabs.ai/docs/reference/cli)
 
 ## License
 

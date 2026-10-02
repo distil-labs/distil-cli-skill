@@ -5,8 +5,8 @@ the stage's own protocol and return here for the next step. Check in with the us
 step boundary: each stage opens with its own setup gate, and no step's results are final
 until the user has seen them.
 
-Before Step 1, settle the execution backend: install the `distil` CLI per
-`../references/execution/README.md` § Choose the backend, and record the result in `run.md`.
+Before Step 1, install the `distil` CLI and sign in per `../references/execution/README.md`
+§ Set up the CLI.
 
 ## Workflow Map
 

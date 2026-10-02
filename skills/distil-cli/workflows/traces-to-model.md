@@ -4,8 +4,8 @@ End-to-end model building starting from production traces. Identical to
 `dataset-to-model.md` after the first step, with one extra baseline: the original production
 model's score, which the trained student must beat.
 
-Before Step 1, settle the execution backend: install the `distil` CLI per
-`../references/execution/README.md` § Choose the backend, and record the result in `run.md`.
+Before Step 1, install the `distil` CLI and sign in per `../references/execution/README.md`
+§ Set up the CLI.
 
 **No traces yet?** This workflow needs a file of production logs to start. A user who runs an LLM
 in production but has no export of its logs belongs in `endpoint-to-model.md`, which collects

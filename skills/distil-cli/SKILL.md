@@ -1,6 +1,6 @@
 ---
 name: distil-cli
-version: 6.12.0
+version: 7.0.0
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing
   model-building inputs (config.yaml, job_description.json, train/test data), running or
@@ -9,11 +9,11 @@ description: >
   too low, or deciding what to run next after a stage completes. Activate for phrasings like
   "build a model for X", "train a student model", "run a teacher eval", "generate synthetic
   data", "the score is low, what now", or "retrain on existing synthetic data". Stages run
-  through the distil labs API. This skill owns the model-building logic on top of it.
+  through the distil CLI. This skill owns the model-building logic on top of it.
   Also activate for distil labs lookups that are not a full build: distil CLI commands
   (distil auth, distil seed-dataset, distil traces, distil teacher-evaluation,
   distil training-dataset, distil slm, distil deployment, distil inference-endpoint,
-  distil api-keys), the distil labs REST API, config.yaml parameters, supported student
+  distil api-keys), config.yaml parameters, supported student
   and teacher models, or what an evaluation metric means.
 ---
 
@@ -36,10 +36,9 @@ independent of the mechanics of running a job.
 - **Execution backend** (`references/execution/`): the only files that know how stages actually
   run. They hold the commands and the request shapes. How the platform *behaves* lives in
   `references/platform.md`, so a second backend adds commands rather than restating the model.
-  Stage files cite operations by § name alone, so resolve those in the backend in use.
-  `references/execution/README.md` owns the choice: install the `distil` CLI and use
-  `cli.md`, and fall back to `backend-api.md` only when the install is impossible. Make that
-  choice once, before the first stage, and record it in `run.md`.
+  Stage files cite operations by § name alone, so resolve those in `references/execution/cli.md`.
+  `references/execution/README.md` owns the setup: install the `distil` CLI and sign in once,
+  before the first stage.
 
 ## Stage Protocol
 
@@ -131,9 +130,8 @@ exactly one owning page.
 | `references/mutators.md` | Synthetic data diversity controls (`synthgen.mutators`, value recipes) |
 | `references/evaluation-metrics.md` | Metrics per task type, primary metrics, relative verdict gates |
 | `references/deployment.md` | Model artifacts and serving options |
-| `references/execution/README.md` | Which backend to use: install the CLI, fall back to the API |
-| `references/execution/cli.md` | Execution backend: run stages through the `distil` CLI (default) |
-| `references/execution/backend-api.md` | Execution backend: run stages through the distil labs API |
+| `references/execution/README.md` | Setting up the backend: install the CLI and sign in |
+| `references/execution/cli.md` | Execution backend: run stages through the `distil` CLI |
 
 
 ## Routing
@@ -144,11 +142,11 @@ exactly one owning page.
   only to rule it out: a trace file already exported → `workflows/traces-to-model.md`; a labeled
   dataset and no production LLM → `workflows/dataset-to-model.md`.
 - Endpoint questions on their own ("put an endpoint in front of GPT-4", "download the traces",
-  "put the trained model behind the endpoint") → the execution backend in use, § Inference
+  "put the trained model behind the endpoint") → the execution backend, § Inference
   endpoints, and `stages/model-deployment.md` § Step 2c for the last one.
 - Single-stage request ("run a teacher eval", "regenerate the synthetic data") → load that
-  stage file plus the execution backend in use. If none is chosen yet, run
-  `references/execution/README.md` § Choose the backend first.
+  stage file plus the execution backend. If the CLI is not set up yet, run
+  `references/execution/README.md` § Set up the CLI first.
 - Results are disappointing ("teacher score is low", "student is far below teacher") → the
   relevant stage's levers, or `workflows/improving-a-model.md`.
 - Reasoning student ("train a model that thinks", `enable_thinking`, `reasoning_content`) →
