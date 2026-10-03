@@ -1,6 +1,7 @@
 ---
 name: distil-cli
-version: 7.0.0
+metadata:
+  version: "8.0.0"
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing
   model-building inputs (config.yaml, job_description.json, train/test data), running or
@@ -9,7 +10,7 @@ description: >
   too low, or deciding what to run next after a stage completes. Activate for phrasings like
   "build a model for X", "train a student model", "run a teacher eval", "generate synthetic
   data", "the score is low, what now", or "retrain on existing synthetic data". Stages run
-  through the distil CLI. This skill owns the model-building logic on top of it.
+  through the distil CLI.
   Also activate for distil labs lookups that are not a full build: distil CLI commands
   (distil auth, distil seed-dataset, distil traces, distil teacher-evaluation,
   distil training-dataset, distil slm, distil deployment, distil inference-endpoint,

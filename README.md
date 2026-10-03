@@ -1,31 +1,43 @@
-# Distil CLI Skill for Claude
+# distil labs Agent Skill
 
-An agent skill for building task-specific small language models on the [distil labs](https://distillabs.ai)
+An [Agent Skill](https://agentskills.io) for building task-specific small language models on the [distil labs](https://distillabs.ai)
 platform: from raw data or production traces, through teacher evaluation and synthetic data
 generation, to a finetuned, evaluated, deployable student model.
 
 Everything runs on the distil labs platform through the `distil` CLI. The only prerequisite is an
 account.
 
+The skill works with every coding agent that reads the Agent Skills format, including Claude Code,
+Codex, Cursor, Gemini CLI, GitHub Copilot and OpenCode.
+
 ## Installation
 
-### Claude Code
+### With the distil CLI
 
 ```bash
-/plugin marketplace add https://github.com/distil-labs/distil-cli-skill
-/plugin install distil-cli@distil-cli-skill
+curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
+distil skill install
 ```
 
-### Claude.ai / Claude Desktop
+`distil skill install` puts the skill in `~/.agents/skills`, the shared directory that Codex,
+Cursor, GitHub Copilot, Gemini CLI, OpenCode, Cline and many other agents read. It also links the
+skill into Claude Code. Run it again to update the skill. `distil skill uninstall` removes it. The command needs `git`. It does not
+need Node.
 
-1. [Download this repo as ZIP](https://github.com/distil-labs/distil-cli-skill/archive/refs/heads/main.zip) (or click "Code" → "Download ZIP" on GitHub)
-2. Go to [claude.ai](https://claude.ai) → Settings → Capabilities → Skills
-3. Click "Upload skill" and select the downloaded ZIP file
-4. Toggle the skill ON
+### With the skills CLI
+
+If you have Node, [`skills`](https://github.com/vercel-labs/skills) installs the skill without the
+distil CLI:
+
+```bash
+npx skills add distil-labs/distil-cli-skill
+```
+
+Use this route for an agent that `distil skill install` does not cover, with `--agent <name>`.
 
 ## Prerequisites
 
-Install the CLI and authenticate:
+The skill runs every stage through the `distil` CLI. Install it if you have not, and authenticate:
 
 ```bash
 curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
@@ -62,11 +74,11 @@ model-building logic. The execution backend under `references/execution/` holds 
 
 ## Quick Start
 
-Once the skill is installed, ask Claude to build you a model:
+Once the skill is installed, ask your agent to build you a model:
 
 > "Help me build a classification model for customer support intent detection"
 
-Claude starts from the model you already run in production: it puts an inference endpoint in
+The agent starts from the model you already run in production: it puts an inference endpoint in
 front of it to collect traces, or takes a trace file or a labeled dataset if you have one, and
 walks the pipeline with you: preparing the input directory, checking feasibility with a teacher
 evaluation, generating synthetic training data, training the student, and serving it behind a
