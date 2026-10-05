@@ -1,184 +1,147 @@
 # Stage: Synthetic Data Generation
 
-The teacher generates the training dataset from the seed data, job description, and mutators.
-Validation and dedup then produce the merged training dataset (root `train.jsonl` = seed +
-surviving synthetic) that model training consumes. When `synthgen.clean_training_targets` is
-set, a final teacher pass minimally repairs corrupted or truncated training targets.
-Multi-turn data is first expanded to per-turn examples, so every turn is covered.
+The teacher generates the training dataset from the seed data, the job description and the
+mutators. Validation and dedup then produce the TrainingDataset that model training consumes:
+its root `train.jsonl` is the seed rows and the surviving synthetic rows, merged. Conversations
+are expanded per assistant turn according to `base.should_expand_dataset`
+(`../references/configuration.md` § Conversation expansion).
 
 ## Working Directory
 
 ```
 synthetic-data-generation/
 ├── smoke-1/
-│   ├── input/           # the exact inputs this iteration ran
-│   ├── run.md           # submission command and job identifiers
-│   └── output/          # fetched datasets and logs
-├── smoke-2/             # next iteration: copy the previous input, change one thing
-└── full-1/              # last passing smoke input with full generation parameters
+│   ├── input/           # the override config and job description sent, if any
+│   ├── run.md           # the SeedDataset id, the command and the TrainingDataset id
+│   └── output/          # fetched sample, metrics and logs
+├── smoke-2/             # next smoke: one change against smoke-1
+└── full-1/              # the last passing smoke's settings, without --smoke
 ```
 
-## Step 1: Prepare the Input Directory
+## Step 1: Prepare the Input
 
-The input is the standard directory (config.yaml, job_description.json, train/test.jsonl,
-unstructured.jsonl where required). Prepare it following
-`../references/data-preparation/overview.md` plus the task-specific page. In most projects
-you start from the input that already passed teacher evaluation.
+The input is the SeedDataset that passed teacher evaluation, by id. Changes to it are a config
+or job-description override (`../references/execution/cli.md` § Overrides), kept in `input/`.
+For a reasoning student, see `../references/reasoning-models.md`.
 
-This stage runs with an empty train split. The exemplar blocks drop to zero-shot, and the
-teacher works from the task description, the tool or class definitions, and
-`unstructured.jsonl`. What it generates becomes the train split, which is why it has to run
-before training when the user has no labelled training data
-(`../references/data-preparation/overview.md` § Empty splits). Say so when presenting the
-setup, because zero-shot generation has no seed examples anchoring format or style, and
-Step 4's distribution axis has nothing to compare against.
+With an empty train split the stage still runs, zero-shot, and its output becomes the train
+split (`../references/data-preparation/overview.md` § Empty splits). Tell the user: no seed rows
+fix the format or style, and Step 4's distribution check has nothing to compare against.
 
-For a reasoning student, `base.enable_thinking: true` must be in this stage's config: the
-teacher writes the reasoning here, and a backfill pass adds it to rows without it, seed rows
-included (`../references/reasoning-models.md`).
+What shapes the generated data:
 
-### The three levers on what gets generated
-
-Every generation call is shaped by three inputs:
-
-| Lever | Where | Applied |
-|---|---|---|
-| `task_description` | job_description.json | **constant**: every call, and every eval and judge prompt |
-| `synthetic_data_generation_instructions` | job_description.json | **constant**: every generation call, generation only |
-| `mutators` | config.yaml `synthgen` | **sampled**: one value per configured mutator, per call |
-
-- `task_description` says how to solve the task. It defines what a correct answer is, so it
-  also feeds evaluation and the judge. Changing it changes what "correct" means everywhere.
-  Keep it matched to the user's production prompt and constant across iterations
-  (`../references/job-description.md`).
-- `synthetic_data_generation_instructions` says how to generate the data: what the inputs look
-  like, their formats, domains, register and noise. It touches generation only, so it is the
-  safe place to steer the inputs without redefining the task.
-- Mutators shape the distribution of the generated data. `synthgen.mutators` holds one entry
-  per dimension, each with a `name` and a list of `values`; every call samples one value per
-  mutator, uniformly unless `target_distribution` weights the values. Leave `values` out and
-  give a `description` instead, and the teacher detects the values from the job description
-  and a sample of the seed data at the start of the run. A `method: adaptive`
-  mutator also measures what survived validation and asks for more of the values that fall
-  behind (`../references/mutators.md`). Nothing is applied by default, and there are no
-  built-in mutators any more.
-
-The two constants shift every example the same way. The mutators decide how the examples are
-distributed. So when the whole dataset is wrong in the same way (a format, a misread rule, the
-wrong register throughout), fix a constant. When the mix is wrong (a slice missing, or
-over-represented against what production sees), change the mutator values and their
-proportions.
-
-Synthgen behavior is controlled by the `synthgen` section of config.yaml. The full parameter
-table is in `../references/configuration.md`. The ones to set deliberately:
-
-- `validation_max_total_length` sets the character cap on question + answer (+ context) per
-  example. Set it to the maximum combined length you expect in real data: the default 30,000
-  rejects longer uploaded examples and silently filters longer generated ones.
-- When examples are long, lower `generation_in_single_call`,
-  `num_positive_exemplars_per_generation`, and `num_unlabelled_exemplars_per_generation`. Each
-  multiplies the prompt and output size per teacher call.
-- `num_positive_exemplars_per_generation` and `num_negative_exemplars_per_generation` (both
-  default 1) draw from the train split, so neither can exceed the number of train rows.
-  Asking for more is a validation error rather than a silent reduction
-  (`../references/configuration.md` § Cross-field validation). The negative count applies to
-  classification and to tool calling, where it sets the examples shown for the tools NOT
-  being generated for.
-- `output_is_json: true` whenever answers must be valid JSON (QA tasks only).
-- `base.llm_num_parallel_requests` above the default 4 can help, but do not expect linear
-  gains: per-call latency and the between-batch validation usually dominate.
-
-If the task already names patterns, domains or proportions to cover, translate them into
-mutators now. If a dimension (typically topic) clearly matters but its values are not obvious,
-add the mutator with a `description` and no `values` so the teacher detects them. Otherwise run
-without any and revisit after the smoke analysis.
+- `task_description` defines what a correct answer is and is fixed
+  (`../references/job-description.md` § What each field feeds).
+- `synthetic_data_generation_instructions` and mutators are the two settings that control the
+  data; § What Can Be Changed to Improve the Next Iteration describes both. If the task already
+  names patterns, domains or proportions to cover, write them as mutators now. If a dimension
+  clearly matters but its values are not obvious, give the mutator a `description` and no
+  `values`. Otherwise start without mutators and revisit after the smoke.
+- The `synthgen` config (`../references/configuration.md`). Set deliberately:
+  `validation_max_total_length` to the longest combined row length expected; lower
+  `generation_in_single_call` and the exemplar counts when rows are long; `output_is_json: true`
+  when answers must be JSON (question answering only).
 
 ## Step 2: Confirm the Setup with the User
 
 Before submitting anything, present and confirm:
 
-- the key synthgen config (`validation_max_total_length`, per-call and exemplar counts,
-  `output_is_json`, the intended `generation_target`)
-- the mutator plan (the dimensions and values now, values left to the teacher to detect, or
-  none first and revisit after the smoke)
-- the remaining `training_datasets_from_seed_datasets_post` credits, one per smoke and one
-  for the full run (`../references/platform.md` § Credits)
-- the path: normal (a 64-example smoke, its analysis, then the full run) or fast (skip the
-  smoke, Steps 3-5, and submit the full run directly)
+- the key `synthgen` config and the intended `generation_target`
+- the mutator plan: dimensions and values, values left for the teacher to detect, or none yet
+- the remaining `training_datasets_from_seed_datasets_smoke_post` credits, one per smoke, and
+  `training_datasets_from_seed_datasets_post` credits, one per full run
+  (`../references/platform.md` § Credits)
+- the path: normal (a smoke, its analysis, then the full run) or fast (skip Steps 3-5)
 
 ## Step 3: Smoke Run
 
-Run a minimal generation to check the setup before spending the full budget. In the iteration
-copy of config.yaml set `generation_target: 64` and `generation_iteration_size: 16`, then
-submit a synthetic-data-generation job via the execution backend (§ Submitting jobs).
-Record the command and job identifiers in `run.md`.
+Submit with `--smoke` (`../references/execution/cli.md` § Synthetic data generation; what a
+smoke generates: `../references/platform.md` § Smoke runs). Record the command and the
+TrainingDataset id in `run.md`.
 
 ## Step 4: Pull and Analyze the Smoke Outputs
 
-Confirm the job succeeded, then pull the generated data into `output/`: the root
-`train.jsonl`/`test.jsonl` (locations: the execution backend's output sections). The root
-`train.jsonl` is the seed and the surviving synthetic examples MERGED, so the synthetic count
-is root minus seed. Compare that count against the smoke target first: falling well short
-means validation filtered heavily, usually length caps or format problems.
+Confirm the job succeeded, then read the data into `output/` (`../references/execution/cli.md`
+§ Output layout and § Reading a TrainingDataset). The synthetic count is the root row count
+minus the seed count. Falling well short of the target means validation filtered heavily,
+usually on length or format.
 
-Then analyze the synthetic examples on three axes:
+The free sample mixes seed and generated rows and does not mark which is which
+(`../references/platform.md` § What each stage produces). Compare it against the seed rows to
+tell them apart, and read the axes below on the rows that are not in the seed. The sample can
+hold few or none of the generated rows, notably when the seed is large (reused training data).
+When it doesn't cover them, use the full `training-dataset download` instead.
 
-1. **Form against the job description**: does each sampled example parse, carry the required
-   output format, and respect the stated constraints? A malformed row is a defect whatever
-   the rate, so this axis is pass/fail on the shape, not a score on the answers. Read a
-   handful of answers to check the teacher understood the task, but do not gate on a label
-   error rate. The student absorbs a low rate of teacher noise, and there is no threshold
-   that separates acceptable from not.
-2. **Distribution match against the seed examples**: compare generated against seed data along
-   the dimensions relevant to this task, for example length (characters, or turns for
-   multi-turn), topic coverage, style and register, class balance. Pick the dimensions that
-   matter for the task and quantify where possible.
-3. **Targeted slices actually materialized**: if mutators or the job description asked for a
-   particular slice (a topic, a class, a value range), count it in the output. Mutator values
-   are suggestions and can silently yield nothing.
+Analyze the synthetic rows on three axes:
 
-   **Only read this axis when the smoke is large enough to answer it.** A run makes
-   `generation_target / generation_in_single_call` mutator draws. At the default target of 64
-   and `generation_in_single_call: 4`, that is 16 draws. A grid of more than 16 cells
-   therefore leaves cells empty by pigeonhole, whatever the config says, and empty cells at
-   this scale tell you nothing. Size the smoke to at least ~2x the grid before treating axis 3
-   as a gate, or skip it here and check it on the full run.
+1. **Form against the job description**: each row parses, carries the required output format
+   and respects the stated constraints. A malformed row is a defect at any rate. Read a handful
+   of answers to check the teacher understood the task. Scattered label errors are noise the
+   student tolerates; one rule broken again and again is a defect to fix
+   (§ What Can Be Changed to Improve the Next Iteration).
+2. **Distribution against the seed rows**: length (characters, or turns), topic coverage, style
+   and register, class balance. Pick the dimensions that matter for the task and count.
+3. **Requested slices present**: count each slice the mutators or the job description asked
+   for. Mutator values are requests and can produce nothing. Gate on this axis only when the
+   mutator grid has at most 16 cells; with more, check it on the full run.
 
-For a reasoning student, also read the `reasoning_content` of a handful of rows: it should
-work the answer out, not restate it. Rows the backfill could not complete or that grew past
-`validation_max_total_length` are dropped, which also lowers the count.
-
-Problems visible in 64 examples will be everywhere in 10,000. This is the cheap moment to fix
-them.
+For a reasoning student, also check the reasoning (`../references/reasoning-models.md`).
 
 ## Step 5: Iterate Until the Smoke Passes
 
-If the analysis fails on any axis, adjust one of the three levers (Step 1) in a new smoke
-iteration: mutator values and their proportions for the mix of examples, the generation
-instructions for how the inputs themselves look, the relevant config field for scale and
-validation. Present each smoke analysis to the user. Only move on once a smoke run passes
-every axis and the user agrees to the full run.
+If an axis fails, change one setting in a new smoke: mutators for the mix of rows, the
+generation instructions for how the inputs look, the `synthgen` config for volume and
+validation. Present each smoke analysis to the user, and move on once a smoke passes every axis
+and the user agrees to the full run.
 
 ## Step 6: Full Run
 
-Copy the last passing smoke `input/` to `full-1/input/`, restore the intended
-`generation_target` (default 10000) and `generation_iteration_size` (default 128), and
-submit.
+Submit the last passing smoke's settings without `--smoke`, with `generation_target: 10000`
+unless the user asks for a different size.
 
 ## Step 7: Analyze the Results
 
-When the run finishes, pull a sample of the root `train.jsonl` and repeat the Step 4
-analysis, plus check the final size (expect seed count + surviving synthetic, merged) against
-the target and the overall balance. `generation_target` is a floor rounded up to the next
-`generation_iteration_size` batch, so landing above it is normal. Landing well short means
-validation filtered heavily.
+Repeat the Step 4 analysis on a sample of the root `train.jsonl`, and check the final size
+against the target. `generation_target` rounds up to the next `generation_iteration_size`
+batch, so landing above it is normal.
 
-Present the findings to the user, then take one of two branches:
+Present the findings to the user:
 
-- **It passes.** The dataset is ready for model training (`model-training.md`).
-- **It fails.** Do not carry the dataset into training. Bad data does not announce itself in
-  the training metrics. It shows up as a plateau you will spend a full training run
-  discovering. Go back to Step 5's levers and submit another full run: mutators for coverage
-  gaps, the relevant config or job-description field for correctness or format problems. A
-  regenerated dataset costs one synthgen credit. Training on a bad one costs a training credit
-  and hours, and then you regenerate anyway.
+- **It passes**: the dataset goes to `model-training.md`.
+- **It fails**: do not train on it. Bad data shows up in training only as a plateau found after
+  a full training run. Change the settings per Step 5 and submit another full run, which costs
+  one generation credit instead of a training credit and a full training run.
+
+## What Can Be Changed to Improve the Next Iteration
+
+- **The seed**: the last iteration's training data, unless it was bad, with `generation_target`
+  set to the rows to add (`../workflows/model-iterations.md` § Step 4: Set Up the Next Iteration).
+- **Wrong or malformed generated rows** (the teacher mislabels one slice, or breaks a rule or
+  the format): either describe the slice and its correct handling in more detail in
+  `synthetic_data_generation_instructions`, or use a stronger teacher
+  (`../references/model-catalog.md`), and generate again; or download the training data,
+  correct the rows, and upload the directory as a new TrainingDataset with
+  `distil training-dataset create --data <dir>` (`../references/execution/cli.md` § Supplying
+  files; one `training_datasets_download_get` and one `training_datasets_post` credit). In
+  classification, also check whether a mutator causes it (`../references/mutators.md`
+  § Mutators for classification).
+- **`synthetic_data_generation_instructions`** in the job description: a constant added to every
+  generation call that describes the inputs to write (formats, domains, register, noise). It
+  moves every generated row the same way, so it fits when the whole training set is off in the
+  same direction, without changing what a correct answer is.
+- **Mutators** (`synthgen.mutators`, `../references/mutators.md`): the dimensions the data is
+  spread over, one value sampled per generation call, weighted when the mix matters. They shape
+  the distribution rather than every row, so they fit coverage: slices that are missing, rare,
+  or over-represented against production. For chat completion with tools, a mutator over the
+  tools spreads the data across them (`../references/data-preparation/chat-completion.md`
+  § Synthetic data with tools).
+- **The `synthgen` config**: how much is generated (`generation_target`, or a top-up on the last
+  dataset, `../workflows/model-iterations.md` § Step 4: Set Up the Next Iteration), how much
+  survives validation (`validation_max_total_length`, `validation_similarity_threshold`), how
+  much each call writes (`generation_in_single_call`, the exemplar counts), how much the teacher
+  varies (`teacher_temperature`), and whether a final pass repairs the training targets
+  (`clean_training_targets`). These change the volume and cleanliness of the data, not what it
+  is about.
+
+All are overrides on the same SeedDataset. Cost: one `training_datasets_from_seed_datasets_post`
+credit per full run, and training again on the new dataset.

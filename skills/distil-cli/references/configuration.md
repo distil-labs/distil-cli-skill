@@ -1,12 +1,8 @@
 # Configuration
 
-`config.yaml` has five sections: `base`, `tuning`, `evaluation`, `synthgen`,
-`trace_processing`. Only `base.task` is required. Every other parameter has a sensible
-default.
-
-Tiers: always set `task`, `student_model_name`, `teacher_model_name`. Revisit `synthgen`
-mutator and target parameters when iterating (see `mutators.md`). Treat the rest as
-expert-only.
+`config.yaml` has six sections: `base`, `tuning`, `evaluation`, `synthgen`,
+`trace_processing`, `traces_to_test_set`. Only `base.task` is required; every other parameter
+has a default. Always set `task`, `student_model_name` and `teacher_model_name`.
 
 ## base
 
@@ -14,12 +10,12 @@ expert-only.
 |---|---|---|
 | `task` | required | See `task-types.md` |
 | `visual_task` | `false` | Inputs carry images; QA tasks only, and every model must be vision-capable |
-| `enable_thinking` | `false` | Reasoning student: synthgen writes reasoning, and training, evaluation and the client run with thinking on. Supported students only; trace processing rejects it. See `reasoning-models.md` |
+| `enable_thinking` | `false` | Reasoning student. See `reasoning-models.md` |
 | `student_model_name` | `Llama-3.2-1B-Instruct` | See `model-catalog.md` |
 | `teacher_model_name` | `openai.gpt-oss-120b` | See `model-catalog.md` |
 | `random_seed` | `123` | Seeds sampling everywhere, including mutators |
 | `llm_num_parallel_requests` | `4` | Parallel LLM calls across teacher/synthgen/judge; raising it helps only until per-call latency and between-batch validation dominate |
-| `should_expand_dataset` | `"auto"` | YAML boolean `true` / `false`, or string `auto`. Controls expansion during training, evaluation and target cleanup/reasoning preparation; see Conversation expansion below |
+| `should_expand_dataset` | `"auto"` | `true`, `false` or `auto`. § Conversation expansion |
 
 ## tuning
 
@@ -30,19 +26,18 @@ expert-only.
 | `weight_decay` | `0.0` | |
 | `warmup_ratio` | `0.05` | |
 | `bf16` | `true` | |
-| `use_lora` | `true` | |
-| `lora_r` | `64` | alpha = `lora_r * lora_alpha_multiplier` |
+| `use_lora` | `true` | The trained model is the LoRA adapter. Deployability: `inference-endpoints.md` § Lifetime |
+| `lora_r` | `64` | alpha = `lora_r * lora_alpha_multiplier`. Deployable values: `inference-endpoints.md` § Lifetime |
 | `lora_alpha_multiplier` | `1` | |
-| `per_device_train_batch_size` | `1` | **Not just a memory/speed knob.** At a fixed `num_train_epochs` it divides the optimizer-step count, so raising it trains the model less. Raise `num_train_epochs` proportionally when you raise it |
+| `per_device_train_batch_size` | `1` | Higher uses more memory. At a fixed `num_train_epochs` it divides the optimizer-step count |
 | `per_device_eval_batch_size` | `1` | |
-| `num_train_epochs` | `4` | Steps ≈ rows x epochs / (batch x `gradient_accumulation_steps`). Keep that product stable when changing batch size |
-| `train_eval_split` | `0.2` | Held out to pick the best checkpoint. Must be in (0, 1) |
+| `num_train_epochs` | `4` | Steps ≈ rows x epochs / (batch x `gradient_accumulation_steps`) |
 | `gradient_accumulation_steps` | `1` | Multiplies effective batch size |
-| `num_few_shot_examples_student` | `0` | Few-shot for student eval/tuning. Cannot exceed the train row count |
+| `num_few_shot_examples_student` | `0` | Few-shot for student eval/tuning. § Cross-field validation |
 | `enable_trainer_internal_eval` | `false` | Per-epoch validation during training. Final metrics come from the post-training suite either way |
 | `memory_optimized_training` | `false` | Only when training runs out of GPU memory; much slower |
 | `use_qlora` | `false` | 4-bit NF4 base model. Needs `use_lora`, Linux-only bitsandbytes |
-| `max_completion_length` | `2048` | Tokens the student may generate in evaluation and RLVR. A reasoning student's reasoning counts against it; raise it when training warns it is below the longest training completion |
+| `max_completion_length` | `2048` | Tokens the student may generate in evaluation and RLVR. Raise it when training warns it is below the longest training completion |
 
 RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 `rlvr_dataset_size` 0.0, `rlvr_llm_as_a_judge_model_name` inherits `base.teacher_model_name`,
@@ -53,88 +48,103 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 
 | Parameter | Default | Notes |
 |---|---|---|
-| `num_few_shot_examples` | `1` | Teacher evaluation few-shot. At least one per class for classification. Cannot exceed the train row count |
-| `llm_as_a_judge_model_name` | inherits `base.teacher_model_name` | Set only to judge with a different model than the teacher |
+| `num_few_shot_examples` | `1` | Teacher evaluation few-shot. At least one per class for classification. § Cross-field validation |
+| `llm_as_a_judge_model_name` | inherits `base.teacher_model_name` | Set it once and keep it fixed across all runs. `model-catalog.md` § Defaults |
 
 ## synthgen
 
 | Parameter | Default | Notes |
 |---|---|---|
-| `generation_target` | `10000` | A target, not an exact count: generation runs in `generation_iteration_size` batches until the target is met, so the result can exceed it by up to one batch, and validation losses shift where that boundary lands. Ignored for closed-book QA when `generation_per_unstructured_context` is set |
+| `generation_target` | `10000` | A target, not an exact count: generation runs in `generation_iteration_size` batches until the target is met, so the result can exceed it by up to one batch, and validation losses shift where that boundary is |
 | `generation_in_single_call` | `4` | Examples per teacher call |
 | `generation_iteration_size` | `128` | Generate-validate batch size, and also the granularity `generation_target` rounds up to |
-| `generation_per_unstructured_context` | `null` | Closed-book QA only; target becomes this x len(unstructured) |
-| `num_positive_exemplars_per_generation` | `1` | In-context examples for the class or tool being generated. Also a per-class floor on train data (see data-preparation). Cannot exceed the train row count |
-| `num_negative_exemplars_per_generation` | `1` | In-context examples for the classes or tools NOT being generated. Classification and tool calling. Cannot exceed the train row count |
+| `num_positive_exemplars_per_generation` | `1` | In-context examples per generation call (for classification, of the class being generated, and a per-class floor on train data). § Cross-field validation |
+| `num_negative_exemplars_per_generation` | `1` | In-context examples for the classes NOT being generated. Classification only. § Cross-field validation |
 | `num_unlabelled_exemplars_per_generation` | `1` | Unstructured dataset must be at least this size |
 | `validation_max_total_length` | `30000` | Chars, question+answer+context; applies to uploaded data too |
 | `validation_similarity_threshold` | `0.95` | Dedup vs seed data. Lower it if synthgen produces near-duplicates |
-| `teacher_temperature` | `0.7` | Reasoning teachers require 0.5-0.7 (validation error otherwise) |
+| `teacher_temperature` | `0.7` | § Cross-field validation for reasoning teachers |
 | `teacher_max_tokens` | `32000` | |
-| `match_generated_distribution_to_seed` | `false` | Classification and tool calling |
-| `num_distractor_context_blocks` | `0` | Above zero enables RAFT (open-book) |
+| `match_generated_distribution_to_seed` | `false` | Classification only |
 | `output_is_json` | `false` | QA only. Also forces answers in uploaded data to be valid JSON |
-| `mutators` | `[]` | One entry per dimension to vary, each with a `name` and either a list of `values` (plain strings) or a `description` the teacher detects the values from (using the job description and a seed sample of `auto_detect_sample_size`, default 50). Optional per entry: `method` (`fixed`, `adaptive`), `target_distribution` (`uniform`, `match_seed`, or one weight per value; weights need listed `values`), `description`, and the ADVANCED `beta` for adaptive ones. No mutators are applied by default. See `mutators.md` |
-| `mutator_update_frequency` | `5` | Batches between two classifier runs, for every adaptive mutator. Batches in between are extrapolated. Costs teacher calls, so higher is cheaper and coarser. Irrelevant without an adaptive mutator. See `mutators.md` |
-| `max_tool_calls_per_turn` | `null` | Chat completion tasks only. Cap on tool calls per assistant turn. `null` resolves to 1 with tools declared, 0 without. Integer or `"unlimited"` to allow parallel calls; `0` requires a tool-free job description, and above 0 requires tools |
+| `mutators` | `[]` | One entry per dimension to vary. `mutators.md` |
+| `mutator_update_frequency` | `5` | Batches between two classifier runs of an adaptive mutator. `mutators.md` § Adaptive mutators |
+| `max_tool_calls_per_turn` | `null` | Chat completion only: cap on tool calls per generated assistant turn. `data-preparation/chat-completion.md` § Tool calls per turn |
 | `clean_training_targets` | `false` | Final teacher pass that minimally repairs corrupted/truncated training targets. Expansion follows `base.should_expand_dataset`; `false` cleans only supplied final-turn targets |
 
 ## trace_processing
 
+Read by both trace jobs: trace processing, and test set from traces for how it relabels.
+
 | Parameter | Default | Notes |
 |---|---|---|
-| `relabel` | `true` | Teacher/committee rewrites labels. `false` keeps original trace labels |
+| `relabel` | `true` | Teacher/committee rewrites labels. `false` keeps the original trace labels |
 | `relevance_filtering` | `false` | `true` has an LLM score traces and drop low relevance/coherence, at one LLM pass over every trace |
 | `relevance_filtering_batch_size` | `32` | |
 | `min_relevance_score` | `4` | 1-5 |
 | `min_coherence_score` | `3` | 1-5. Lower lets corrupted traces through for committee repair |
-| `num_traces_as_training_base` | `200` | Leftover traces become unstructured data |
-| `num_traces_as_testing_base` | `200` | Must be ≥ 1. Ignored when a test set is provided. Keep equal to the training base |
-| `min_generated_examples` | `1` | Floor checked per split, after filtering, relabeling AND schema checking. Keep it below the smaller of the two base counts. It is the only floor: without it a split is written out empty |
-| `evaluate_original_model` | `true` | Judges the original model on the test split. `false` skips it and writes null metrics. This is the stage's LLM-judge cost, so turn it off for smokes |
+| `num_traces_as_training_base` | `200` | Traces relabeled into the train split. Both trace jobs refuse a trace set smaller than this, test set from traces included, since both parse the traces with the same validation. Leftover traces become unstructured data |
 | `max_unstructured` | `10000` | |
 | `observation_format` | `openai_messages` | See `data-preparation/traces.md` |
-| `remove_system_prompt_from_traces` | `true` | The system prompt belongs in the job description instead |
+| `remove_system_prompt_from_traces` | `true` | `data-preparation/traces.md` § Conversion guidance |
 | `compress_job_description` | `false` | For very long task descriptions |
-| `teacher_model_name` | inherits `base.teacher_model_name` | Does filtering and relabel arbitration. Set only to differ from the base teacher |
+| `teacher_model_name` | inherits `base.teacher_model_name` | Does filtering and relabel arbitration. `model-catalog.md` § Defaults |
 | `relabelling_committee_models` | `[]` | Non-empty list enables committee relabeling |
 | `committee_max_input_length` | `250000` | Chars. Traces whose projected committee-aggregator input exceeds this skip the committee (direct teacher edit) |
 
-## Cross-field validation (fails at config load)
+## traces_to_test_set
 
-- Reasoning teacher (every teacher except `Qwen3-235B-A22B-Instruct-2507`,
+Read by the test set from traces job (`../stages/test-set-from-traces.md`).
+
+| Parameter | Default | Notes |
+|---|---|---|
+| `num_traces_to_relabel` | `200` | Traces relabeled into test examples, with the `trace_processing` relabeling settings. They leave the trace set |
+| `num_synthetic_examples` | `0` | Synthetic test examples generated from the relabeled ones with the `synthgen` section. The next `2 * num_synthetic_examples` traces are the generation context and also leave the trace set. A floor: generation runs in `synthgen.generation_iteration_size` batches, so more rows can come back |
+| `evaluate_original_model` | `false` | Scores the original model's answers on the relabeled traces with the student's metric suite. `false` writes null metrics. `evaluation-metrics.md` § Verdicts |
+| `min_relabelled_examples` | `0` | Fails the job when fewer relabeled test examples survive. Best kept at the default 0, which sets no floor |
+
+## Cross-field validation
+
+These fail at config load.
+
+- A reasoning teacher (every teacher except `Qwen3-235B-A22B-Instruct-2507`,
   `Qwen3-480B-A35B-Coder` and `Qwen2.5-VL-72B-Instruct`) requires `synthgen.teacher_temperature`
   in [0.5, 0.7].
 - `base.enable_thinking: true` requires a reasoning student (`reasoning-models.md`).
-- Tool-calling tasks require a supported student. Multi-turn additionally requires a supported
-  teacher. See `model-catalog.md`.
 - `visual_task: true` requires a vision-capable model in every teacher and judge role, and a
   vision-capable student. See `model-catalog.md`.
-- Chat completion tasks with tools declared require a tool-calling student AND teacher. With no
-  tools (plain `chat-completion` only), no model restriction applies.
-- `synthgen.max_tool_calls_per_turn` must be consistent with the job description: above 0
-  requires declared tools, and 0 (or unset) is required when there are none.
+- Chat completion with tools declared restricts the student and teacher
+  (`model-catalog.md` § Tool-calling compatibility).
+- `synthgen.max_tool_calls_per_turn` must match whether the job description declares tools
+  (`data-preparation/chat-completion.md` § Tool calls per turn).
 - No in-context exemplar count may exceed the number of train rows. The four counts are
   `synthgen.num_positive_exemplars_per_generation`,
   `synthgen.num_negative_exemplars_per_generation`, `evaluation.num_few_shot_examples` and
-  `tuning.num_few_shot_examples_student`. The counts are not reduced silently, they are
-  rejected up front:
+  `tuning.num_few_shot_examples_student`. Every job rejects a count above the train row count,
+  except trace processing, which lowers the counts to fit the train split it produced
+  (`../stages/trace-processing.md`):
 
   ```
   {'synthgen.num_positive_exemplars_per_generation': 3} asks for more in-context exemplars
   than the training dataset holds (1). Lower the counts, or provide more training data.
   ```
 
-  Trace processing is the one place that lowers them for you. It caps all four to the size of
-  the train split it produced, so it cannot emit an input its own validator would reject, and
-  logs a warning when it does. A count set in config.yaml therefore does not always survive
-  trace processing verbatim.
-
 Inert: `evaluation.batch_size`, `synthgen.validation_max_answer_length`,
 `synthgen.parallel_llm_calls`, `synthgen.basic_mutators_to_use`,
-`tuning.awq_quantize_tuned_model`. They carry defaults and appear in every config the platform
-returns, but have no effect. Leave them untouched in a config you override. Do not add them to
-one you author.
+`tuning.awq_quantize_tuned_model`, `tuning.train_eval_split`,
+`trace_processing.num_traces_as_testing_base`, `trace_processing.min_generated_examples`,
+`trace_processing.evaluate_original_model`. They appear in every config the platform returns
+and have no effect. Leave them untouched in a config you override, and do not add them to one
+you write.
 
-Deprecated but still honored: `synthgen.mutation_topics` is translated into `mutators`, and
-setting both is a config error (`mutators.md` § Deprecated parameters).
+## Conversation expansion
+
+`base.should_expand_dataset` decides whether a conversation becomes one example per assistant
+turn. It applies to training, to evaluation, and to the expansion before
+`synthgen.clean_training_targets` and the reasoning backfill.
+
+| Value | Effect |
+|---|---|
+| `auto` (default) | Expands multi-turn tasks, unless at least half of the examples share history prefixes with other examples (data that is already split per turn) |
+| `false` | Each supplied row stays one example, with only its final assistant turn as the target; earlier assistant turns are history. Evaluation scores each test row's final turn only. Use it for pre-split rows whose final responses were selected or rewritten |
+| `true` | Expands every conversation, pre-split data included. Valid only for the chat completion tasks |

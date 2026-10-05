@@ -11,29 +11,23 @@ fields are rejected at validation.
 {
   "task_description": "...",
   "classes_description": {"class_name": "when this class applies", "...": "..."},
-  "trace_processing_instructions": "..." # Only relevant for trace processing
+  "synthetic_data_generation_instructions": "...",
+  "trace_processing_instructions": "..."
 }
 ```
 
-`synthetic_data_generation_instructions` is also accepted here and steers generation as it
-does for the other task types. But `llm_as_a_judge_instructions` is NOT valid for
-classification, and the create fails if you send it. Classification is judged by label
-accuracy anyway.
-
-**QA family** (`question-answering`, `-open-book`, `-closed-book`):
+**Question answering** (`question-answering`):
 
 ```json
 {
   "task_description": "...",
   "llm_as_a_judge_instructions": "...",
-  "synthetic_data_generation_instructions": "...", # Optional, valid for every task type
-  "trace_processing_instructions": "..." # Only relevant for trace processing
+  "synthetic_data_generation_instructions": "...",
+  "trace_processing_instructions": "..."
 }
 ```
 
-`llm_as_a_judge_instructions` is optional.
-
-**Tool calling** (both tasks):
+**Conversation** (`chat-completion`, `chat-completion-agentic`):
 
 ```json
 {
@@ -41,51 +35,42 @@ accuracy anyway.
   "tools": [{"type": "function", "function": {"name": "...", "description": "...",
              "parameters": {"type": "object", "properties": {...}, "required": [...]}}}],
   "llm_as_a_judge_instructions": "...",
-  "trace_processing_instructions": "..." # Only relevant for trace processing
-}
-```
-
-`tools` is OpenAI function-calling spec: at least one tool, unique names. Parameter schemas
-can declare `default` values. `tool_call_equivalence` treats an argument at its default as
-equal to omitting it.
-
-**Conversation** (`chat-completion`, `chat-completion-agentic`):
-
-```json
-{
-  "task_description": "...",
-  "tools": [...],  # Optional for chat-completion, REQUIRED for chat-completion-agentic
-  "llm_as_a_judge_instructions": "...",
   "synthetic_data_generation_instructions": "...",
   "trace_processing_instructions": "..."
 }
 ```
 
-Same `tools` spec as tool calling, except `chat-completion` may omit the field (or pass null
-or `[]`) for a tool-free conversational model. If the data contains tool calls or tool-role
-messages while no tools are declared, the create fails. There is no system-prompt field:
-`task_description` is rendered into the system prompt the model trains and serves with, so
-write it as one.
+`tools` is the OpenAI function-calling spec, with unique names. It is REQUIRED for
+`chat-completion-agentic`. `chat-completion` may omit the field (or pass null or `[]`) for a
+tool-free conversational model. Parameter schemas can declare `default` values.
+`tool_call_equivalence` treats an argument at its default as equal to omitting it. Data rules
+for tools: `data-preparation/chat-completion.md`.
+
+Every field except `task_description` (and `classes_description` / `tools` where shown) is
+optional. There is no system-prompt field: `task_description` is rendered into the system prompt
+the model trains and serves with, so write it as one.
 
 ## What each field feeds
 
 - `task_description`: in every teacher prompt (eval, synthgen, judge). Derive it from the
   system prompt the user's production system runs, with the same care: output format with an
-  example, include/exclude rules, edge cases. It must stay compliant with that production
-  prompt and constant across iterations. It is not a tuning lever, so pick a better teacher or
-  fix the data instead.
+  example, include/exclude rules, edge cases. It must stay matched to that production
+  prompt and unchanged across iterations: it defines what a correct answer is for evaluation
+  and the judge too. To improve results, change the teacher or the data, not this field.
 - `classes_description` and `tools`: define the label and call space. Their descriptions
   directly shape generated data.
-- `synthetic_data_generation_instructions` (optional, all task types): extra guidance injected
-  into every synthetic-data-generation prompt. Use it to describe the generated inputs:
-  formats, domains, variation, noise. For a reasoning student, it also carries the reasoning's
-  style and length (`reasoning-models.md`).
-- `llm_as_a_judge_instructions` (optional, every task type except classification): the
-  instructions the judge model is given when it scores a prediction against the reference.
-  State pass/fail criteria: what must match, what to ignore (order, whitespace,
-  paraphrasing). A workable shape is "Output 'good' if the prediction matches the reference
-  or is semantically equivalent, otherwise output 'bad'", then the criteria that decide it.
-  Vague criteria make every downstream verdict noisy.
+- `synthetic_data_generation_instructions` (all task types): extra guidance injected into every
+  synthetic-data-generation prompt. Use it to describe the generated inputs: formats, domains,
+  variation, noise. For a reasoning student, also `reasoning-models.md`.
+- `llm_as_a_judge_instructions` (every task type except classification, where the create fails
+  if it is sent; classification is scored by label accuracy): the instructions the judge model
+  is given when it scores a prediction, for both judge metrics (`evaluation-metrics.md` § Metrics
+  by task). State pass/fail criteria: what a correct answer must contain, what to ignore (order,
+  whitespace, paraphrasing). A workable shape is "Output 'good' if the prediction correctly
+  completes the task, otherwise output 'bad'", then the criteria that decide it, including format
+  rules (for example, no code fences). Vague criteria make every downstream verdict noisy. When
+  the judge mismeasures, update these instructions or use a stronger judge model; either is a
+  measurement change, so earlier scores are not comparable.
 - `trace_processing_instructions` (optional, all task types): task-specific guidance appended
   to the trace-processing rewrite and fix instructions only. It is unused outside trace
   processing. Use it when the edits must respect something unusual about the traces, for

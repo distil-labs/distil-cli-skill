@@ -1,115 +1,92 @@
 # Stage: Teacher Evaluation
 
 Runs the teacher on the full test set as a feasibility gate: if the teacher cannot solve the
-task, nothing downstream will, so its verdict decides whether to invest further. No smoke run
-here: the evaluation is minutes-scale and always runs on the full test set, so each iteration
-is a complete eval.
+task, nothing downstream will. There is no smoke run: the evaluation always runs on the full
+test set (durations: `../references/platform.md` § Job status), so each iteration is a complete
+evaluation.
 
 ## Working Directory
 
 ```
 teacher-evaluation/
 ├── iteration-1/
-│   ├── input/           # the exact inputs this iteration ran
-│   ├── run.md           # submission command and job identifiers
+│   ├── input/           # the override config and job description sent, if any
+│   ├── run.md           # the SeedDataset id, the command and the TeacherEvaluation id
 │   └── output/          # fetched metrics and predictions
-└── iteration-2/         # next iteration: copy the previous input, change one thing
+└── iteration-2/         # next iteration: one change against iteration-1
 ```
 
-## Step 1: Prepare the Input Directory
+## Step 1: Prepare the Input
 
-The input is the standard directory (config.yaml, job_description.json, train/test.jsonl,
-unstructured.jsonl where required). Prepare it following
-`../references/data-preparation/overview.md` plus the task-specific page, and run the
-validation checklist before submitting. If the data came from trace processing, the processed
-output is already a valid input directory.
+The input is a SeedDataset id. A change to the teacher or the judge is a config or
+job-description override on it (`../references/execution/cli.md` § Overrides), kept in `input/`.
 
-**This stage needs a populated test split.** The test set is the only thing there is to score
-the teacher against, so an empty `test.jsonl` stops the job:
+The test split must be populated: an empty one stops the job
+(`../references/data-preparation/overview.md` § Empty splits). The evaluation uses the
+SeedDataset's train split for its few-shot examples. Only when there is no train split, set
+`evaluation.num_few_shot_examples: 0`.
 
-```
-Teacher evaluation scores the teacher against a test set, and this job has none:
-test.jsonl is empty. Provide test examples, or skip this stage.
-```
+What to set deliberately:
 
-Check the test split before submitting. If it is empty and the user has no test data, skip
-this stage rather than submitting it, and tell them what they give up: the teacher ceiling is
-the reference point every later score is read against
-(`../references/evaluation-metrics.md`). An empty train split is fine here. The evaluation
-runs zero-shot, since few-shot examples are drawn from the train split.
-
-The evaluation is controlled by the `evaluation` config section
-(`../references/configuration.md`) and the job description:
-
-- `base.teacher_model_name` is the model under evaluation, and the one you are auditioning
-  for synthetic data generation. Pick it deliberately from
-  `../references/model-catalog.md` (tool-calling tasks restrict the choice). Trying a
-  different teacher is the main reason to run another iteration of this stage.
-- `llm_as_a_judge_instructions` in job_description.json matters most for free-text tasks: it
-  defines what the judge accepts, and a vague one makes the whole verdict noisy
+- `base.teacher_model_name`: the model under evaluation, and the one synthetic data generation
+  will use (`../references/model-catalog.md`). Choosing it is the point of this stage.
+- `llm_as_a_judge_instructions`: what the judge accepts on free-text tasks
   (`../references/job-description.md`). Not valid for classification.
-- `evaluation.num_few_shot_examples` (default 1) is how many worked examples the teacher is
-  shown at evaluation time. They are drawn from the train split, so the value cannot exceed
-  the number of train rows, and asking for more is a validation error rather than a silent
-  reduction (`../references/configuration.md` § Cross-field validation). It is unrelated to
-  the per-class train-data floor in `../references/data-preparation/classification.md`,
-  which is a minimum on the data you supply.
-- `evaluation.llm_as_a_judge_model_name` picks the judge model. It defaults to
-  `base.teacher_model_name`, which is usually what you want. But the default resolves when the
-  config is first expanded, so a config read back for an override already names a judge. When
-  you switch the teacher between iterations, switch this too, or the new teacher is judged by
-  the old one.
+- `evaluation.num_few_shot_examples` (default 1): worked examples from the train split, at most
+  the number of train rows (`../references/configuration.md` § Cross-field validation).
+- `evaluation.llm_as_a_judge_model_name`: the judge model. It is set once and stays the same for
+  every run, so scores stay comparable. When switching the teacher, keep the judge as it is
+  (`../references/model-catalog.md` § Defaults).
 
 ## Step 2: Confirm the Setup with the User
 
 Before submitting, present and confirm:
 
 - the input data (row counts, task type, where it came from)
-- the teacher under evaluation (`base.teacher_model_name`). Never launch with a silent
-  default, since choosing the teacher is the point of this stage
-- the judge setup (`llm_as_a_judge_instructions`, judge model) for free-text tasks
+- the teacher under evaluation; never launch with a default the user did not see
+- the judge setup for free-text tasks
 - the remaining `teacher_evaluations_post` credits, one per iteration
   (`../references/platform.md` § Credits)
-- the plan: one full evaluation now, and what each verdict would mean next
 
 ## Step 3: Run the Evaluation
 
-Submit the full evaluation via the execution backend (§ Submitting jobs) and record the
-command and job identifiers in `run.md`.
+Submit the evaluation (`../references/execution/cli.md` § Teacher evaluation) and record the
+command and the TeacherEvaluation id in `run.md`.
 
 ## Step 4: Pull and Analyze the Results
 
-Confirm the job succeeded, then pull the results into `output/` (the execution backend
-§ Fetch metrics). There are two, and they arrive by different routes. The aggregated scores
-come back inline as the `teacher_performance` object in the metrics response. The per-example
-predictions are a separate file behind the presigned `predictions_download_url` alongside it.
-Save the first as `metrics-eval-aggregated.json` yourself. The second is served under the name
-`metrics-eval-full.jsonl`.
+Confirm the job succeeded, then fetch the metrics and the predictions into `output/`
+(`../references/execution/cli.md` § Fetch metrics). Read the primary metric for the task
+(`../references/evaluation-metrics.md` § Primary metric per task) and analyze:
 
-The predictions file is JSONL, one row per test example, with `prompt`, `completion`,
-`prediction` and that example's own scores. Identify the primary metric for the task
-(`../references/evaluation-metrics.md`) and analyze:
-
-1. **Judge sanity check first**: sample predictions the judge marked bad. If they look
-   correct, the score is lying, and the judge instructions need fixing before anything else.
-2. **Failure patterns**: group the incorrect predictions. A single recurring pattern (one
-   class always wrong, one format always missed) points at a targeted fix rather than a
-   verdict problem.
+1. **Judge check first**: sample predictions the judge marked bad. If they look correct, the
+   judge is mismeasuring, and the judge instructions need fixing before anything else.
+2. **Failure patterns**: group the incorrect predictions. One recurring pattern (one class always
+   wrong, one format always missed) points at a targeted fix rather than at the teacher.
 
 ## Step 5: Verdict and Next Step
 
-Render the verdict using the relative gates in
-`../references/evaluation-metrics.md` § Verdicts. Review the score with the user, because the
-teacher is the quality ceiling everything downstream distills from:
+Review the score and the failure patterns with the user
+(`../references/evaluation-metrics.md` § Verdicts):
 
-- **PROCEED**: continue to synthetic data generation (`synthetic-data-generation.md`).
-- **ITERATE**: the primary lever is the teacher model. This stage is where you pick the right
-  teacher for this problem, so try a better-suited one (`../references/model-catalog.md`) in
-  a new iteration directory. Fixing mislabeled or ambiguous test examples is also fair game.
-  Do NOT tune the job description to chase the score: it must stay compliant with the system
-  prompt the user runs in production and remain constant across iterations. Only adjust
-  judge instructions when Step 4 shows the judge is mismeasuring.
-- **RETHINK**: step back before touching levers. Is the task type right
-  (`../references/task-types.md`), is the task well-defined, is the judge measuring the right
-  thing? Fixing these usually means a fresh iteration of the whole workflow
-  (`../workflows/improving-a-model.md`).
+- **PROCEED** when the user confirms this quality is acceptable in production: continue to
+  `synthetic-data-generation.md`.
+- **ITERATE**: try a better-suited teacher in a new iteration directory, or fix mislabelled test
+  rows. Change the judge instructions only when Step 4 shows the judge is mismeasuring. The job
+  description stays as it is (`../references/job-description.md` § What each field feeds).
+- **RETHINK**: check the task type (`../references/task-types.md`), whether the task is well
+  defined, and whether the judge measures the right thing. Fixing these usually means a new
+  iteration of the whole loop (`../workflows/model-iterations.md`).
+
+## What Can Be Changed to Improve the Next Iteration
+
+- **The teacher** (`base.teacher_model_name`): it writes the training data, so its ceiling is
+  the student's ceiling. A stronger or better-suited teacher raises what the student can reach.
+  The judge stays as it is.
+- **The judge instructions** (`llm_as_a_judge_instructions`): what counts as a correct answer on
+  the free-text metrics. Change them only when Step 4 shows the judge is mismeasuring: every
+  earlier score was measured with the old instructions and is not comparable. A stronger judge
+  model (`evaluation.llm_as_a_judge_model_name`) is the other fix, with the same effect.
+
+Cost: one `teacher_evaluations_post` credit. A new teacher also means synthetic data and
+training again.

@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "8.0.0"
+  version: "9.0.0"
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing
   model-building inputs (config.yaml, job_description.json, train/test data), running or
@@ -20,34 +20,35 @@ description: >
 
 # Building Models
 
-Building task-specific small language models on the distil labs platform: from raw data or
-production traces, through teacher evaluation and synthetic data generation, to a finetuned,
-evaluated, deployable student model.
+Building task-specific small language models on the distil labs platform: from production
+traffic, a trace file or a labelled dataset, through teacher evaluation and synthetic data
+generation, to a finetuned, evaluated student served behind an inference endpoint.
 
-## Architecture
+Before the first stage, install the `distil` CLI and sign in per
+`references/execution/README.md` § Set up the CLI.
 
-The skill separates what to do from how to run it, so the model-building logic stays
-independent of the mechanics of running a job.
+## How the Skill Is Organised
 
-- **Stage**: one unit of pipeline work. Each stage file defines purpose, inputs, run, outputs,
-  analysis (with its report template), and iteration levers. Stages are directly invocable.
-- **Workflow**: sequences stages toward a goal. It owns the decision points, verdicts and
-  gates.
-- **References**: knowledge shared by both (data formats, configuration, models, metrics).
-- **Execution backend** (`references/execution/`): the only files that know how stages actually
-  run. They hold the commands and the request shapes. How the platform *behaves* lives in
-  `references/platform.md`, so a second backend adds commands rather than restating the model.
-  Stage files cite operations by § name alone, so resolve those in `references/execution/cli.md`.
-  `references/execution/README.md` owns the setup: install the `distil` CLI and sign in once,
-  before the first stage.
+The skill separates what to do from how to run it. Each fact has exactly one owning page, and
+every other page links to it.
+
+- **Stages** (`stages/`): one unit of pipeline work each, directly invocable. A stage file is a
+  step-by-step procedure: what it needs, what to confirm with the user, how to run it, how to
+  analyze the results and, for the stages an iteration re-enters, § What Can Be Changed to
+  Improve the Next Iteration.
+- **Workflows** (`workflows/`): sequence the stages and own the decision points, verdicts and
+  gates. Each opens with a Workflow Map; print it to the user when the workflow starts.
+- **References** (`references/`): shared knowledge, one page per topic.
+  `references/platform.md` owns how the platform behaves. `references/execution/cli.md` holds
+  every `distil` command; stages and workflows link its sections.
 
 ## Stage Protocol
 
-Each stage file defines a step-by-step protocol over a `<stage-name>/<iteration-id>/` working
-directory. All stage directories live under one project root named after the model, for example
-`my-model/teacher-evaluation/smoke-1/`. Stages follow one shared template:
+Each stage works in a `<stage-name>/<iteration-id>/` directory under one project root named
+after the model, for example `my-model/synthetic-data-generation/smoke-1/`. Stages with a smoke
+run follow one template:
 
-1. Prepare the Input Directory
+1. Prepare the Input
 2. Confirm the Setup with the User
 3. Smoke Run
 4. Pull and Analyze the Smoke Outputs
@@ -55,101 +56,66 @@ directory. All stage directories live under one project root named after the mod
 6. Full Run
 7. Analyze the Results
 
-Smoke runs (`smoke-1`, `smoke-2`, ..., then `full-1`) exist because full runs take hours and
-burn GPU and LLM budget. A minimal run catches config, data and prompt problems in minutes.
-The saving is real for synthgen and trace processing, where cost scales with the data. It is
-much smaller for training, where the fixed overhead dominates: model load, base eval, tuned
-eval. A measured training smoke on 100 rows took 93% of the wall clock of the full run on 654.
-Its value there is the memory-fit answer, not the time saved.
+A smoke run (`smoke-1`, `smoke-2`, then `full-1`) catches config, data and prompt problems
+on a subsample before the full run (`references/platform.md` § Smoke runs; durations in
+§ Job status). The user picks the normal path (smoke first) or the fast path (full run
+directly). Stages without a smoke run number their steps consecutively.
 
-Teacher evaluation and test-set expansion are small enough to run directly, so they have no
-smoke steps (3-5). Deployment has no smoke/full split either, and keeps its own short
-choose-route/serve/smoke-test shape. Follow the stage file's steps in order.
+Every stage opens with a user gate: present the input, the key config choices, the plan and
+the expected cost against the remaining credits (`references/platform.md` § Credits), and get
+the user's go-ahead. Nothing launches on defaults the user never saw. After the analysis,
+present the findings and agree on the next step together.
 
-**Runs are not reproducible, by design.** The teacher generates and the judge scores at
-non-zero temperature, so the same config submitted twice gives different data and different
-numbers. Two runs of one synthgen config produced 512 and 634 examples. One untrained model
-scored 0.64, 0.60 and 0.58 on one 50-row test set. `base.random_seed` does not pin this. Treat
-every score as a sample. Quote the run it came from, and never resolve a decision on a
-difference smaller than the noise band in `references/evaluation-metrics.md` § Verdicts.
-
-Every stage opens with a user gate. Before submitting anything, present the setup: the prepared
-input, the key config choices, the plan for smokes and sweeps, and the expected cost against
-the remaining credits for the routes it spends (`references/platform.md` § Credits). Then
-confirm which path the user wants, normal (smoke first) or fast (skip the smoke steps and
-submit the full run directly), and get their go-ahead. After a stage's analysis, present the
-findings and agree on the next step together. Nothing launches on defaults the user never saw.
+Runs are not reproducible: the teacher and the judge run at non-zero temperature, so treat
+every score as a sample, and never decide on a difference smaller than the run-to-run variation
+measured on the same model and test set (`references/evaluation-metrics.md` § Verdicts).
 
 ## File Map
 
-### Stages
-
-One unit of pipeline work each, directly invocable. A stage file is a step-by-step procedure
-following the shared template above: what inputs it needs, what to confirm with the user, how
-to run it, and how to analyze the results.
-
-| File | Purpose |
+| Stage | Purpose |
 |---|---|
-| `stages/trace-processing.md` | Convert production traces into training-ready seed data |
+| `stages/inference-endpoint.md` | Create an inference endpoint: collect production traces, or serve a trained model to production traffic |
+| `stages/test-set-from-traces.md` | Build a test set from production traffic (traces) |
+| `stages/trace-processing.md` | Turn traces into a seed dataset |
 | `stages/teacher-evaluation.md` | Feasibility check: can the teacher solve the task? |
-| `stages/synthetic-data-generation.md` | Teacher generates the synthetic training dataset |
-| `stages/model-training.md` | Finetune the student on synthetic data and evaluate it |
-| `stages/model-deployment.md` | Fetch and run the trained model |
-| `stages/test-set-expansion.md` | Grow the test set into uncovered areas (inverted synthgen) |
+| `stages/synthetic-data-generation.md` | The teacher generates the training dataset |
+| `stages/model-training.md` | Finetune the student and evaluate it |
+| `stages/local-deployment.md` | Serve the trained model with vLLM on your own GPU |
 
-### Workflows
-
-Sequencers over stages toward a goal. A workflow file contains almost no operational detail: it
-orders the stages, owns the decision points and gates between them, and says when to deviate
-(skip a stage, take a different path). Each workflow opens with a Workflow Map, an ASCII
-diagram of its steps, gates and loops. Print that map to the user when the workflow starts.
-
-| File | Purpose |
+| Workflow | Purpose |
 |---|---|
-| `workflows/endpoint-to-model.md` | The default: collect traces with an inference endpoint, build, serve the student behind a new endpoint, loop |
-| `workflows/dataset-to-model.md` | End to end from a labeled dataset; owns the decide step |
-| `workflows/traces-to-model.md` | End to end from a trace file already in hand |
-| `workflows/improving-a-model.md` | Iteration 2: gap diagnosis, test-set expansion, seed blending, targeted mutators |
+| `workflows/build-a-model.md` | The end-to-end loop: endpoint → traces → test set → seed dataset → synthetic data → training → serving endpoint → back to traces. Entry points: an LLM in production, a trace file, a labelled dataset |
+| `workflows/model-iterations.md` | Improving a trained model: read the scores, inspect the predictions, find the stage the errors come from, change it, run again. Runs autonomously to an agreed target |
 
-### References
-
-Shared knowledge, one focused page per topic: formats, parameters, catalogs, and the
-execution backends. Stages and workflows link here instead of repeating facts. Each fact has
-exactly one owning page.
-
-| File | Purpose |
+| Reference | Purpose |
 |---|---|
-| `references/platform.md` | How the platform behaves: entities, jobs, overrides, credits, outputs |
-| `references/task-types.md` | The task types, which needs context/unstructured data, how to choose |
+| `references/platform.md` | How the platform behaves: entities, jobs, smoke runs, overrides, credits, outputs |
+| `references/task-types.md` | The four task types and how to choose between them |
 | `references/data-preparation/overview.md` | Input directory contract and validation checklist (read first) |
-| `references/data-preparation/<task>.md` | Per-task data format (one page per task type) |
-| `references/data-preparation/traces.md` | Trace input formats, and converting the records an inference endpoint collects |
-| `references/job-description.md` | Writing good job descriptions per task type |
+| `references/data-preparation/<task>.md` | Per-task data format: `question-answering.md`, `classification.md`, `chat-completion.md` (both chat completion tasks) |
+| `references/data-preparation/traces.md` | Trace formats, and converting inference endpoint records |
+| `references/job-description.md` | Writing job descriptions per task type |
 | `references/configuration.md` | config.yaml parameters, defaults, cross-field validation |
-| `references/model-catalog.md` | Teacher and student models, task compatibility, llm providers |
-| `references/reasoning-models.md` | Reasoning students (`base.enable_thinking`): supported models, data, stage order, deployment |
-| `references/mutators.md` | Synthetic data diversity controls (`synthgen.mutators`, value recipes) |
-| `references/evaluation-metrics.md` | Metrics per task type, primary metrics, relative verdict gates |
-| `references/deployment.md` | Model artifacts and serving options |
-| `references/execution/README.md` | Setting up the backend: install the CLI and sign in |
-| `references/execution/cli.md` | Execution backend: run stages through the `distil` CLI |
-
+| `references/model-catalog.md` | Teacher and student models, defaults, task compatibility |
+| `references/reasoning-models.md` | Everything about reasoning students (`base.enable_thinking`) |
+| `references/mutators.md` | Synthetic data diversity controls (`synthgen.mutators`) |
+| `references/evaluation-metrics.md` | Metrics per task type, primary metrics, verdicts |
+| `references/deployment.md` | Model artifacts, the inference client, local serving |
+| `references/inference-endpoints.md` | Inference endpoints: collecting and serving, lifetime, keys, records, the two routes to traces |
+| `references/execution/README.md` | Install the CLI and sign in |
+| `references/execution/cli.md` | Every `distil` command |
 
 ## Routing
 
-- End-to-end request ("build/train a model for X") → `workflows/endpoint-to-model.md` is the
-  default: it starts from the LLM the user runs in production, collects its traffic through an
-  inference endpoint, and ends with the student serving that traffic. Ask what they start with
-  only to rule it out: a trace file already exported → `workflows/traces-to-model.md`; a labeled
-  dataset and no production LLM → `workflows/dataset-to-model.md`.
-- Endpoint questions on their own ("put an endpoint in front of GPT-4", "download the traces",
-  "put the trained model behind the endpoint") → the execution backend, § Inference
-  endpoints, and `stages/model-deployment.md` § Step 2c for the last one.
-- Single-stage request ("run a teacher eval", "regenerate the synthetic data") → load that
-  stage file plus the execution backend. If the CLI is not set up yet, run
-  `references/execution/README.md` § Set up the CLI first.
-- Results are disappointing ("teacher score is low", "student is far below teacher") → the
-  relevant stage's levers, or `workflows/improving-a-model.md`.
-- Reasoning student ("train a model that thinks", `enable_thinking`, `reasoning_content`) →
-  `references/reasoning-models.md` before the first stage, then the workflow as usual.
-- Lookup question (a config parameter, a metric, a data format) → the matching reference file.
+- End-to-end request ("build/train a model for X") → `workflows/build-a-model.md`. Ask what the
+  user starts with to pick the entry point: an LLM in production (Step 1), a trace file
+  (Step 3) or a labelled dataset (Step 5).
+- Endpoint questions ("put an endpoint in front of GPT-4", "download the traces", "put the
+  trained model behind the endpoint") → `stages/inference-endpoint.md`.
+- Single-stage request ("run a teacher eval", "regenerate the synthetic data") → that stage file.
+- Results are disappointing ("teacher score is low", "student is far below teacher"), or "keep
+  iterating until the model is good" → `workflows/model-iterations.md`.
+- Building evals/test sets "help me build evals", "I want to build a test set for my case" 
+  or anything about building evals and test sets -> `stages/test-set-from-traces.md`
+- Lookup question (a config parameter, a metric, a data format, a command) → the matching
+  reference file.

@@ -1,204 +1,123 @@
-# Execution Backend: distil CLI
+# distil CLI
 
-How stages run on the platform through the `distil` command. Stage files link here by operation
-name. Every stage is an entity created by one command, and every entity is created either from
-local files or by running a job over the entity before it. The only prerequisite is a distil
-labs account, which `distil signup` creates from the terminal.
+The commands that run each stage. How the platform behaves (entities, job status, smoke runs,
+overrides, credits, outputs): `../platform.md`. Installing the CLI and signing in: `README.md`
+§ Set up the CLI.
 
-`README.md` § Set up the CLI installs it and signs in.
-
-The CLI stages and uploads the files for you, so a directory is one argument. An override is a
-file path: read the parent's config to disk, edit it, then pass it to `--config`.
+This file describes CLI 0.31.0. Check `distil --version` before trusting a flag.
 
 ## Prerequisites
 
 ```bash
-curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
-distil signup                                        # create an account; opens a browser
-distil auth                                          # sign in; opens a browser
 distil whoami                                        # prints the current user
 distil logout
 ```
 
-`distil signup` and `distil auth` are the same command. Each prints a one-time code and opens the
-distil labs sign-in page, where the user signs in or creates an account and confirms the code.
-Both finish by printing `Logged in as <email>`. If the browser
-does not open, the command prints an address that works from any device, which is also how to
-sign in from a machine with no browser. The code expires after a few minutes:
-`The sign-in code expired before it was confirmed` means run the command again. With a session
-already in place, both print `You are already logged in as <email>`; `distil logout` first to
-switch accounts.
-
-The snippets also use `jq`. `README.md` § Set up the CLI gives the full install procedure
-and what to do when the install is impossible.
-
-The CLI holds its own session in `~/.config/distillabs/session.json` (under `$XDG_CONFIG_HOME`
-when that is set) and refreshes it, so a run spanning hours needs no second login.
-`distil --version` prints the installed version, and `distil update` replaces the binary in
-place.
-
-This file describes CLI 0.28.0. Check the version before trusting a flag.
-
-## Preamble
-
-Paths in the snippets below are illustrative. The stage files own the working-directory layout.
-
-Each command runs in its own shell, so nothing below carries state from one command to the
-next. Record each entity id in `run.md` as it is created, and pass it back as a literal
-argument.
-
-The job creates that name a parent id take `--output json`, so `jq -r .id` reads the new id
-back. The commands that read local files do not (§ Which commands speak JSON). They print the
-id in a sentence, so read it from the output.
-
-Poll a job by asking for its status:
-
-```bash
-distil <group> status --output json <id> | jq -r .status
-```
-
-Call that every 20 seconds or so. `JOB_SUCCESS` means the outputs are readable. `JOB_FAILURE`
-or `JOB_STOPPED` means stop and read the log. Anything else means the job is still running, so
-report where it is and check again. Jobs run for tens of minutes (§ Submitting jobs), so poll
-between other work and tell the user what is happening rather than blocking on one long wait.
-
-```bash
-distil <group> logs --output json <id> | jq -r .logs
-```
-
-Read the `status` field, not the exit code of `distil <group> status`. A status command that
-reaches the platform exits 0 whatever the job did. Creates report through the exit code: a
-rejected bundle or an invalid config exits 1 with the reason on stderr. Downloads do too. A
-download of something the job has not produced yet names the reason and exits 1 rather than
-writing an empty file, so the exit code is worth trusting.
+The snippets also use `jq`. Each command runs in its own shell, so nothing carries state from
+one command to the next: record each entity id in `run.md` and pass it back as a literal
+argument. Paths in the snippets are illustrative; the stage files own the working directories.
 
 ## The entity model
 
-The commands for each stage. What the entities are and how they chain: `../platform.md`
-§ Entities and jobs. The `Override` column says whether a job's configuration can be varied at
-submission. See § Overrides.
-
 | Stage | Entity | Submit | Read | Override |
 |---|---|---|---|---|
-| trace-processing | PreparedTraces → SeedDataset | `distil traces upload --data <dir>`, then `distil seed-dataset create-from-traces <traces-id>` | `distil seed-dataset {status,logs,metrics,download,download-metadata,download-traces-predictions}` | yes |
+| (job input) | PreparedTraces | `distil traces upload --data <dir>`, or `distil traces create-from-inference-endpoint --data <dir> <unique-endpoint-name>` | `distil traces {status,download,download-metadata}` | the files on disk |
+| test-set-from-traces | PreparedTraces → PreparedTraces | `distil traces expand-test-set <traces-id>` | `distil traces {status,logs,metrics,download,download-metadata,download-predictions}` | yes |
+| trace-processing | PreparedTraces → SeedDataset | `distil seed-dataset create-from-traces <traces-id>` | `distil seed-dataset {status,logs,download,download-metadata}` | yes |
 | (job input) | SeedDataset | `distil seed-dataset create --data <dir>` | `distil seed-dataset {status,download,download-metadata}` | the files on disk |
 | teacher-evaluation | TeacherEvaluation | `distil teacher-evaluation create-from-seed-dataset <seed-dataset-id>` | `distil teacher-evaluation {status,logs,metrics,download-metadata,download-predictions}` | yes |
-| synthetic-data-generation | TrainingDataset | `distil training-dataset create-from-seed-dataset <seed-dataset-id>`, or `distil training-dataset create --data <dir>` from local files | `distil training-dataset {status,logs,metrics,sample,download,download-metadata}` | yes |
-| test-set-expansion | TrainingDataset | as synthgen, from a **new** SeedDataset with train and test inverted | as synthgen | data change, so no |
-| model-training | SLM | `distil slm create-from-training-dataset <training-dataset-id>` | `distil slm {status,logs,metrics,download,download-metadata,download-predictions}` | yes |
-| model-deployment | Deployment | `distil deployment create-from-slm <slm-id>` | `distil deployment {status,endpoint,logs}`, `distil deployment delete` | no config of its own |
-
-`upload` and `uploads` are aliases of `seed-dataset`, and `create-from-upload` of
-`create-from-seed-dataset`. Write the `seed-dataset` spelling. Each group also answers to its
-plural (`slms`, `deployments`, `teacher-evaluations`, and so on), and `list` answers to `ls`.
+| synthetic-data-generation | TrainingDataset | `distil training-dataset create-from-seed-dataset [--smoke] <seed-dataset-id>` | `distil training-dataset {status,logs,metrics,sample,download,download-metadata}` | yes |
+| model-training | SLM | `distil slm create-from-training-dataset [--smoke] <training-dataset-id>` | `distil slm {status,logs,metrics,download,download-metadata,download-predictions}` | yes |
+| inference-endpoint | Deployment, InferenceEndpoint | `distil deployment create-from-slm <slm-id>`, then `distil inference-endpoint create-from-deployment <deployment-id>`; or `distil inference-endpoint create` with no SLM | `distil deployment {status,logs}`, `distil inference-endpoint {list,show,download-traces}` | no config of its own |
 
 ### Which commands speak JSON
 
-`--output json` is registered on the read commands (`list`, `show`, `status`, `logs`,
-`metrics`, `sample`, plus `whoami` and `credits-balance`) and on the job creates
-that name a parent id: `teacher-evaluation create-from-seed-dataset`,
-`training-dataset create-from-seed-dataset`, `slm create-from-training-dataset` and
-`deployment create-from-slm`.
+`--output json` is registered on:
+
+- the read commands: `list`, `show`, `status`, `logs`, `metrics`, `sample`, plus `whoami` and
+  `credits-balance`;
+- the creates that name a parent id: `traces expand-test-set`,
+  `teacher-evaluation create-from-seed-dataset`, `training-dataset create-from-seed-dataset`,
+  `slm create-from-training-dataset`, `deployment create-from-slm`;
+- `inference-endpoint create` and `inference-endpoint create-from-deployment`.
 
 It is not registered on the commands that read local files (`traces upload`,
-`seed-dataset create`, `training-dataset create`, `slm create`), on
-`seed-dataset create-from-traces`, or on any download command. Passing it there fails with
-`No flag registered for --output` and creates nothing, so read the id out of what those
-commands print instead.
+`traces create-from-inference-endpoint`, `seed-dataset create`, `training-dataset create`,
+`slm create`), on `seed-dataset create-from-traces`, on `inference-endpoint link-api-key` and
+`unlink-api-key`, or on any download command. Passing it there fails with
+`No flag registered for --output` and creates nothing. Those commands print the new id in a
+sentence; read it from the output.
 
-Without `--output json` a read prints a panel for a human reader and suggests the next command
-underneath. Parse the JSON form.
+Without `--output json` a read prints a panel for a human reader. Parse the JSON form.
 
 ### Supplying files
 
-The CLI does the presigned-URL upload for you. `--data <dir>` names
-a directory and the CLI reads the files out of it by name:
+`--data <dir>` names a directory, and the CLI uploads the files in it by name:
 
 | Command | Required in `--data <dir>` | Optional |
 |---|---|---|
 | `distil traces upload` | `traces.jsonl`, `config.yaml`, `job_description.json` | `test.jsonl` |
+| `distil traces create-from-inference-endpoint` | `config.yaml`, `job_description.json` | `test.jsonl`; a `traces.jsonl` in the directory is refused |
 | `distil seed-dataset create` | `train.jsonl`, `test.jsonl`, `config.yaml`, `job_description.json` | `unstructured.jsonl` |
-| `distil training-dataset create` | `train.jsonl`, `test.jsonl`, `config.yaml`, `job_description.json` | none (an `unstructured.jsonl` left in the directory is skipped with a warning) |
+| `distil training-dataset create` | `train.jsonl`, `test.jsonl`, `config.yaml`, `job_description.json` | none; an `unstructured.jsonl` is skipped with a warning |
 | `distil slm create` | `model.tar`, `config.yaml` | none |
 
-`config.yml` is accepted for `config.yaml`. The per-file flags (`--traces`, `--train`,
-`--test`, `--unstructured`, `--config`, `--job-description`, `--model`) replace one path each,
-and combining them with `--data` is refused rather than merged. A file missing from the
-directory is named before anything uploads.
+`config.yml` is accepted for `config.yaml`. The per-file flags (`--traces`, `--train`, `--test`,
+`--unstructured`, `--config`, `--job-description`, `--model`) replace one path each, and
+combining them with `--data` is refused. A missing file is named before anything uploads.
+"Required" means present, not non-empty: `train.jsonl` and `test.jsonl` can be empty
+(`../data-preparation/overview.md` § Empty splits).
 
-"Required" means the file has to be there, not that it has to hold rows. `train.jsonl` and
-`test.jsonl` can be empty (`../data-preparation/overview.md` § Empty splits). Leaving one out
-is still an error.
+The download commands write these same names, so a downloaded directory is accepted unchanged
+by the matching `create --data`. That is how a change to the data is made, since no override
+reaches the data.
 
-The download commands write these same names, so a downloaded directory feeds straight back
-into the matching `create --data`. That round trip is how a change to the *data* is made, since
-no override can reach it.
-
-`distil training-dataset create --data <dir>` builds a TrainingDataset from local files instead
-of from a SeedDataset. It returns a dataset id and no SeedDataset id. The SeedDataset id is the
-address of teacher evaluation and of every later iteration, so this is not a substitute for
-`create-from-seed-dataset` in the main path. Its one use in this skill is the training smoke,
-§ The TrainingDataset.
-
-`distil slm create --data <dir>` is not part of the stage path either. It registers an existing
-`model.tar` and `config.yaml` as an SLM. It uploads a model. It does not train one.
+`distil training-dataset create --data <dir>` creates a TrainingDataset from local files.
+`distil slm create --data <dir>` registers an existing `model.tar` and `config.yaml` as an SLM;
+it does not train one.
 
 ## Credits
 
-`distil credits-balance` prints the calls remaining on each metered route. The read is free and
-answers at zero balance. How metering works, the route table and the starting balances:
-`../platform.md` § Credits.
-
 ```bash
 distil credits-balance
-# prepared_traces_post                       100    <- one row per metered route,
-# seed_datasets_post                         100       sorted by name
-# teacher_evaluations_post                    20
-# training_datasets_from_seed_datasets_post    5
-# slms_from_training_datasets_post             2
+# prepared_traces_post                              100    <- excerpt; one row per metered
+# prepared_traces_with_expanded_test_set_post        20       route, sorted by name
+# seed_datasets_from_prepared_traces_post            20
+# seed_datasets_post                                100
+# training_datasets_from_seed_datasets_post           5
+# slms_from_training_datasets_post                    2
 ```
 
-`--output json` returns `{"balances": {…}}` under the same keys. Only metered routes appear. A
-route the platform never charges for is absent rather than reported as unlimited, so a missing
-key is not a zero, and an account with nothing metered reads `No metered endpoints.` Read an
-unfamiliar key defensively.
-
-**The route keys are the platform's, not the CLI's.** They agree with the command names, so
-`seed_datasets_*` is what `distil seed-dataset` spends.
-
-Read the balance before synthgen, not before training. A synthgen run with no training credit
-left leaves the generation spend with nothing to use it. A submission against an exhausted
-route is refused.
+`--output json` returns `{"balances": {…}}` under the same keys. An account with nothing
+metered prints `No metered endpoints.` The route keys and starting balances:
+`../platform.md` § Credits. A `--smoke` submission spends the `*_smoke_post` key of its route.
 
 ## Submitting jobs
 
-Every job is created by naming the id of the entity before it. Nothing uploads at this point,
-because the parent's files are already on the platform.
+Every job is created by naming the id of its parent. Nothing uploads, because the parent's files
+are already on the platform. Typical durations: `../platform.md` § Job status.
 
-| Stage | Command group | Typical duration |
-|---|---|---|
-| Trace processing | `seed-dataset` | 45 min |
-| Teacher evaluation | `teacher-evaluation` | 30 min |
-| Synthetic data generation | `training-dataset` | 90 min |
-| Model training | `slm` | 90 min |
-| Deployment | `deployment` | 40 min |
-
-### Trace processing
-
-Upload the traces, then process them into a SeedDataset.
+### Test set from traces and trace processing
 
 ```bash
-distil traces upload --data traces-input              # prints the PreparedTraces id
-distil seed-dataset create-from-traces <traces-id>   # prints the SeedDataset id
+distil traces upload --data traces-input                    # prints the PreparedTraces id
+distil traces expand-test-set --output json <traces-id> | jq -r .id   # the updated PreparedTraces
+distil traces status --output json <updated-traces-id> | jq -r .status
+distil seed-dataset create-from-traces <updated-traces-id>  # prints the SeedDataset id
 distil seed-dataset status --output json <seed-dataset-id> | jq -r .status
 ```
 
-`traces-input/` holds `traces.jsonl`, `config.yaml`, `job_description.json` and an optional
-`test.jsonl`. Supplying that test file replaces the generated test split and makes
-`num_traces_as_testing_base` inert. Neither command takes `--output json`, so read each id from
-the output it prints.
+`traces upload` checks only that the files are there and that the config parses. A malformed
+trace, test row or job description fails the first job that reads it, and the job log names
+the cause.
 
-Iterating is an override on the same PreparedTraces, which re-uploads nothing:
+`expand-test-set` creates a PreparedTraces whose `parent_prepared_traces_id` is the first and
+whose `source` is `test_set_expansion`. Its `test.jsonl` holds the supplied test rows, the
+relabelled traces and the synthetic rows; its `traces.jsonl` holds the traces the job did not
+use. `seed-dataset create-from-traces` copies the PreparedTraces' `test.jsonl` to the
+SeedDataset unchanged, so without one the test split is empty.
+
+Both jobs take `--config` and `--job-description` overrides on the same PreparedTraces:
 
 ```bash
 distil traces download-metadata -d traces/iter-2 <traces-id>   # free
@@ -206,31 +125,27 @@ distil traces download-metadata -d traces/iter-2 <traces-id>   # free
 #   relevance_filtering: true
 distil seed-dataset create-from-traces \
   --config traces/iter-2/config.yaml <traces-id>               # prints the new SeedDataset id
-distil seed-dataset status --output json <new-seed-dataset-id> | jq -r .status
 ```
 
-A PreparedTraces owns the trace file it was uploaded with, so a different set of traces means
-`distil traces upload` again. Config and job-description changes over the same traces are
-overrides.
+A different set of traces is a new `distil traces upload`.
 
 ### The SeedDataset
 
 A job-input directory (`../data-preparation/overview.md`), uploaded whole:
 
 ```bash
-distil seed-dataset create --data input      # prints the SeedDataset id; record it in run.md
+distil seed-dataset create --data input      # prints the SeedDataset id
 ```
 
-`seed-dataset create` validates the bundle before creating anything and prints the platform's
-validation error when it fails. That is this backend's dryrun. Three failures look different
-and all name the cause:
+`seed-dataset create` validates the bundle before creating anything. The three failures, each
+exiting 1 and creating nothing:
 
 ```
 # a file missing from the directory: caught locally, nothing uploads
 Required file not found: test.jsonl in input
 
 # a task the platform does not have
-Only the following tasks are supported: ['classification', 'question-answering-open-book', …]
+Only the following tasks are supported: ['classification', 'question-answering', …]
 
 # a row in the wrong shape, named down to the row index
 1 validation error for JobInputParser
@@ -238,99 +153,38 @@ job_input.1.data.question-answering.train_dataset.0.messages
   Field required [type=missing, input_value={'wrong': 'shape'}, input_type=dict]
 ```
 
-Each exits 1 and creates nothing. Correct the directory and run the command again.
+### Overrides
 
-The route is metered (`seed_datasets_post`), but only a successful create spends a credit. The
-balance is checked first, and the call is recorded only after validation passes. So validating
-a broken bundle repeatedly is free, and a refusal here means the balance was already zero
-before the bundle was read.
-
-A direct SeedDataset runs no job. It reports `JOB_SUCCESS` as soon as the command returns and
-needs no poll, its `logs` are empty and its `metrics` are null. A trace-derived one runs a job
-and needs a poll.
-
-### The TrainingDataset (training smoke calibration)
-
-Normally a TrainingDataset is *produced* by synthgen. It can also be created from local files,
-which is how `../../stages/model-training.md` Step 3 builds the truncated dataset it calibrates
-memory settings on:
+Five creates accept `--config <file>` (`-c`) and `--job-description <file>`:
+`traces expand-test-set`, `seed-dataset create-from-traces`,
+`teacher-evaluation create-from-seed-dataset`, `training-dataset create-from-seed-dataset` and
+`slm create-from-training-dataset`. Both flags are optional and independent; an omitted one is
+inherited from the parent. Each file replaces the parent's whole (`../platform.md`
+§ Overrides), so read the parent's file, edit it, and send it back:
 
 ```bash
-distil training-dataset download -d training/smoke-1/input <training-dataset-id>
-# Truncate in place: keep the ~100 longest rows of train.jsonl and the ~10
-# longest of test.jsonl, leaving config.yaml and job_description.json as
-# downloaded. `create --data` then reads the same directory.
-distil training-dataset create --data training/smoke-1/input   # prints the new dataset id
-```
-
-The download is metered on `training_datasets_download_get`, the create on
-`training_datasets_post`. The create runs the same validation as `seed-dataset create`
-(`../data-preparation/overview.md` § Validation rules) and prints the failure the same way.
-
-### Overrides: how a job is parameterised
-
-Four job creates each accept `--config <file>` (`-c`) and `--job-description <file>`:
-`seed-dataset create-from-traces`, `teacher-evaluation create-from-seed-dataset`,
-`training-dataset create-from-seed-dataset` and `slm create-from-training-dataset`. Both flags
-are optional and independent. Omit one and the job inherits the parent's.
-
-Each replaces the parent's file whole. The CLI does not merge, and whatever the file omits
-takes a *library default* rather than the parent's value (`../platform.md` § Overrides). So an
-override is read-edit-resend, never hand-written:
-
-```
-distil <group> download-metadata -d <dir> <id>   →   edit one field   →   pass to --config
-```
-
-`download-metadata` writes the entity's `config.yaml` and `job_description.json` and costs no
-credits. What it writes is the *fully expanded* config: every default materialized, keys
-sorted, comments dropped. That is why editing that file and sending it back preserves
-everything you did not touch.
-
-PreparedTraces is the exception: it echoes the config it was staged with, comments intact and
-nothing expanded. A trace-processing override therefore edits your own file.
-
-```bash
-distil seed-dataset download-metadata -d synthgen/smoke-1 <seed-dataset-id>
+distil seed-dataset download-metadata -d synthgen/smoke-1 <seed-dataset-id>   # free
 # edit synthgen/smoke-1/config.yaml
 distil training-dataset create-from-seed-dataset --output json \
   --config synthgen/smoke-1/config.yaml <seed-dataset-id> | jq -r .id
-# record the id it prints in run.md
 ```
 
-Two failure shapes:
+`download-metadata` writes `config.yaml` and `job_description.json` and nothing else. The config
+is fully expanded: every default written out, keys sorted, comments dropped. An uploaded
+PreparedTraces returns its config as uploaded; an updated one created by `expand-test-set`
+returns the fully expanded config.
 
-- A config naming one field under `base` is refused, because `base.task` has no default:
+A config with a complete `base` but no `synthgen` or `tuning` section is accepted, and those
+sections take their defaults with no error: against a parent with `generation_target: 512` and
+a list of `mutators`, a base-only override ran with `generation_target: 10000` and no mutators.
+A config missing `base.task` is refused with `Invalid config: ... base.task Field required`.
 
-  ```
-  Invalid config: 1 validation error for DistilConfiguration
-  base.task
-    Field required [type=missing, input_value={'student_model_name': 'Qwen3-0.6B'}, input_type=dict]
-  ```
-
-- A config carrying a complete `base` but no `synthgen` or `tuning` section is accepted, and
-  those sections revert silently. Submitted against a parent that set `generation_target: 512`,
-  `output_is_json: true`, `per_device_train_batch_size: 8` and a list of `mutators`, a
-  base-only override ran with `generation_target: 10000`, `output_is_json: false`,
-  `per_device_train_batch_size: 1` and no mutators. Nothing errored.
-
-Because the read-back config is complete, checking what a submission actually ran with is a
-diff rather than an audit:
+To check what a submission ran with, read its config back and compare:
 
 ```bash
 distil training-dataset download-metadata -d check <training-dataset-id>
 diff synthgen/smoke-1/config.yaml check/config.yaml
 ```
-
-An override reaches the config and the job description and nothing else. A change to the data
-is a new SeedDataset. That is why test-set expansion inverts train and test into a fresh one
-rather than overriding the existing one. `distil seed-dataset download -d <dir> <id>` writes a
-directory that `distil seed-dataset create --data <dir>` accepts unchanged, so making one is an
-edit between two commands.
-
-Since the parent never changes, an iteration is the same parent submitted again: `smoke-1`,
-`smoke-2` and `full-1` all name one SeedDataset. Record each child's UUID in the iteration's
-`run.md`.
 
 ### Teacher evaluation
 
@@ -339,8 +193,8 @@ distil teacher-evaluation create-from-seed-dataset --output json <seed-dataset-i
 distil teacher-evaluation status --output json <teacher-evaluation-id> | jq -r .status
 ```
 
-A different teacher model is a config change. Sharper judge instructions are a job-description
-change. Both are overrides on the same SeedDataset, and neither needs a new one:
+A different teacher is a config override and different judge instructions a job-description
+override, both on the same SeedDataset:
 
 ```bash
 distil seed-dataset download-metadata -d te/iter-2 <seed-dataset-id>
@@ -355,23 +209,13 @@ distil teacher-evaluation create-from-seed-dataset --output json \
 
 ```bash
 distil training-dataset create-from-seed-dataset --output json <seed-dataset-id> | jq -r .id
+distil training-dataset create-from-seed-dataset --smoke --output json \
+  --config synthgen/smoke-2/config.yaml <seed-dataset-id> | jq -r .id
 distil training-dataset status --output json <training-dataset-id> | jq -r .status
 ```
 
-A smoke run is a config override on the same SeedDataset:
-
-```bash
-distil seed-dataset download-metadata -d synthgen/smoke-1 <seed-dataset-id>
-# in synthgen/smoke-1/config.yaml, under synthgen:
-#   generation_target: 64
-#   generation_iteration_size: 16
-distil training-dataset create-from-seed-dataset --output json \
-  --config synthgen/smoke-1/config.yaml <seed-dataset-id> | jq -r .id
-```
-
-The full run is the same command with the intended `generation_target` and
-`generation_iteration_size`, or with no `--config` at all if the SeedDataset already carries
-them.
+`--smoke` runs the smoke version of the job (`../platform.md` § Smoke runs) and combines with
+the override flags.
 
 ### Model training
 
@@ -380,12 +224,8 @@ distil slm create-from-training-dataset --output json <training-dataset-id> | jq
 distil slm status --output json <slm-id> | jq -r .status
 ```
 
-Training reads its baseline config from the TrainingDataset, which inherited it from the
-SeedDataset synthgen ran over. Setting sensible `tuning` values before synthgen means the common
-case needs no override.
-
-A sweep is N submissions against the same dataset, one per student. Read the dataset's config
-once, then write one file per student, because the CLI sends each file whole:
+Training takes its config from the TrainingDataset, which inherited it from the SeedDataset. A
+sweep is one submission per config against the same dataset; submissions run concurrently:
 
 ```bash
 distil training-dataset download-metadata -d sweep <training-dataset-id>
@@ -397,82 +237,59 @@ for config in sweep/student-*.yaml; do
 done
 ```
 
-`per_device_train_batch_size`, `memory_optimized_training` and `use_qlora` vary the same way
-(read, edit, resend), which is how OOM is handled without touching the data. Submissions run
-concurrently, so start them all and poll them after.
+A smoke takes the same arguments plus `--smoke` (`../platform.md` § Smoke runs):
+
+```bash
+distil slm create-from-training-dataset --smoke --output json \
+  --config sweep/student-qwen3.5-4b.yaml <training-dataset-id> | jq -r .id
+```
 
 ## Monitor
 
-Poll `distil <group> status --output json <id>` every 20 seconds. The status values and how to
-run a poller: `../platform.md` § Job status.
-
 ```bash
-distil training-dataset status --output json <training-dataset-id> | jq -r .status
+distil <group> status --output json <id> | jq -r .status
+distil <group> logs --output json <id> | jq -r .logs
+distil <group> list --output json
 ```
 
-`status` answers `{"status": "JOB_RUNNING"}`. Deployments answer
-`{"deployment_status": …, "endpoint_status": …}` and have no `status` field at all, so read
-`.deployment_status` for those.
+`status` answers `{"status": "JOB_RUNNING"}`; the values and
+what they mean: `../platform.md` § Job status. Deployments answer
+`{"deployment_status": …, "endpoint_status": …}` with no `status` field, so read
+`.deployment_status` for them.
 
-`distil <group> logs --output json <id>` returns `{"logs": "…"}`, the whole job log as one
-string, cause at the end. It fills while the job runs, so it is also how a long job is watched.
+Read the `status` field, not the exit code: a status command that reaches the platform exits 0
+whatever the job did. Creates and downloads report through the exit code: a rejected bundle, an
+invalid config or a download of something not produced yet exits 1 with the reason on stderr,
+and a download never writes an empty file.
 
-`distil <group> list --output json` returns one object per entity, newest first, carrying `id`,
-`created_at`, the parent's id under its own key (`seed_dataset_id`, `training_dataset_id`,
-`slm_id`, and so on) and, where an entity can come from more than one kind of parent, a
-`source` naming which. It is how a lost id is recovered and how a child is traced back to its
-parent. It carries no status, so checking state costs one `status` call per id.
+`logs` returns `{"logs": "…"}`, the whole job log as one string. It fills while the job runs.
+
+`list` returns one object per entity, newest first, with `id`, `created_at`, the parent's id
+under its own key (`seed_dataset_id`, `training_dataset_id`, `slm_id`, and so on) and, where an
+entity can come from more than one kind of parent, a `source`. It recovers a lost id. It
+carries no status.
 
 ## Output layout
 
-The CLI fetches nothing by object-storage path. Metrics arrive as JSON on stdout, and a
-download command writes files to disk. Which outputs each stage produces, and the conditions on
-them: `../platform.md` § What each stage produces.
+What each entity produces, and when: `../platform.md` § What each stage produces.
 
 | Entity | Metrics | Data files | Config + job description | Predictions |
 |---|---|---|---|---|
-| PreparedTraces | none | `traces download` | `traces download-metadata` | none |
-| SeedDataset | `seed-dataset metrics` (trace-derived only) | `seed-dataset download` | `seed-dataset download-metadata` | `seed-dataset download-traces-predictions` |
+| PreparedTraces | `traces metrics` | `traces download` | `traces download-metadata` | `traces download-predictions` |
+| SeedDataset | none | `seed-dataset download` | `seed-dataset download-metadata` | none |
 | TeacherEvaluation | `teacher-evaluation metrics` | none | `teacher-evaluation download-metadata` | `teacher-evaluation download-predictions` |
 | TrainingDataset | `training-dataset metrics` (byte sizes) | `training-dataset download` (metered), `training-dataset sample` (free) | `training-dataset download-metadata` | none |
 | SLM | `slm metrics` | `slm download` | `slm download-metadata` | `slm download-predictions` |
 | Deployment | none | none | none | none |
 
-The `Config + job description` column is the free read every override starts from. Each
-`download-metadata` writes exactly `config.yaml` and `job_description.json`, on every entity,
-and nothing else.
-
 Every command that writes a directory takes `--destination <dir>` (`-d`) and otherwise names one
 after the entity: `<id>-traces`, `<id>-data`, `<id>-slm`, `<id>-metadata`. The `*-predictions`
-commands write a single file, so they take `--file-name` instead and default to
-`<id>-<kind>-predictions.jsonl` in the current directory. Downloads overwrite what is already
-there.
-
-Metrics and data downloads answer only once that entity's own job reaches `JOB_SUCCESS`. Until
-then a metrics field is `null`, and the matching download names the job's state
-(`SLM is still training`, `No data is available for this training dataset`) and exits 1 rather
-than writing an empty file.
-
-`download-metadata` is the partial exception. Config and job description are settled at
-submission, so a TeacherEvaluation or SLM answers within seconds of the create, and an override
-can be read back from a job still running. A TrainingDataset does not answer until its job
-finishes, and a failed job never answers at all, so record what you submitted rather than
-planning to read it back.
-
-Two entries carry conditions:
-
-- **`seed-dataset metrics` is empty for a directly created SeedDataset.** Both fields are
-  `null`: the command reports the trace-processing job and a direct SeedDataset runs none. On a
-  trace-derived one they hold the score of the model that produced the traces on your test set,
-  which is the production model being distilled from, not the untuned student. The student
-  cannot be scored before it is trained.
-- **`slm metrics` gives two scores but only the tuned model's predictions.** The base-vs-tuned
-  gap is reportable as numbers. A base-model failure case is not.
+commands write a single file, take `--file-name`, and default to `<id>-<kind>-predictions.jsonl`
+in the current directory. Downloads overwrite what is there. A download before the job has
+produced its output names the state (`SLM is still training`,
+`No data is available for this training dataset`) and exits 1.
 
 ## Fetch metrics
-
-Aggregated metrics arrive as the `*_performance` object: a flat metric-name-to-score dict for
-every task except classification. The matching download command writes the per-example detail.
 
 ```bash
 distil teacher-evaluation metrics --output json <teacher-evaluation-id> | jq .teacher_performance
@@ -481,46 +298,36 @@ distil teacher-evaluation metrics --output json <teacher-evaluation-id> | jq .te
 distil slm metrics --output json <slm-id> \
   | jq '{base: .base_model_performance, tuned: .tuned_model_performance}'
 
+distil traces metrics --output json <updated-traces-id> | jq .base_model_performance
+
 distil teacher-evaluation download-predictions <teacher-evaluation-id>
+distil slm download-predictions <slm-id>
+distil traces download-predictions <updated-traces-id>
 ```
 
-A metric the run did not compute is `null` rather than absent. Filter those before averaging.
+The `*_performance` object maps metric name to score; for classification its shape differs
+(`../evaluation-metrics.md` § Metrics by task). A metric the run did not compute is `null`
+rather than absent, so filter nulls before averaging.
 
-Three things about the predictions file:
+Two things about a predictions file:
 
-- It is JSONL, one test example per line, carrying `prompt`, `completion`, `prediction` and
-  that example's own score under each metric name. Read one row and work from what is there.
-- `prompt` is the full prompt as a message list, not the user text alone, and `completion` and
-  `prediction` are assistant messages. Parse them before comparing. In the teacher evaluation
-  file they arrive as JSON values. In `slm download-predictions` they, and the per-metric
-  scores, arrive as Python-repr strings (single quotes), so `json.loads` fails: parse them with
-  `ast.literal_eval`.
-- `slm download-predictions` holds the tuned model's predictions only. The base model's
-  per-example predictions are not available through the CLI; only its scores are, in
-  `slm metrics`.
-- For classification the performance object is not flat. Alongside `accuracy` it carries one
-  key per class label, each holding `{precision, recall, f1-score, support}`. There is no
-  `confusion_matrix` and no `classification_report`. Iterate by key rather than assuming
-  numeric values: `accuracy` is a float and every other entry is a dict.
-
-`metrics --output json` also carries the `*_download_url` the download command uses. It is
-presigned and expires after an hour. Take it directly only to hand the data to another program.
+- It is JSONL, one test example per line, with `prompt`, `completion`, `prediction` and that
+  example's score under each metric name. `prompt` is the full prompt as a message list, and
+  `completion` and `prediction` are assistant messages. Read one row and work from what is there.
+- `slm download-predictions` holds the tuned model's predictions only. The base model's scores
+  are in `slm metrics`; its per-example predictions are not available.
 
 ### Reading a TrainingDataset
 
-`training-dataset sample` is free and answers `{"rows": [{"messages": […]}, …]}`: at most 128
-train rows, drawn deterministically from the first 384, never test rows. `download` costs a
-credit on `training_datasets_download_get`.
-
 ```bash
-distil training-dataset sample --output json <training-dataset-id> > sample.json
+distil training-dataset sample --output json <training-dataset-id> > sample.json   # free
 jq '.rows | length' sample.json
 distil training-dataset metrics --output json <training-dataset-id> | jq .train_data_size_bytes
+distil training-dataset download -d data <training-dataset-id>     # training_datasets_download_get
 ```
 
-`metrics` reports bytes, not rows. At smoke scale the dataset is smaller than the cap, so the
-sample is the whole thing and its row count is exact. For a full run, divide the byte count by
-the mean row size in the sample and treat the result as an estimate.
+`sample` answers `{"rows": [{"messages": […]}, …]}`. What the sample holds and how to estimate
+the row count from it: `../platform.md` § What each stage produces.
 
 ## Fetch model artifacts
 
@@ -528,26 +335,21 @@ the mean row size in the sample and treat the result as an estimate.
 distil slm download --destination model <slm-id>
 ```
 
-This writes `model.tar` and `config.yaml`. The tarball expands to the layout `../deployment.md`
-§ Artifacts describes. The config is not inside it, and both files are needed to serve the
-model. The tarball is gigabytes, about 1.2 GB for a Qwen3-0.6B run, and the command checks free
-disk space before it starts writing.
+Writes `model.tar` and `config.yaml`. The tarball's contents: `../deployment.md` § Artifacts.
+The command checks free disk space before it starts writing.
 
 ### The inference client on its own
-
-`slm download-metadata` writes the model's client alongside its config and job description, a
-few kilobytes instead of the gigabytes of the tarball:
 
 ```bash
 distil slm download-metadata --destination model <slm-id>
 # model/config.yaml, model/job_description.json, model/model_client.py
 ```
 
-What the client is for and how to call it: `../deployment.md`.
+A few kilobytes instead of the tarball. How to use the client: `../deployment.md`.
 
 ## Reuse synthetic data for training-only runs
 
-Retrain the same dataset under a new config. Nothing is downloaded, copied or reassembled:
+Retrain the same dataset under a new config; nothing is downloaded or regenerated:
 
 ```bash
 distil training-dataset download-metadata -d retrain <training-dataset-id>
@@ -557,132 +359,67 @@ distil slm create-from-training-dataset --output json \
   --config retrain/config.yaml <training-dataset-id> | jq -r .id
 ```
 
-This is the sweep command from § Submitting jobs with one field changed instead of the student.
+## Inference endpoints
 
-## Deploy (hosted)
-
-```bash
-distil deployment create-from-slm --output json <slm-id> | jq -r .id
-distil deployment status --output json <deployment-id> | jq -r .deployment_status
-
-distil inference-endpoint create-from-deployment --output json --name <prefix> \
-  --fallback-model <owner/model> <deployment-id> | jq -r .unique_endpoint_name
-distil inference-endpoint link-api-key <unique-endpoint-name> <key-name>
-```
-
-A deployment is never called directly. `create-from-deployment` puts an inference endpoint in
-front of it (§ Inference endpoints), which calls the deployment first and falls back to
-`--fallback-model` when it fails. Create it once the deployment reports `JOB_SUCCESS`; before
-that it refuses with `Deployment is not ready`. Link an inference API key (§ Keys) and query the
-endpoint through the model's own client rather than a hand-built request:
-`../deployment.md` § Serving hosted has the call and says why.
-
-```bash
-distil slm download-metadata -d model <slm-id>       # § The inference client on its own
-uv run model/model_client.py --base-url https://inference.distillabs.ai/v1 \
-  --api-key <endpoint-api-key> --model <unique-endpoint-name> \
-  --conversation '[{"role": "user", "content": "…"}]'
-```
-
-An answer alone does not say which model gave it. The endpoint's records do: `metadata.source`
-is `primary` for the deployment and `fallback` otherwise (§ Download the traces).
-
-```bash
-distil deployment delete <deployment-id>
-```
-
-The deployment serves the model with vLLM, and the job does not return until vLLM answers, so
-`JOB_SUCCESS` means serving rather than merely scheduled, so poll the status before creating the
-endpoint.
-
-**A deployment is a session, not a permanent endpoint.** It stops after six hours, or after one
-hour with no traffic. It cannot be restarted. From then on the endpoint in front of it answers
-from the fallback, and a new deployment needs a new endpoint. Replacing a stopped one spends another `deployments_from_slms_post` credit, so collect the
-inputs to send before you create the deployment.
-
-CAUTION: delete the deployment when finished. A running deployment bills until its idle timeout.
-After the delete, `deployment_status` stays `JOB_SUCCESS`. `endpoint_status` going to `stopped`
-is what confirms it is down.
-
-To serve the model locally, download `model.tar` as above, then read `../deployment.md`
-§ Serving locally.
-
-## Inference endpoints (collecting traces)
-
-An inference endpoint is an OpenAI-compatible gateway in front of the model the user already runs
-in production. Their application calls the endpoint instead of the provider, the fallback model
-answers exactly as before, and the platform keeps a copy of every call. Those copies are the
-traces that `stages/trace-processing.md` consumes, so this is the route for a user who wants a
-distilled model but has no trace file to start from. Later, the same kind of endpoint puts the
-trained student in front of that traffic (§ Serve the student behind an endpoint).
-
-An endpoint is not a Deployment. It is permanent, has no idle timeout, cannot be edited or
-deleted, and serves no model of its own until one is set as its primary.
+How endpoints behave: `../inference-endpoints.md`. The procedure:
+`../../stages/inference-endpoint.md`.
 
 ```bash
 distil inference-endpoint create --name <prefix> --fallback-model <owner/model>
 distil inference-endpoint create-from-deployment --name <prefix> --fallback-model <owner/model> <deployment-id>
-distil inference-endpoint list --output json          # alias: ls
+distil inference-endpoint list --output json
 distil inference-endpoint show --output json <unique-endpoint-name>
+distil inference-endpoint link-api-key <unique-endpoint-name> <key-name>
+distil inference-endpoint unlink-api-key <unique-endpoint-name> <key-name>
+distil inference-endpoint download-traces <unique-endpoint-name>
+distil traces create-from-inference-endpoint --data <dir> <unique-endpoint-name>
 ```
+
+### Deploy an SLM
+
+```bash
+distil deployment create-from-slm --output json <slm-id> | jq -r .id
+distil deployment status --output json <deployment-id> | jq -r .deployment_status
+distil deployment delete <deployment-id>
+```
+
+Poll `deployment_status` to `JOB_SUCCESS` before creating the endpoint;
+`create-from-deployment` refuses earlier with `Deployment is not ready`. After
+`deployment delete`, `deployment_status` stays `JOB_SUCCESS`; `endpoint_status` reading
+`stopped` confirms the deployment is down.
+
+### Create an endpoint
 
 ```bash
 distil inference-endpoint create --name support --fallback-model "openai/gpt-4.1-mini"
 # Endpoint Name:   support-yeOdAS
 # Endpoint:        https://inference.distillabs.ai/v1/chat/completions
+
+distil inference-endpoint create-from-deployment --output json --name support-slm \
+  --fallback-model "openai/gpt-4.1-mini" <deployment-id> | jq -r .unique_endpoint_name
+# support-slm-Qk3bZ1
 ```
 
-`--name` is a prefix, not the name. The platform appends a suffix and returns the
-`unique_endpoint_name` (eg. `support` → `support-yeOdAS`), which every other command takes and which
-the `model` field of a request carries. Record it in `run.md` as an entity id. There is no
-lookup by prefix and no rename, so a lost name is recovered from `list`.
+`create` makes a collecting endpoint, `create-from-deployment` a serving one. `--name` is the
+prefix; record the unique endpoint name the command prints. `--fallback-model` is an OpenRouter
+slug in `owner/model` form. `--trace-sample-rate <0-1>` sets the fraction of calls recorded,
+default 1; `show` reports it as `trace_sampling_rate`.
 
-`--fallback-model` takes an OpenRouter model slug in `owner/model` form
-(https://openrouter.ai/models lists every slug it accepts). It must name the model the user
-already calls in production, so ask rather than guess. If they are undecided, these are the ones
-distil labs runs today: `openai/gpt-4.1-mini` (small, cheap, the most common), `openai/gpt-5.4`,
-`google/gemini-2.5-flash`, `google/gemini-3.1-flash-lite`.
-
-`--trace-sample-rate <0-1>` is the fraction of calls the endpoint records, default 1. The rate is
-fixed at creation and `show` reports it as `trace_sampling_rate`. Endpoints created with a CLI
-older than 0.27.0 carry a rate of 0.01, one call in a hundred, so create a new one when every
-call has to be recorded.
-
-`create-from-deployment` puts a hosted deployment in front of the fallback: § Serve the student
-behind an endpoint. `--primary-url` and `--primary-api-key` on `create` do the same for a server
-the user runs themselves: the base URL of an OpenAI-compatible server without `/v1`, since the
-endpoint appends `/v1/chat/completions` itself, and its key. The two come together or not at
-all. `--readiness-gate-timeout-ms` belongs to that primary and
-is for internal use.
-
-`create`, `create-from-deployment`, `list` and `show` take `--output json`. `link-api-key`, `unlink-api-key` and
-`download-traces` do not (§ Which commands speak JSON).
+`create` also takes `--primary-url` and `--primary-api-key`, which connect a model already
+deployed elsewhere as the primary. No stage in this skill uses them.
 
 ### Keys
-
-A request to the endpoint authenticates with an inference API key, which is a different
-credential from the CLI session. Keys are created on their own and then linked.
 
 ```bash
 distil api-keys create <key-name>      # prints the secret once, writes <key-name>.json
 distil api-keys list --output json
 distil api-keys delete <key-name>
-distil inference-endpoint link-api-key <unique-endpoint-name> <key-name>
-distil inference-endpoint unlink-api-key <unique-endpoint-name> <key-name>
 ```
 
-The secret is shown at creation and never again, which is why `create` also writes
-`<key-name>.json` to the current directory. `--no-file` suppresses that for a machine where the
-key must go straight into a secret store. Never echo a secret back into the transcript or into
-`run.md`; name the file it landed in instead. A key authenticates nothing until it is linked, and
-the link is many-to-many, so one key can serve the collecting endpoint and the one that later
-fronts the student. An account holds at most 5 keys.
+`--no-file` on `create` skips writing `<key-name>.json`, for a key that goes straight into a
+secret store. Never echo a secret into the transcript or into `run.md`; name the file instead.
 
-Key changes take up to a minute to propagate. A freshly linked key can be rejected by the endpoint.
-Wait and retry rather than reporting a failure, and do not have the user move traffic onto a new key,
-or unlink the key it replaces, inside that minute.
-
-### The call the user has to make
+### The call the application makes
 
 ```bash
 curl https://inference.distillabs.ai/v1/chat/completions \
@@ -691,76 +428,43 @@ curl https://inference.distillabs.ai/v1/chat/completions \
   -d '{"model": "support-yeOdAS", "messages": [{"role": "user", "content": "Say hi."}]}'
 ```
 
-`model` carries the unique endpoint name rather than a model name. Everything else is an ordinary
-chat completions request, so an existing OpenAI client changes three strings and nothing else:
-base URL to `https://inference.distillabs.ai/v1`, key to the endpoint's key, model to the unique
-name. The system prompt and everything else in the request stay as they are: the endpoint records
-the request whole, and trace processing moves the system prompt's content into the job
-description. Send one call like the above with the user before they touch their application, so a
-failure is a `curl` they can read rather than a production incident.
-
-Then it waits. Traces accumulate at the rate of their traffic, and trace processing wants
-hundreds, so the next stage is days or weeks away rather than minutes. Say that plainly when
-proposing this route.
-
-### Download the traces
+`model` carries the unique endpoint name; the rest is an ordinary chat completions request. A
+trained model behind a serving endpoint is queried with its own client:
 
 ```bash
-distil inference-endpoint download-traces <unique-endpoint-name>                  # newest 1000
-distil inference-endpoint download-traces --count 5000 <unique-endpoint-name>     # -c
-distil inference-endpoint download-traces --all <unique-endpoint-name>
-distil inference-endpoint download-traces --file-name raw-traces.jsonl <unique-endpoint-name>
-```
-
-Writes JSONL, one record per line, to `<unique-endpoint-name>-traces.jsonl` unless `--file-name`
-says otherwise. Defaults to the newest 1000.
-
-`--count` caps what is kept; the platform pages the transfer itself. `--all` walks every page.
-Passing both is refused, not reconciled. An endpoint with no traces yet writes
-no file, so a missing file after a successful run means no traffic, not a failed download. The
-platform searches a bounded window, roughly the last 90 days.
-
-**The downloaded file is not a trace processing input.** Each record holds the request and the
-response as JSON strings under `input` and `output`, plus `metadata` with the HTTP `status` and
-`source`, which names whether the `fallback` or the `primary` answered. Trace processing wants one
-`{"messages": [...]}` object per line. Convert per `../data-preparation/traces.md` § From an
-inference endpoint, then run `stages/trace-processing.md` on the result like any other trace
-file.
-
-### Serve the student behind an endpoint
-
-An endpoint also puts a trained model in front of the traffic. Deploy the student (§ Deploy
-(hosted)), wait for `JOB_SUCCESS`, and create a new endpoint with the deployment as its primary:
-
-```bash
-distil inference-endpoint create-from-deployment --name support-slm \
-  --fallback-model "openai/gpt-4.1-mini" <deployment-id>
-# Endpoint Name:   support-slm-Qk3bZ1
-
-distil inference-endpoint link-api-key support-slm-Qk3bZ1 <key-name>
-```
-
-`--fallback-model` is the model production ran before. Smoke-test a few test-set rows through
-`model_client.py` pointed at the endpoint (below) before the application moves, and confirm in
-the downloaded records that `source` reads `primary` for them. The endpoint calls the primary first and
-falls back to the fallback model whenever the primary fails, a timeout included, so the
-application keeps answering when the deployment stops. It forwards the request as received, with
-`model` rewritten to the name the deployment serves.
-
-An endpoint cannot be edited, so fronting the student always means a new endpoint with a new
-unique name: the application's `model` string moves to it, and the old endpoint keeps recording
-until then. The application keeps the same system prompt it sent during collection; the student
-was trained against a job description that mirrors it. Where the caller can use it, the model's
-own `model_client.py` is the safer client, pointed at the endpoint:
-
-```bash
+distil slm download-metadata -d model <slm-id>
 uv run model/model_client.py --base-url https://inference.distillabs.ai/v1 \
   --api-key <endpoint-api-key> --model support-slm-Qk3bZ1 \
   --conversation '[{"role": "user", "content": "…"}]'
 ```
 
-The hosted deployment behind the primary stops on its own (§ Deploy (hosted)), and from then on
-`source` in every record reads `fallback`. That setup is for trying the student on real traffic;
-a permanent primary is a request to contact@distillabs.ai. The new endpoint records like the
-first one, so its download is the trace file for the next iteration, with `source` telling the
-student's answers from the fallback's.
+### Download the traces
+
+```bash
+distil inference-endpoint download-traces <unique-endpoint-name>                  # last day, newest 1000
+distil inference-endpoint download-traces --from-start-time 2026-09-01 --all <unique-endpoint-name>
+distil inference-endpoint download-traces --count 5000 <unique-endpoint-name>     # -c
+distil inference-endpoint download-traces --file-name raw-traces.jsonl <unique-endpoint-name>
+```
+
+Writes JSONL, one record per call, to `<unique-endpoint-name>-traces.jsonl` unless `--file-name`
+says otherwise. `--from-start-time` and `--to-start-time` take an ISO 8601 date or date-time;
+the default window is the last day. Within it, `--count` caps the records (default 1000) and
+`--all` takes every one; passing both is refused. With no records in the window, no file is
+written.
+
+The file is endpoint records, not a trace file: convert it per
+`../data-preparation/traces.md` § From an inference endpoint, then `distil traces upload` the
+result.
+
+### Traces from an endpoint
+
+```bash
+distil traces create-from-inference-endpoint --data traces-input <unique-endpoint-name>
+# Prepared traces created. ID: <traces-id>
+```
+
+Creates a PreparedTraces from the endpoint's records. `traces-input/` holds the files in
+§ Supplying files; set `trace_processing.observation_format: langfuse` in its config.
+`--config`, `--job-description` and `--test` replace `--data` with one path each. Which records
+it includes, and when: `../inference-endpoints.md` § From records to a traces object.

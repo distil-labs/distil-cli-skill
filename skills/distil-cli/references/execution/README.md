@@ -1,12 +1,11 @@
-# Execution Backends
+# Setting Up the CLI
 
-An execution backend is the client that runs the stages. `cli.md` runs them through the
-`distil` command, and this file tells you how to set it up. Do it at the start of a project,
-before the first stage.
+The stages run through the `distil` command; `cli.md` holds the commands. Set the CLI up at the
+start of a project, before the first stage.
 
 ## Set up the CLI
 
-1. Run `distil --version`. If the command answers, use `cli.md` and go to step 4.
+1. Run `distil --version`. If the command answers, go to step 4.
 2. Say that you will install the CLI, then run the install script:
 
    ```bash
@@ -14,9 +13,9 @@ before the first stage.
    ```
 
    The script writes one binary to `~/.local/bin/distil`. It changes nothing else.
-3. Run `distil --version` again. If the command answers, use `cli.md`. If the shell does not
-   find the binary, add `~/.local/bin` to `PATH` and run the command again. If the install
-   failed, see § When the install is impossible.
+3. Run `distil --version` again. If the shell does not find the binary, add `~/.local/bin` to
+   `PATH` and run the command again. If the install failed, see § When the install is
+   impossible.
 4. Run `distil whoami`. If it prints a user, the CLI is ready. If it prints no user, ask whether
    the user already has a distil labs account, then run the matching command:
 
@@ -30,6 +29,13 @@ before the first stage.
    prints `Logged in as <email>`. If the browser does not open, the command prints an address to
    visit. It works from any device, so on a machine with no browser the user opens it on their laptop
    or phone. The code expires after a few minutes; if it does, run the command again.
+
+   With a session already in place, both print `You are already logged in as <email>`. Run
+   `distil logout` first to switch accounts.
+
+The CLI keeps its session in `~/.config/distillabs/session.json` (under `$XDG_CONFIG_HOME` when
+that is set) and refreshes it, so a run spanning hours needs no second sign-in.
+`distil update` replaces the binary in place.
 
 ## When the install is impossible
 
@@ -45,9 +51,3 @@ Silicon only. The skill cannot run stages in these conditions:
 
 Without the CLI you can still prepare the data files and the config with the user, so they are
 ready to run once the CLI is available.
-
-## Entity names
-
-`cli.md` uses the platform's entity names, so a citation such as § The SeedDataset resolves
-there. `cli.md` § The entity model lists the command aliases the CLI accepts on top of those
-names.

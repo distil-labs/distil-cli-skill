@@ -37,16 +37,9 @@ Use this route for an agent that `distil skill install` does not cover, with `--
 
 ## Prerequisites
 
-The skill runs every stage through the `distil` CLI. Install it if you have not, and authenticate:
-
-```bash
-curl -fsSL https://cli-assets.distillabs.ai/install.sh | sh
-distil auth
-```
-
-`distil auth` shows a one-time code and opens your browser to confirm it. Use `distil signup`
-instead if you don't have an account yet. The skill does this itself at the start of a project
-if you skip it. On Windows, run the CLI inside WSL.
+The skill runs every stage through the `distil` CLI, installed above. Sign in with
+`distil auth`, or `distil signup` without an account; the skill does this itself at the start of
+a project if you skip it. On Windows, run the CLI inside WSL.
 
 ## Supported Task Types
 
@@ -54,23 +47,14 @@ if you skip it. On Windows, run the CLI inside WSL.
 |-----------|----------|---------|
 | Question Answering | Extract answers from documents | Invoice parsing, contract analysis, ticket extraction |
 | Classification | Categorize text into fixed classes | Intent detection, sentiment analysis, ticket triage |
-| Tool Calling | Select and invoke functions/APIs | API routing, workflow automation, chatbot actions |
-| Multi-Turn Tool Calling | Multi-step conversations with tool use | DevOps chatbots, file system assistants, database interfaces |
-| Open Book QA (RAG) | Answer questions using provided context | Document QA, support from docs |
-| Closed Book QA | Answer from knowledge learned during training | FAQ bots, domain assistants |
+| Chat Completion | Conversational turns with text, tool calls, or both | Support chatbots, API routing, chatbot actions |
+| Agentic Chat Completion | Tool-calling loops where tool results feed back into the answer | DevOps assistants, file system assistants, database interfaces |
 
 ## Layout
 
-| Path | What it is |
-|---|---|
-| `SKILL.md` | Entry point: architecture, stage protocol, routing |
-| `stages/` | One unit of pipeline work each, directly invocable |
-| `workflows/` | Sequencers over stages, owning the gates and decision points |
-| `references/` | Shared knowledge: data formats, config, models, metrics |
-| `references/execution/` | The only files that know how stages actually run. Its `README.md` sets up the CLI |
-
-The skill separates *what to do* from *how to run it*. Stages and workflows hold the
-model-building logic. The execution backend under `references/execution/` holds the commands.
+`SKILL.md` is the entry point. `stages/` holds one unit of pipeline work each, `workflows/` the
+two workflows (the build loop and the improvement loop), and `references/` the shared knowledge,
+with every `distil` command in `references/execution/cli.md`.
 
 ## Quick Start
 
@@ -79,11 +63,10 @@ Once the skill is installed, ask your agent to build you a model:
 > "Help me build a classification model for customer support intent detection"
 
 The agent starts from the model you already run in production: it puts an inference endpoint in
-front of it to collect traces, or takes a trace file or a labeled dataset if you have one, and
-walks the pipeline with you: preparing the input directory, checking feasibility with a teacher
-evaluation, generating synthetic training data, training the student, and serving it behind a
-new endpoint so it takes the traffic the traces came from. Every stage confirms the setup and the expected credit cost with you before it
-submits anything. Where a smoke run is worth running, it runs a cheap one first.
+front of it to collect traces, or takes a trace file or a labelled dataset if you have one. It
+then checks feasibility with a teacher evaluation, generates synthetic training data, trains the
+student, and serves it behind a new endpoint that takes the traffic the traces came from. Every
+stage confirms the setup and the expected credit cost with you before it submits anything.
 
 ## Documentation
 

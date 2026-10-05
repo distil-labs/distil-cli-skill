@@ -1,173 +1,130 @@
 # Stage: Trace Processing
 
-Turns raw production traces into a training-ready input directory: traces are filtered for
-relevance, relabeled by a teacher (optionally a committee), and split into train/test plus
-unstructured context. The original model is also evaluated on the generated test set, which
-gives the baseline the trained student must beat. Setting `evaluate_original_model` to false
-skips that.
+Turns a traces object into a SeedDataset: traces are filtered for relevance, relabelled by a
+teacher (optionally a committee), and become the train split, with the leftover traces as
+unstructured context. The test split is not built here. It is copied from the PreparedTraces the
+job runs over, so run `test-set-from-traces.md` first, or upload a curated `test.jsonl` with the
+traces.
 
 ## Working Directory
 
 ```
 trace-processing/
 ├── smoke-1/
-│   ├── input/           # the exact inputs this iteration ran
-│   ├── run.md           # submission command and job identifiers
-│   └── output/          # fetched processed data and original-model eval
-├── smoke-2/             # next iteration: copy the previous input, change one thing
-└── full-1/              # last passing smoke input with the full trace set
+│   ├── input/           # the subsample upload directory, and any override sent
+│   ├── run.md           # the PreparedTraces id, the command and the SeedDataset id
+│   └── output/          # fetched processed data
+├── smoke-2/             # next smoke: one change against smoke-1
+└── full-1/              # the last passing smoke's settings over the full trace set
 ```
 
-## Step 1: Prepare the Input Directory
+## Step 1: Prepare the Input
 
-The input is a trace directory: traces.jsonl, job_description.json, config.yaml with a
-`trace_processing` section, and optionally a curated test.jsonl (which then replaces the
-generated test split). Convert raw logs following
-`../references/data-preparation/traces.md`, pick the task type first
-(`../references/task-types.md`), and write the job description per
-`../references/job-description.md`. The job description's optional
-`trace_processing_instructions` field carries task-specific guidance for the rewrite and fix
-edits, for example "preserve the caller's interruptions verbatim" for phone-call transcripts.
+The input is a PreparedTraces id. For the full run it is the updated PreparedTraces from
+`test-set-from-traces.md`, which holds the test set and the traces it did not use. The trace
+file, the task type and the job description are prepared before that
+(`../workflows/build-a-model.md` Step 3, `../references/data-preparation/traces.md`). Without a
+test set the SeedDataset has an empty test split, and teacher evaluation cannot run on it.
 
-Keep `base.enable_thinking: false` here: trace processing rejects `true`. For a reasoning
-student, turn it on at synthgen (`../references/reasoning-models.md` § Stage order).
+The `trace_processing` config section controls this stage; its parameters and defaults are in
+`../references/configuration.md` § trace_processing. Test set from traces reads the same section
+for its relabelling, so a change here changes both jobs. `observation_format` must match the
+shape of `traces.jsonl`. Never set `relabel: false`: the production answers would pass through
+unreviewed, and the student would only learn to imitate the model it is meant to beat. When
+relabelled answers look worse than the originals, change the relabelling teacher or committee
+instead.
 
-Trace processing is controlled by the `trace_processing` config section. The full table is in
-`../references/configuration.md`. The ones to set deliberately:
+Two behaviours to expect:
 
-- `observation_format` must match the shape of traces.jsonl (`openai_messages` default, image
-  and unstructured variants).
-- `relabel` (default true) has the teacher rewrite assistant answers, and
-  `relabelling_committee_models` upgrades this to a committee. Leave it on. Relabeling is the
-  point of this stage, and `relabel: false` reduces it to filtering and splitting: the
-  original production answers pass through unreviewed, so the student only learns to imitate
-  the model it is meant to beat. Do not turn it off. When relabeled answers look worse than
-  the originals, fix the relabeling teacher or committee instead.
-- `relevance_filtering` is off by default, so every seed trace flows straight through. Set
-  it `true` to have an LLM score traces and drop the low relevance/coherence ones. That
-  costs an LLM pass over every trace, and `min_relevance_score` / `min_coherence_score` only
-  apply once it is on.
-- `num_traces_as_training_base` / `num_traces_as_testing_base` (defaults 200/200) seed the
-  splits, testing base ≥ 1. Equal counts are a reasonable default. Weight the testing base
-  higher when you want a larger test set than training set. Leftover traces become
-  unstructured context.
-- `min_generated_examples` (default 1) is a floor checked per split, train and test each
-  separately, after filtering, relabeling AND schema checking have each dropped a fraction of
-  the traces. Its ceiling is therefore the SMALLER of the two base counts, and well below that
-  in practice. A supplied `test.jsonl` is rejected up front when it has fewer rows than this.
+- **No floor on the train split.** Filtering, relabelling and schema checks each drop traces,
+  and whatever survives is written, an empty split included. A train split far below
+  `num_traces_as_training_base` usually means the traces do not match the task type, for example
+  multi-turn traces for a single-turn task. The job log counts each drop.
+- **The exemplar counts can come out lower.** No in-context exemplar count may exceed the train
+  rows (`../references/configuration.md` § Cross-field validation), so this stage caps all four
+  to the train split it produced and logs a warning. Read the counts from the processed config.
 
-  **This is the only floor.** With nothing left to write, the stage writes the split out
-  empty rather than failing, so `min_generated_examples` is what makes a thinned split fail
-  loudly instead. Because the check runs after schema checking, the message names the real
-  cause:
-
-  ```
-  Unable to produce enough clean examples for the train split: got 0, need at least 1.
-  The schema for task tool-calling-closed-book rejected all but 0 of 12. The traces likely
-  do not match the task type, for example multi-turn for a single-turn task.
-  ```
-
-  Read that as a task-type mismatch first, not as a filtering problem.
-- **Trace processing can lower your exemplar counts.** No in-context exemplar count may
-  exceed the number of train rows (`../references/configuration.md` § Cross-field
-  validation), so this stage caps all four counts to the size of the train split it actually
-  produced, and logs a warning when it does. Otherwise it would emit an input directory the
-  platform then rejects. So a count you set in config.yaml is not guaranteed to survive trace
-  processing verbatim. Read the counts back out of the processed config before relying on
-  them.
-- `evaluate_original_model` (default true) produces the baseline the student must beat, and is
-  this stage's LLM-judge cost. Set it false on smokes (Step 3).
-- `synthgen.validation_max_total_length` also applies to processed examples. When traces embed
-  documents or schemas, raise it.
-- `compress_job_description: true` if the task description is very long and would overwhelm
-  the filtering model.
+For a reasoning student, see `../references/reasoning-models.md`.
 
 ## Step 2: Confirm the Setup with the User
 
 Before submitting anything, present and confirm:
 
-- what the raw traces look like (count, observation format, typical length) and the chosen
-  task type
-- the processing config (relabel/committee, relevance filtering on or off, trace-base
-  counts) and the trace-processing teacher
-- the remaining `prepared_traces_post` and `seed_datasets_from_prepared_traces_post`
-  credits, since a run spends one of each (`../references/platform.md` § Credits)
-- the path: normal (a small-slice smoke, its analysis, then the full run) or fast (skip the
-  smoke, Steps 3-5, and submit the full run directly). Either way the test-set review follows
-  the full run.
+- what the traces look like (count, observation format, typical length) and the task type
+- where the test set comes from: the test set from traces run, or an uploaded `test.jsonl`
+- the processing config (relabelling teacher or committee, relevance filtering,
+  `num_traces_as_training_base`)
+- the remaining `prepared_traces_post` and `seed_datasets_from_prepared_traces_post` credits:
+  the smoke spends one of each, the full run one `seed_datasets_from_prepared_traces_post`
+  (`../references/platform.md` § Credits)
+- the path: normal (a smoke on a subsample, its analysis, then the full run) or fast (skip
+  Steps 3-5)
 
 ## Step 3: Smoke Run
 
-Process a small slice first to check the conversion and the processing settings. Subsample
-`traces.jsonl` to ~50-100 lines, and in the iteration copy of config.yaml set:
+A smoke runs on a trimmed copy of the traces, uploaded as its own PreparedTraces:
 
-```yaml
-trace_processing:
-  num_traces_as_training_base: 10
-  num_traces_as_testing_base: 10
-  evaluate_original_model: false
-  min_generated_examples: 2
-```
+1. Get a local `traces.jsonl`: the trace file itself, or, for traces created directly from an
+   inference endpoint, the endpoint's records downloaded and converted
+   (`../references/data-preparation/traces.md` § From an inference endpoint).
+2. Trim it to 50-100 lines, and set `trace_processing.num_traces_as_training_base: 10` in a copy
+   of `config.yaml`.
+3. Upload the trimmed directory without `test.jsonl` (the smoke checks the train split only),
+   and run trace processing on the upload
+   (`../references/execution/cli.md` § Test set from traces and trace processing).
 
-**`min_generated_examples` must come down with the base counts.** It is a floor checked per
-split *after* filtering, relabeling and schema checking have dropped a fraction of the traces,
-so a value tuned for a full run fails outright at smoke scale.
-
-The subsample is a data change, so it stages a PreparedTraces of its own. Submit against it
-via the execution backend (§ Trace processing) and record the identifiers in `run.md`.
+Record the ids in `run.md`.
 
 ## Step 4: Pull and Analyze the Smoke Outputs
 
-Confirm the job succeeded, then pull the outputs into `output/`. The processed train/test data
-and the config and job description copies come from the SeedDataset's download route, and the
-original-model evaluation from its metrics route as `base_model_performance` plus the
-per-example predictions behind `base_model_predictions_download_url` (the execution backend
-§ Output layout). Check the survival rate first: how many traces made it through filtering and
-relabeling. Near-total loss usually means the relevance filter and the job description
+Confirm the job succeeded, then download the SeedDataset into `output/`
+(`../references/execution/cli.md` § Output layout). Check first how many traces reached
+`train.jsonl`. Near-total loss usually means the relevance filter and the job description
 disagree about what the task is.
 
-With `evaluate_original_model: false` the metrics response returns nulls for both fields.
-Expected for a smoke, not a failure. The baseline comes from the full run.
+Then analyze the processed rows on two axes:
 
-Then analyze the processed examples on two axes:
-
-1. **Correctness against the job description**: are the rows valid task examples in the right
-   format, and are relabeled answers actually correct, and better than the originals where
-   they differ?
-2. **Distribution match against the raw traces**: compare processed examples to the incoming
-   traces along task-relevant dimensions, for example length (characters, or turns), topic
-   coverage, style. Watch for filtering that silently dropped whole categories.
+1. **Correctness against the job description**: valid task rows in the right format, and
+   relabelled answers that are correct and better than the originals where they differ.
+2. **Distribution against the traces**: length (characters, or turns), topic coverage, style.
+   Watch for filtering that dropped whole categories.
 
 ## Step 5: Iterate Until the Smoke Passes
 
-If the analysis fails, adjust the inputs in a new smoke iteration: `relevance_filtering:
-true` when irrelevant or incoherent traces reach the output, the relabeling teacher or
-committee settings when relabeled answers are worse than originals (not `relabel: false`, see
-Step 1), `trace_processing_instructions` in the job description when the rewrites mishandle
-task-specific quirks. These are all settings, so each iteration is a config override on the
-smoke's PreparedTraces rather than a fresh staging (the execution backend § Trace
-processing). Only move on once a smoke run passes both checks.
+If an axis fails, change one setting in a new smoke: relevance filtering when irrelevant or
+incoherent traces reach the output, the relabelling teacher or committee when relabelled answers
+are worse than the originals, `trace_processing_instructions` when the rewrites mishandle a
+task-specific quirk. Each is an override on the smoke's PreparedTraces, not a new upload. Move
+on once a smoke passes both axes.
 
 ## Step 6: Full Run
 
-Copy the last passing smoke `input/` to `full-1/input/`, then:
-
-- restore the full `traces.jsonl` and the intended base counts (defaults 200/200)
-- raise `min_generated_examples` to a fraction of the smaller base count, so a thinned split
-  fails loudly instead of being written out empty
-- drop the smoke's `evaluate_original_model: false`, so the run produces the baseline
-
-Then submit.
-
-The full trace set is a data change, so it stages one PreparedTraces. Every run after this one
-is an override on it: a retry, a settings change, a later iteration.
+Submit the last passing smoke's config, with the intended `num_traces_as_training_base`
+(default 200), as an override on the PreparedTraces from `test-set-from-traces.md`. Every later
+run is an override on the same PreparedTraces.
 
 ## Step 7: Analyze the Results
 
-Repeat the Step 4 analysis on the full output, and review the generated test set closely
-with the user (size, label and length distribution, edge-case coverage) together with the
-original-model baseline. Check the row count of each split and the four exemplar counts in the
-processed config, since both can have come out lower than the settings asked for. This test set gates every downstream verdict. If it is not
-trustworthy, fix it now, supply a curated test.jsonl, or grow it with
-`test-set-expansion.md`. The processed output doubles as the input directory for teacher
-evaluation (`teacher-evaluation.md` and `synthetic-data-generation.md`).
+Repeat the Step 4 analysis on the full output. Check the train row count and the four exemplar
+counts in the processed config, and that `test.jsonl` is the test set the user approved. The
+SeedDataset is the input of `teacher-evaluation.md` and `synthetic-data-generation.md`.
+
+## What Can Be Changed to Improve the Next Iteration
+
+- **The relabelling teacher and committee** (`trace_processing.teacher_model_name`,
+  `trace_processing.relabelling_committee_models`): the models that rewrite the production
+  answers into the seed rows. Synthetic data generation imitates the seed rows, so better
+  relabelling raises the quality of the whole training set.
+- **`trace_processing_instructions`** in the job description: guidance for the rewrite only. It
+  tells the relabelling about quirks of the traces without changing what a correct answer is.
+- **Relevance filtering** (`relevance_filtering`, `min_relevance_score`,
+  `min_coherence_score`): which traces may become seed rows. It trades seed volume for seed
+  cleanliness.
+- **`num_traces_as_training_base`**: how many traces become seed rows. More seed rows give
+  generation more real examples to imitate.
+- **`compress_job_description`**: shortens a long task description for the filtering model.
+- **`synthgen.validation_max_total_length`**: how long a processed row may be. Raise it when the
+  traces embed documents or schemas.
+
+All are overrides on the same PreparedTraces. Cost: one `seed_datasets_from_prepared_traces_post`
+credit, and synthetic data and training again on the new SeedDataset.

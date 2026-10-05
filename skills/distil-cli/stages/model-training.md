@@ -1,207 +1,129 @@
 # Stage: Model Training
 
-Finetunes the student on the synthetic dataset and evaluates base and tuned student on the
-test set. That yields the tuned-vs-teacher-vs-base comparison and the deployment verdict.
-Training is the multi-hour GPU stage, so how much you experiment here is a budget decision
-the user makes, not you.
+Finetunes the student on the TrainingDataset and evaluates the base and the tuned student on the
+test set, which gives the base-vs-tuned-vs-teacher comparison. Training is the GPU stage
+(duration: `../references/platform.md` § Job status), so how much to experiment here is the
+user's budget decision.
 
-Both splits of the dataset gate this stage, in opposite ways
-(`../references/data-preparation/overview.md` § Empty splits):
-
-- **An empty train split stops the run.** Synthetic data generation is what fills it, so run
-  that first. The refusal is deliberate, and it names itself:
-
-  ```
-  Finetuning needs a training set, and this job has none: train.jsonl is empty.
-  Generate synthetic data first, or provide training examples.
-  ```
-
-- **An empty test split does not stop the run.** Training completes and produces a model, but
-  there is no evaluation at all: no base-vs-tuned comparison, no metric values, and no
-  evaluation output directories. Both quantization sweeps are skipped, so neither `eval/` nor
-  `eval-4bit/` is written, and there is no `metrics-eval-aggregated.json` to read. The metrics
-  are recorded as "not available" rather than as a score, so the run is not mistaken for one
-  whose scoring failed. Do not read a missing metrics file as a job failure. Check the test
-  split first.
-
-  Step 7's analysis rests entirely on those numbers, so a run with no test set cannot produce
-  a deployment verdict. Tell the user before submitting: they get a model they cannot yet
-  measure. A test set can be added later, and the model evaluated then.
-
-## Conversation expansion
-
-`base.should_expand_dataset` defaults to `auto`, preserving the prefix-overlap heuristic.
-Use `false` for pre-split rows with selected or rewritten final responses: each row stays one
-example and earlier assistant turns remain masked history, including after sampling/filtering.
-It also limits evaluation to each supplied test row's final target. `true` forces expansion and
-is rejected for single-turn tasks. See `../references/configuration.md` § Conversation expansion
-for the threshold and effects on cleanup. When overriding this field, edit the complete
-parent config and submit the whole file.
+An empty train split stops the run, and an empty test split produces a model with no scores
+(`../references/data-preparation/overview.md` § Empty splits). With no test set, tell the user
+before submitting that the model cannot be measured yet.
 
 ## Working Directory
 
 ```
 model-training/
-├── base-input/          # the dataset id and its config; every run derives from it
-├── smoke-<student>-1/   # memory calibration; one series per selected student
-│   ├── input/           # the config sent for this run (and truncated data for smokes)
-│   ├── run.md           # the dataset id, the override sent, and the SLM id returned
+├── base-input/          # the TrainingDataset id and its config; every run derives from it
+├── smoke-<student>-1/   # memory check; one series per selected student
+│   ├── input/           # the config sent for this run
+│   ├── run.md           # the TrainingDataset id, the override sent and the SLM id returned
 │   └── output/          # fetched metrics and training logs
-├── smoke-<student>-2/   # next calibration attempt for that student, if needed
+├── smoke-<student>-2/   # next memory check for that student, after an OOM fix
 └── full-<student>-1/    # one full training per student
 ```
 
-## Step 1: Prepare the Base Input Directory
+## Step 1: Prepare the Input
 
-The base input is a TrainingDataset, referenced by id. Two entry points:
+The input is a TrainingDataset id: the one synthetic data generation produced, or an existing
+one to retrain on (`../references/execution/cli.md` § Model training, § Reuse synthetic data for
+training-only runs). Its config is readable only once its job reaches `JOB_SUCCESS`, so poll
+synthetic data generation to completion before reading it.
 
-- **Starting from synthetic data generation**: the TrainingDataset synthgen produced is
-  ready to train as-is (the execution backend § Reuse synthetic data for training-only runs).
-- **Retraining**: an existing TrainingDataset serves as the base input. The data stays
-  untouched, and only the config changes.
+Read its config once into `base-input/` (`../references/execution/cli.md` § Overrides). Every run
+edits the fields it varies and sends the whole file as an override.
 
-**The dataset must have finished first.** Its config only becomes readable at `JOB_SUCCESS`.
-Poll synthgen to completion before reading it, or the read raises. Do not chain
-submit-synthgen → read-config in one go. That ordering fails every time.
-
-Read its config once (the execution backend § Overrides). Every run derives from that config:
-edit the fields this run varies and send the whole thing back as an override.
-Smokes additionally need truncated data, which is the one variation an override cannot
-express. See Step 3.
-
-Key config is the `tuning` section (`../references/configuration.md`):
-`base.student_model_name` (set per run in the next steps), `per_device_train_batch_size`
-(default 1, where higher is faster but risks OOM), and `num_train_epochs` (default 4).
-
-For a reasoning student, `base.enable_thinking: true` must come from the TrainingDataset's
-config: turning it on here for data generated without it trains an empty thinking block. Raise
-`tuning.max_completion_length` if the reasoning is long (`../references/reasoning-models.md`
-§ Length budget).
+The settings that matter are in `base` and `tuning` (`../references/configuration.md`):
+`base.student_model_name`, `tuning.per_device_train_batch_size` (default 1) and
+`tuning.num_train_epochs` (default 4). Multi-turn rows follow `base.should_expand_dataset`
+(`../references/configuration.md` § Conversation expansion). For a reasoning student, see
+`../references/reasoning-models.md`.
 
 ## Step 2: Confirm the Setup with the User
 
 Before submitting anything, present and confirm:
 
-- **The path.** Read the balances first (`../references/platform.md` § Credits).
-  Credits decide what is *possible*. Where more than one thing is possible, the user chooses.
-
-  | Balance | What it gates |
-  |---|---|
-  | `training_datasets_download_get` | the memory-calibration smokes, Steps 3-5. Calibration needs the dataset's longest rows and `/download` is the only route to them, so at zero the smokes are not possible |
-  | `training_datasets_post` | staging each truncated smoke dataset; rarely the blocker |
-  | `slms_from_training_datasets_post` | one per training run, so a sweep of N students needs N |
-
-  So:
-
-  - **No download credits** → Steps 3-5 are unavailable. Go straight to Step 6 with
-    `per_device_train_batch_size: 1` and use the OOM levers below if a run fails. Nothing to
-    decide.
-  - **Fewer than N training credits** → a sweep of N is unavailable. Train the students the
-    balance covers.
-  - **Credits for both** → present the choice. The normal path calibrates memory settings per
-    student before the full run. The fast path skips Steps 3-5 and submits the full run
-    directly. Normal costs more credits and finds each student's fastest working
-    configuration. Fast conserves both, and is the right call for a re-run of a proven setup.
-
-  State the rough cost either way: each full run is multi-hour GPU time. An exhausted
-  `slms_from_training_datasets_post` means the generation spend is already stranded.
-- **The student list**: fixed now, before any smoke run, because memory settings are
-  calibrated per student (a 4B model fits different settings than a 9B one). Fast path: one
-  good default student, 4B-class unless the deployment target demands smaller
-  (`../references/model-catalog.md`). Normal path: students across the sizes that fit the
-  deployment target (`../references/model-catalog.md` § Size tiers, and tool-calling tasks
-  restrict the family).
+- **The path**, from the balances (`../references/platform.md` § Credits):
+  - `slms_from_training_datasets_smoke_post` pays for the memory-check smokes (Steps 3-5), one
+    per attempt. With none left, go to Step 6.
+  - `slms_from_training_datasets_post` pays for one full run each, so a sweep of N students
+    needs N.
+  - With credits for both, the user chooses: normal (a memory check per student, then the full
+    run) or fast (skip Steps 3-5, the usual choice for a re-run of a proven setup).
+- **The student list**, fixed now, because each student is checked for memory separately. Fast
+  path: one student, `Qwen3.5-4B` unless the deployment target needs smaller
+  (`../references/model-catalog.md` § Defaults). Normal path: students across the sizes that fit
+  the deployment target (`../references/model-catalog.md` § Size tiers).
 
 ## Step 3: Smoke Run
 
-**Requires `training_datasets_download_get` credits.** The Step 2 gate already resolved this:
-without them the calibration cannot be done at all, so skip to Step 6 and train with
-`per_device_train_batch_size: 1`. Do not substitute the free `/sample` here. It returns at
-most 128 rows drawn from the first 384 and no test split, so the rows it yields are not the
-dataset's longest, and the calibration it produces would bound nothing.
-
-Calibration runs on the ~100 longest training examples. Selecting those means holding the
-dataset, which is a data change that no config override can express. So it downloads the
-dataset and stages a new one, on top of the training credit each attempt costs.
-
-Training settings sit on a scale from fastest to most memory-tolerant: high batch size → low
-batch size → the other OOM prevention methods (see Dealing with OOM below). The smoke runs
-find each student's point on that scale (each `smoke-<student>-N` series is independent, and
-larger students land lower), using worst-case examples:
-
-- Download the dataset, truncate to the ~100 LONGEST train examples and ~10 LONGEST test
-  examples (longest rows are what OOMs first), and stage them as a new TrainingDataset
-  (the execution backend § The TrainingDataset). Because the data changed, this is a new
-  dataset rather than an override, which is what makes the step cost the extra credit.
-- **Classification: truncate per class, not by length alone.** Train and test must each carry
-  every label in `classes_description`, so take the longest examples *within each class* until
-  you reach the size you want. A split missing a label fails validation, and the check runs
-  against train and test separately, so a truncated train split fails the same way a truncated
-  test split does. With more classes than the target row count, raise the count to fit them.
-- On that truncated dataset, train with the student set, `num_train_epochs: 1` and
-  `per_device_train_batch_size: 4` in the config override. Record `run.md`.
+A smoke checks that a student fits in memory, on a subsample of the data, before the full run
+spends a training credit. Submit with `--smoke` (`../references/execution/cli.md` § Model
+training; what it trains on: `../references/platform.md` § Smoke runs) and an override that sets
+the student and the batch size the full run will use. One `smoke-<student>-N` series per
+student, since students of different sizes fit differently. Record `run.md`.
 
 ## Step 4: Pull and Analyze the Smoke Outputs
 
-Confirm the job succeeded and check: the metrics came back for base and tuned, training loss
-decreased in the log, and the run fit in memory. Do not download the model to check the
-artifacts. The smoke answers a memory question, and the tarball is gigabytes. Its metrics say
-nothing about final quality either: tiny data, one epoch.
+Confirm the job succeeded: the run fit in memory, the training loss decreased in the log, and
+base and tuned metrics came back. Do not download the model, and do not read the smoke's scores
+as a quality signal.
 
 ## Step 5: Iterate Until the Smoke Passes
 
-If the run OOMed, move down the scale in the next smoke iteration (halve the batch size, and
-from batch size 1 continue with the OOM levers below). If it ran, optionally try a higher
-batch size. Keep each student's fastest surviving setting. Move on once every selected
-student has one.
-
-**Carry the setting forward as a ceiling, not as the value to train at.** The smoke answers
-only "what fits in memory". Batch size is not a free speed knob: at a fixed
-`num_train_epochs`, it divides the number of optimizer steps, so a larger batch trains the
-model *less*. The drop on the primary metric can exceed what any other lever in this stage
-changes.
-
-So when the full run uses a calibrated batch size above 1, raise `num_train_epochs` with it
-and say so when presenting the plan in Step 6. Holding the step count constant, by multiplying
-the epochs by the same factor as the batch, is the upper bound. Less is often enough, and both
-shipped examples run 4 epochs at batch 8. If credits do not allow more epochs, prefer the
-smaller batch and the longer wall clock.
+If the smoke ran out of memory, apply the next setting in § Dealing with OOM and smoke again.
+Move on once every student fits.
 
 ## Step 6: Full Run
 
-Present the final plan to the user first: the students, each one's calibrated settings, the
-epoch count that goes with them (Step 5), and the expected cost (one multi-hour training per
-student). On their go-ahead, submit one training per student against the same TrainingDataset:
-for each, take a copy of the dataset's config, set the student and its calibrated memory
-settings (fast path: the default student with batch size 1), and send it as the override.
-
-Take the copy per submission and send the config whole. A config trimmed to the fields you
-changed silently reverts everything you left out (the execution backend § Overrides).
-
-The data is untouched, so the sweep costs training credits only. Submissions run concurrently,
-and the whole sweep is N ordinary calls (the execution backend § Submitting jobs).
+Present the plan first: the students, each one's settings, and the cost (one
+`slms_from_training_datasets_post` credit per student). On the user's go-ahead, submit one
+training per student against the same TrainingDataset, without `--smoke`: all the training
+data, `num_train_epochs` at its default of 4, and the settings that passed the smoke. Each
+submission sends a full copy of the config with its student and settings. The submissions run
+concurrently.
 
 ## Step 7: Analyze the Results
 
-Confirm each job succeeded, then pull the base and tuned student metrics into `output/`
-(the execution backend § Fetch metrics). With no test set there are no metrics to pull and no
-verdict to render, so stop here and report that. Otherwise analyze with a three-way comparison on
-the primary metric (`../references/evaluation-metrics.md`): base student (floor), teacher
-(ceiling), tuned student. For a sweep, one row per student. What to do with the result
-(deploy, retune, or start a new workflow iteration) is decided in the workflow's Decide step
-(`../workflows/dataset-to-model.md`).
+Confirm each job succeeded, then fetch the base and tuned metrics into `output/`
+(`../references/execution/cli.md` § Fetch metrics). With no test set, report that there are no
+scores and stop. Otherwise compare on the primary metric agreed for the project
+(`../references/evaluation-metrics.md` § Primary metric per task): base student (floor), teacher
+(ceiling), tuned student, one row per student. What to do next is decided in
+`../workflows/build-a-model.md` Step 7.
 
 ## Dealing with OOM
 
-When a training run crashes out of memory, apply these levers in order (each next one costs
-more speed or quality). The first three are config, so they go through the training override
-on any run. Only the fourth touches the data, so it needs the dataset downloaded:
+When a training run runs out of memory, apply these in order; each costs more speed or quality
+than the one before:
 
-1. Lower `per_device_train_batch_size` (halve it, down to a floor of 1).
-2. `memory_optimized_training: true` (activation offloading and gradient checkpointing, and
-   significantly slower).
-3. `use_qlora: true` together with `memory_optimized_training: true` (4-bit base model,
-   roughly 3x less VRAM).
-4. Filter out the longest ~1%+ of training examples (the tail drives peak memory). To create
-   a new trimmed smoke test: first trim the full dataset by removing the longest X%, then
-   sample the longest 100 from the trimmed dataset to create the smoke inputs.
+1. Lower `per_device_train_batch_size` (halve it, down to 1).
+2. `memory_optimized_training: true` (activation offloading and gradient checkpointing; much
+   slower).
+3. `use_qlora: true` together with `memory_optimized_training: true` (4-bit base model, about 3x
+   less GPU memory).
+4. Remove the longest ~1% of training rows, which drive peak memory. Download the dataset,
+   remove the rows from `train.jsonl`, and create a new TrainingDataset from the directory with
+   `distil training-dataset create` (`../references/execution/cli.md` § Supplying files). This
+   costs one `training_datasets_download_get` credit, which starts at zero, so it is usually
+   unavailable, and one `training_datasets_post` credit.
+
+The first three are config overrides; only the fourth changes the data.
+
+## What Can Be Changed to Improve the Next Iteration
+
+- **The student** (`base.student_model_name`, `../references/model-catalog.md`): a larger student
+  has more capacity to learn the same data, at a higher serving cost. A different family can
+  suit a task better at the same size.
+- **How much it trains** (`tuning.num_train_epochs`, `tuning.learning_rate`,
+  `tuning.per_device_train_batch_size`): the number and size of the optimizer steps. More steps
+  fit the training data more closely; at a fixed epoch count, a larger batch means fewer steps.
+- **The LoRA capacity** (`tuning.lora_r`, `tuning.lora_alpha_multiplier`): how much of the model
+  training can change. Deployment accepts only some `lora_r` values
+  (`../references/configuration.md` § tuning).
+- **Evaluation length** (`tuning.max_completion_length`): how long an answer may be before it is
+  cut off in evaluation, which matters for long and reasoning answers.
+- **Memory settings** (§ Dealing with OOM): what lets a larger student or batch fit at all.
+
+All are config overrides on the same TrainingDataset, and nothing regenerates, so this is the
+least expensive stage to iterate on. Cost: one `slms_from_training_datasets_post` credit per
+run; several runs can go in parallel.

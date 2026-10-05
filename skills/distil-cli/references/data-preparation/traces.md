@@ -1,15 +1,15 @@
 # Data Preparation: Traces
 
-Input for the trace processing stage.
+Input for the test set from traces and trace processing stages.
 
 ## Trace directory
 
 ```
 traces-input/
-├── config.yaml           # include a trace_processing section (../configuration.md)
+├── config.yaml           # trace_processing and traces_to_test_set sections (../configuration.md)
 ├── job_description.json  # task definition (../job-description.md)
 ├── traces.jsonl
-└── test.jsonl            # optional curated test set; skips the generated test split
+└── test.jsonl            # optional curated test set; test set from traces adds to it
 ```
 
 ## Observation formats (`trace_processing.observation_format`)
@@ -27,16 +27,18 @@ traces-input/
 **`unstructured_with_openai_messages`**: each line has a `context` field whose string wraps
 a messages array. Use it for traces doubling as unstructured context.
 
+**`langfuse`**: the records of a distil labs inference endpoint, as a traces object created
+directly from the endpoint stores them (`../execution/cli.md` § Traces from an endpoint). Never
+written by hand.
+
 ## From an inference endpoint
 
-A user with no trace file can have the platform collect one. A distil labs inference endpoint is
-an OpenAI-compatible gateway that fronts the model they already run in production and keeps a
-copy of every call it serves. Setting one up and downloading from it is an execution-backend
-operation: `../execution/cli.md` § Inference endpoints (collecting traces).
-`../../workflows/endpoint-to-model.md` sequences it.
+An inference endpoint's records become a traces object either directly, with
+`observation_format: langfuse` and no conversion, or by download, conversion and upload. When
+to use which: `../inference-endpoints.md` § From records to a traces object. This section is the
+conversion for the download route (`../execution/cli.md` § Download the traces).
 
-The download is one record per call, and a record is not the observation format above. The
-fields that matter:
+A downloaded record is one call, not an observation format. The fields that matter:
 
 | Field | What it holds |
 |---|---|
@@ -46,22 +48,15 @@ fields that matter:
 | `metadata.source` | Which model answered: `fallback`, or `primary` when a trained model is fronting the endpoint |
 | `start_time`, `latency` | When the call started and how long it took, in seconds |
 
-The rest is identifiers and platform bookkeeping. Inspect one record before converting:
-
-```bash
-head -1 <endpoint-name>-traces.jsonl | jq '{status: .metadata.status, source: .metadata.source, input: (.input | fromjson | keys), output: (.output | fromjson | .choices[0].message | keys)}'
-```
-
-Conversion, per line: parse `input` and `output`, append `choices[0].message` as the assistant
+The rest is identifiers. Read one record before converting. Conversion, per line: parse `input` and `output`, append `choices[0].message` as the assistant
 turn to the request's `messages`, carry `tools` across when present, and write one
 `{"messages": [...]}` object. Skip the records that should not become training data:
 
 - **Failed calls.** Keep `metadata.status == 200` only.
 - **Empty replies.** Skip a response with neither `content` nor `tool_calls`, rather than
   emitting a conversation that ends on the user's turn.
-- **The wrong model's answers**, once a student fronts the endpoint. Filter on
-  `metadata.source` to keep the fallback's answers, the student's, or both, depending on what
-  the iteration is meant to learn from.
+- **The wrong model's answers**, once a student sits in front of the fallback: filter on
+  `metadata.source` for the answers the next iteration should learn from.
 
 ```python
 import json
@@ -88,26 +83,21 @@ with open("<endpoint-name>-traces.jsonl") as src, open("traces.jsonl", "w") as d
             dst.write(json.dumps(converted, ensure_ascii=False) + "\n")
 ```
 
-Check the first converted line by eye and the kept count against the source before uploading
-anything, and apply the conversion guidance below as for any other source. Two things endpoint
-records have that a hand-written trace file does not:
-
-- **The system prompt is in every record**, because the endpoint saw the real request.
-  `remove_system_prompt_from_traces` (default true) strips it, so its content belongs in the job
-  description's `task_description` instead, and the two must say the same thing.
-- **The reply can carry `reasoning`** next to `content` when the fallback is a reasoning model.
-  The conversion above keeps `content` only, which is what the caller's application used.
+Check the first converted line and the kept count against the download before uploading. The
+reply can carry `reasoning` next to `content` when the fallback is a reasoning model; the
+conversion keeps `content`, which is what the application used.
 
 ## Conversion guidance
 
-- Constant prompt parts belong in the job description. `remove_system_prompt_from_traces`
-  (default true) strips leading system messages anyway. Variable input → user message, model
-  output → assistant message.
+- **The system prompt moves to the job description.** `remove_system_prompt_from_traces`
+  (default true) strips leading system messages, so the system prompt's content belongs in
+  `task_description`, which says the same thing (`../job-description.md`). Variable input →
+  user message, model output → assistant message.
 - Every trace is a multi-turn conversation rewritten whole. A simple exchange is a two-turn
   conversation.
-- `synthgen.validation_max_total_length` (default 30,000 chars) applies to processed
-  examples. If inputs embed documents or schemas, raise it.
+- `synthgen.validation_max_total_length` applies to processed examples
+  (`../configuration.md`); raise it when traces embed documents or schemas.
 - Emit clean JSONL: strip control characters and unicode line separators (U+2028/U+2029).
 
-Any active task type can train from traces. For RAG-style traces with retrieved context
-embedded in the user message, use `question-answering` (context stays inside `question`).
+Any task type can train from traces. Traces with retrieved text: `../task-types.md` § Choosing
+a task type.
