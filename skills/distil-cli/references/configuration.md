@@ -26,8 +26,7 @@ has a default. Always set `task`, `student_model_name` and `teacher_model_name`.
 | `weight_decay` | `0.0` | |
 | `warmup_ratio` | `0.05` | |
 | `bf16` | `true` | |
-| `use_lora` | `true` | The trained model is the LoRA adapter. Deployability: `inference-endpoints.md` § Lifetime |
-| `lora_r` | `64` | alpha = `lora_r * lora_alpha_multiplier`. Deployable values: `inference-endpoints.md` § Lifetime |
+| `lora_r` | `64` | Rank of the LoRA adapter, which is the trained model. One of 8, 16, 32, 64, 128, 256, 320 or 512. alpha = `lora_r * lora_alpha_multiplier` |
 | `lora_alpha_multiplier` | `1` | |
 | `per_device_train_batch_size` | `1` | Higher uses more memory. At a fixed `num_train_epochs` it divides the optimizer-step count |
 | `per_device_eval_batch_size` | `1` | |
@@ -36,7 +35,7 @@ has a default. Always set `task`, `student_model_name` and `teacher_model_name`.
 | `num_few_shot_examples_student` | `0` | Few-shot for student eval/tuning. § Cross-field validation |
 | `enable_trainer_internal_eval` | `false` | Per-epoch validation during training. Final metrics come from the post-training suite either way |
 | `memory_optimized_training` | `false` | Only when training runs out of GPU memory; much slower |
-| `use_qlora` | `false` | 4-bit NF4 base model. Needs `use_lora`, Linux-only bitsandbytes |
+| `use_qlora` | `false` | 4-bit NF4 base model. Linux-only bitsandbytes |
 | `max_completion_length` | `2048` | Tokens the student may generate in evaluation and RLVR. Raise it when training warns it is below the longest training completion |
 
 RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):

@@ -10,10 +10,10 @@ The vLLM commands in § Serving locally are the one set of commands kept outside
 
 | Artifact | What it is |
 |---|---|
-| `model-adapter/` | The LoRA adapter (`adapter_config.json` and the adapter weights). This is the trained model |
+| `model-adapter/` | The LoRA adapter (`adapter_config.json` and the adapter weights). This is the trained model. Also holds LICENSE / TEACHER_LICENSE / STUDENT_LICENSE |
 | `model_client.py` | Generated inference client; the canonical way to query the model |
 | `README.md` | Serving instructions (vLLM) |
-| `model.tar` | Tarball of the above plus LICENSE / TEACHER_LICENSE / STUDENT_LICENSE |
+| `model.tar` | Tarball of the above |
 
 The adapter is served on the student's base model from HuggingFace, so the tarball holds no
 base weights. Which models can be deployed: `inference-endpoints.md` § Lifetime.

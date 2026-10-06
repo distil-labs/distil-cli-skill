@@ -45,8 +45,8 @@ it is no longer needed; after a delete the endpoint answers from the fallback. T
 permanently, the customer contacts contact@distillabs.ai.
 
 The deployment serves the SLM's LoRA adapter with vLLM on the student's HuggingFace base model
-(`deployment.md` § Artifacts). An SLM trained with `tuning.use_lora: false`, or with a
-`tuning.lora_r` that is not one of 1, 8, 16, 32, 64, 128, 256, 320 or 512, cannot be deployed.
+(`deployment.md` § Artifacts). An SLM trained with a `tuning.lora_r` that is not one of 8, 16, 32,
+64, 128, 256, 320 or 512 cannot be deployed.
 
 To test an existing SLM on a new test set, deploy it, send the test rows through
 `model_client.py` pointed at the endpoint, and compare the answers with the references. No
