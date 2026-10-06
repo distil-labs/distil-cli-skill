@@ -4,8 +4,9 @@ An [Agent Skill](https://agentskills.io) for building task-specific small langua
 platform: from raw data or production traces, through teacher evaluation and synthetic data
 generation, to a finetuned, evaluated, deployable student model.
 
-Everything runs on the distil labs platform through the `distil` CLI. The only prerequisite is an
-account.
+Everything runs on the distil labs platform through the `distil` CLI, or through the REST API
+from Python when you prefer it. The only prerequisite is an account. The API backend also needs
+`pip install requests pyyaml`, and takes its access tokens from `distil access-token`.
 
 The skill works with every coding agent that reads the Agent Skills format, including Claude Code,
 Codex, Cursor, Gemini CLI, GitHub Copilot and OpenCode.
@@ -54,7 +55,9 @@ a project if you skip it. On Windows, run the CLI inside WSL.
 
 `SKILL.md` is the entry point. `stages/` holds one unit of pipeline work each, `workflows/` the
 two workflows (the build loop and the improvement loop), and `references/` the shared knowledge,
-with every `distil` command in `references/execution/cli.md`.
+with every `distil` command in `references/execution/cli.md` and every REST API request in
+`references/execution/backend-api.md`. Swapping the CLI for the REST API changes the commands and
+nothing else.
 
 ## Quick Start
 

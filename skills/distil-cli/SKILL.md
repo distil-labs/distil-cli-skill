@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "9.0.0"
+  version: "9.1.0"
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing
   model-building inputs (config.yaml, job_description.json, train/test data), running or
@@ -10,11 +10,11 @@ description: >
   too low, or deciding what to run next after a stage completes. Activate for phrasings like
   "build a model for X", "train a student model", "run a teacher eval", "generate synthetic
   data", "the score is low, what now", or "retrain on existing synthetic data". Stages run
-  through the distil CLI.
+  through the distil CLI or the distil labs API. This skill owns the model-building logic on top of it.
   Also activate for distil labs lookups that are not a full build: distil CLI commands
   (distil auth, distil seed-dataset, distil traces, distil teacher-evaluation,
   distil training-dataset, distil slm, distil deployment, distil inference-endpoint,
-  distil api-keys), config.yaml parameters, supported student
+  distil api-keys, distil access-token), the distil labs REST API, config.yaml parameters, supported student
   and teacher models, or what an evaluation metric means.
 ---
 
@@ -25,7 +25,8 @@ traffic, a trace file or a labelled dataset, through teacher evaluation and synt
 generation, to a finetuned, evaluated student served behind an inference endpoint.
 
 Before the first stage, install the `distil` CLI and sign in per
-`references/execution/README.md` § Set up the CLI.
+`references/execution/README.md` § Set up the CLI, then settle the backend per § Choose the
+backend.
 
 ## How the Skill Is Organised
 
@@ -39,8 +40,13 @@ every other page links to it.
 - **Workflows** (`workflows/`): sequence the stages and own the decision points, verdicts and
   gates. Each opens with a Workflow Map; print it to the user when the workflow starts.
 - **References** (`references/`): shared knowledge, one page per topic.
-  `references/platform.md` owns how the platform behaves. `references/execution/cli.md` holds
-  every `distil` command; stages and workflows link its sections.
+  `references/platform.md` owns how the platform behaves.
+- **Execution backends** (`references/execution/`): the only files that know how stages actually
+  run. `cli.md` holds every `distil` command and `backend-api.md` every REST API request; stages
+  and workflows link their sections, and both files use the same § names, so resolve a citation
+  in the backend in use. `references/execution/README.md` owns the setup and the choice: install
+  the `distil` CLI and sign in, then use `cli.md` by default or `backend-api.md` when the user
+  prefers the API. Make that choice once, before the first stage, and record it in `run.md`.
 
 ## Stage Protocol
 
@@ -102,8 +108,9 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
 | `references/evaluation-metrics.md` | Metrics per task type, primary metrics, verdicts |
 | `references/deployment.md` | Model artifacts, the inference client, local serving |
 | `references/inference-endpoints.md` | Inference endpoints: collecting and serving, lifetime, keys, records, the two routes to traces |
-| `references/execution/README.md` | Install the CLI and sign in |
-| `references/execution/cli.md` | Every `distil` command |
+| `references/execution/README.md` | Install the CLI, sign in and choose the backend |
+| `references/execution/cli.md` | Execution backend: every `distil` command (default) |
+| `references/execution/backend-api.md` | Execution backend: every distil labs REST API request |
 
 ## Routing
 
@@ -112,7 +119,9 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
   (Step 3) or a labelled dataset (Step 5).
 - Endpoint questions ("put an endpoint in front of GPT-4", "download the traces", "put the
   trained model behind the endpoint") → `stages/inference-endpoint.md`.
-- Single-stage request ("run a teacher eval", "regenerate the synthetic data") → that stage file.
+- Single-stage request ("run a teacher eval", "regenerate the synthetic data") → that stage file
+  plus the execution backend in use. If none is set up yet, run
+  `references/execution/README.md` § Set up the CLI and § Choose the backend first.
 - Results are disappointing ("teacher score is low", "student is far below teacher"), or "keep
   iterating until the model is good" → `workflows/model-iterations.md`.
 - Building evals/test sets "help me build evals", "I want to build a test set for my case" 

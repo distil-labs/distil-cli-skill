@@ -4,12 +4,19 @@ The commands that run each stage. How the platform behaves (entities, job status
 overrides, credits, outputs): `../platform.md`. Installing the CLI and signing in: `README.md`
 § Set up the CLI.
 
+This is the default backend and `backend-api.md` is the alternative. Take that one when the
+user prefers it, or when the work is already scripted in Python. `README.md` § Choose the backend
+decides between the two, and the choice goes in `run.md`. Two things differ from the API
+backend: the CLI stages and uploads the files for you, so a directory is one argument, and an
+override is a file path rather than a JSON body.
+
 This file describes CLI 0.31.0. Check `distil --version` before trusting a flag.
 
 ## Prerequisites
 
 ```bash
 distil whoami                                        # prints the current user
+distil access-token                                  # prints a fresh access token for the API backend
 distil logout
 ```
 
@@ -52,7 +59,8 @@ Without `--output json` a read prints a panel for a human reader. Parse the JSON
 
 ### Supplying files
 
-`--data <dir>` names a directory, and the CLI uploads the files in it by name:
+The CLI does the presigned-URL exchange that the API backend does by hand. `--data <dir>` names
+a directory, and the CLI uploads the files in it by name:
 
 | Command | Required in `--data <dir>` | Optional |
 |---|---|---|

@@ -36,7 +36,8 @@ written by hand.
 An inference endpoint's records become a traces object either directly, with
 `observation_format: langfuse` and no conversion, or by download, conversion and upload. When
 to use which: `../inference-endpoints.md` § From records to a traces object. This section is the
-conversion for the download route (`../execution/cli.md` § Download the traces).
+conversion for the download route (`../execution/cli.md` § Download the traces, or
+`../execution/backend-api.md` § Read the traces).
 
 A downloaded record is one call, not an observation format. The fields that matter:
 

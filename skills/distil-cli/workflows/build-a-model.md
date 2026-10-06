@@ -2,7 +2,8 @@
 
 The end-to-end loop over the stages. Each step is a stage file: follow the stage's own protocol
 and return here for the next step. Before the first step, install the `distil` CLI and sign in
-per `../references/execution/README.md` § Set up the CLI.
+per `../references/execution/README.md` § Set up the CLI, then settle the execution backend per
+§ Choose the backend and record it in `run.md`.
 
 ## Workflow Map
 
