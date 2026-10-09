@@ -64,8 +64,9 @@ during that minute: wait and retry rather than reporting a failure.
 
 ## Records
 
-The endpoint records the fraction of calls set by the trace sample rate at creation (default
-1, every call). The rate cannot be changed afterwards.
+The endpoint records the fraction of calls set by the trace sample rate at creation. The CLI
+sends 1 (every call) unless `--trace-sample-rate` says otherwise; an API create that omits the
+field records one call in a hundred. The rate cannot be changed afterwards.
 
 A record holds the request and the response as JSON strings under `input` and `output`, and
 `metadata` with the HTTP `status` the caller received and the `source`: `fallback` or
@@ -81,14 +82,17 @@ There are two ways to turn an endpoint's records into a PreparedTraces:
 | How | the platform reads the endpoint's records itself | download the records, convert them to `{"messages": [...]}`, upload the file |
 | Delay | a call becomes available about 24 hours after it was made | none: a call can be downloaded right after it was made |
 | Size | no limit: every record the endpoint holds | a few thousand traces at most |
-| Filtering | every record goes in; trace processing skips failed calls | you choose: by status, by `source`, by time window |
+| Filtering | every record goes in; relabelling skips failed calls | you choose: by status, by `source`, by time window |
+| Next step | `dataset create-from-traces` with a config (`observation_format: langfuse`) and a job description | `dataset create --traces` with the config, the job description and any test set to carry |
 
 Use the direct route for the full trace set. Use the download route when the traces are needed
-now, when there are only a few thousand, or when the records must be filtered first, for example
-on `source` once a student sits in front of the fallback.
+now, when there are only a few thousand, when the records must be filtered first, for example
+on `source` once a student sits in front of the fallback, or when the current `test.jsonl` has
+to go into the same Dataset (`../workflows/build-a-model.md` Step 10).
 
 ## Credits
 
 Creating an endpoint spends `inference_endpoints_post`, a deployment `deployments_from_slms_post`
-(again for every replacement of a stopped deployment), and a traces object by either route
-`prepared_traces_post`. Balances: `platform.md` § Credits.
+(again for every replacement of a stopped deployment), a traces object by the direct route
+`prepared_traces_post`, and the Dataset after it `datasets_from_prepared_traces_post` (or
+`datasets_post` for the download route). Balances: `platform.md` § Credits.

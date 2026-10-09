@@ -12,10 +12,9 @@ Rules beyond the shared checklist (`overview.md`):
 - Labels must exactly match keys of `classes_description` in job_description.json
   (fields: `../job-description.md`). The label sets in train, test, and the job description
   must be identical.
-- In a populated train split, each class needs at least as many examples as the exemplar
-  counts (`../configuration.md` § Cross-field validation). An empty train split is exempt
-  (`overview.md` § Empty splits).
-- Optional `unstructured.jsonl` (`context` rows) with unlabelled in-domain texts improves
-  synthetic input realism.
+- A populated split must hold every class (`overview.md` § Validation rules), and a class
+  with only one or two train rows gives generation almost nothing to imitate for it.
+- Traces left in the Dataset serve as context for generation and improve synthetic input
+  realism (`../platform.md` § The expand operations).
 - `synthgen.match_generated_distribution_to_seed: true` keeps generated class balance equal
   to the seed's.

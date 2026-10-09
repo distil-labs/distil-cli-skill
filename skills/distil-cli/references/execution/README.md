@@ -81,6 +81,5 @@ So the choice of backend changes the commands only. It changes no result, and it
 stage protocol. A project can also move from one backend to the other, because an id from one
 works in the other.
 
-Both files also use the same entity names, so a citation such as § The SeedDataset resolves in
-either. `cli.md` § The entity model lists the command aliases the CLI accepts on top of those
-names.
+Both files also use the same entity names, so a citation such as § The Dataset resolves in
+either.

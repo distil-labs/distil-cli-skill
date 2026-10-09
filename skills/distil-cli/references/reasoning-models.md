@@ -24,15 +24,18 @@ student use `Qwen3.5-4B`, not `Qwen3-4B-Instruct-2507`.
 
 ## Where to set it
 
-`base.enable_thinking: true` goes in the config of the synthetic data generation job, as an
-override on the SeedDataset (`platform.md` § Overrides). Training inherits it from the
-TrainingDataset, so it needs no override there.
+`base.enable_thinking: true` goes in the config of the synthetic data generation run into the
+train split, as an override on the Dataset it runs on (`platform.md` § Overrides). The Dataset
+it writes carries the setting, so training inherits it and needs no override.
 
-- The trace jobs (test set from traces, trace processing) reject `true`. Run them with it off.
-- Turning it on only at training, on a TrainingDataset generated without it, trains an empty
-  thinking block without an error. Generate a new TrainingDataset instead.
-- `synthgen.generation_target: 0` skips generation and still writes reasoning onto the existing
-  seed rows, which adds reasoning to a labelled set without generating new rows.
+- Relabelling rejects `true`: traces carry no reasoning and the job writes none. Build the test
+  set and relabel the train rows with it off, then turn it on for generation.
+- Turning it on only at training, on a Dataset generated without it, trains an empty thinking
+  block without an error. Generate again with it on instead.
+- `synthgen.train_generation_target: 0` skips generation and still writes reasoning onto the
+  existing train rows, which adds reasoning to a labelled set without generating new rows.
+- A run with it on expands multi-turn rows per turn, so a later top-up cannot use that
+  Dataset's train split as examples (`../stages/build-a-train-set.md` § Topping Up).
 
 ## Where the reasoning comes from
 

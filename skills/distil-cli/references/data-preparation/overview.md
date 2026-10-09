@@ -1,22 +1,23 @@
 # Data Preparation: Overview
 
-Input directory contract for all stages. Read it before any task-specific page.
+The Dataset directory contract. Read it before any task-specific page.
 
-## Input directory
+## The Dataset directory
 
 ```
 input-dir/
 ├── config.yaml                 # training configuration (../configuration.md)
 ├── job_description.json        # task definition (../job-description.md)
-├── train.jsonl                 # seed training data (present; may be empty)
-├── test.jsonl                  # held-out test data (present; may be empty)
-├── unstructured.jsonl          # optional: unlabelled in-domain texts
-└── metadata.json               # optional: {"major_version": "1", "minor_version": "0"}
+├── train.jsonl                 # labelled training rows (optional)
+├── test.jsonl                  # held-out test rows (optional)
+└── traces.jsonl                # production traces (optional; ../data-preparation/traces.md)
 ```
 
-This directory is the job input; edits to the files take effect directly. The schema version
-comes from `metadata.json` when present and is otherwise inferred from the first train row, so
-a directory in this format needs no metadata file. All data files are JSONL.
+The same five files are what every Dataset on the platform holds and what `dataset download`
+writes, so a downloaded directory is accepted unchanged by `dataset create --data`. The config
+and the job description are required. Each data file is optional: a missing one is an empty
+split, and the expand operations fill the empty ones (`../platform.md` § The expand
+operations). All data files are JSONL.
 
 ## Row format
 
@@ -32,54 +33,55 @@ Train and test rows are chat-format conversations.
   message carries the answer or label as `content`.
 - Chat completion rows, tool calls and role rules: `chat-completion.md`.
 - An assistant message may carry `reasoning_content` for a reasoning student
-  (`../reasoning-models.md`).
-- `unstructured.jsonl` rows are `{"context": "..."}` (string).
+  (`../reasoning-models.md`); it is dropped on load unless `base.enable_thinking` is true.
+- The flat `{"question": ..., "answer": ...}` row format of the previous platform is refused
+  (`../migrating-old-entities.md`).
+
+Trace rows follow `trace_processing.observation_format` (`traces.md`).
 
 Full examples: the task-specific pages.
 
-## Validation rules (enforced at parse/job start, so check before submitting)
+## Validation rules
 
-- [ ] `train.jsonl` and `test.jsonl` are both PRESENT. Either can be empty (§ Empty
-      splits); a missing file is an error. Every message `content` is non-empty, except
-      a chat completion assistant turn that carries only `tool_calls`
+Enforced at upload and before every expand, so check before submitting.
+
+- [ ] every message `content` is non-empty, except a chat completion assistant turn that
+      carries only `tool_calls`
 - [ ] per row, total length <= `synthgen.validation_max_total_length` (`../configuration.md`)
 - [ ] train and test share NO identical rows (exact duplicates fail)
-- [ ] unstructured (when provided): non-empty string `context` rows, at least
-      `synthgen.num_unlabelled_exemplars_per_generation` of them
 - [ ] classification: the label sets in train, test, and `classes_description` are
-      identical. Each class has at least the configured exemplar counts (defaults 1)
-- [ ] no in-context exemplar count exceeds the number of train rows
-      (`../configuration.md` § Cross-field validation)
-- [ ] chat completion: the conversation rules in `chat-completion.md`
+      identical; a populated split must hold every class
+- [ ] chat completion: the conversation rules in `chat-completion.md`; rows with parallel tool
+      calls need `synthgen.max_tool_calls_per_turn` of 2 or more
+- [ ] `visual_task` matches whether the rows carry images
+- [ ] `traces.jsonl` parses in the configured `observation_format`
 
 There is no hard minimum row count. Aim for 20+ diverse train examples and a test set covering
 the production distribution.
 
 ## Empty splits
 
-`train.jsonl` and `test.jsonl` must both be there, and either can be empty: an empty file says
-"no labelled data of this kind", a missing file is an error. Use an empty split only when the
-user has no data of that kind. A populated split is held to every rule above.
-
-What each stage does with an empty split:
+A missing or empty data file says "no data of this kind". A populated split is held to every
+rule above. What each stage does with an empty split:
 
 | Stage | Empty split | Behavior |
 |---|---|---|
-| trace processing | either | Writes it out. No floor applies. The test split is the PreparedTraces' `test.jsonl`, empty when there is none |
-| synthgen | train | Runs. Prompt blocks drop to zero-shot, and the output becomes the train split |
+| relabel traces | train or test | Fills it. The job needs traces, not rows |
+| synthetic data generation | the split it fills | Runs zero-shot, and the output becomes the split |
+| synthetic data generation | traces | Runs without context (`../platform.md` § The expand operations) |
 | teacher evaluation | test | REFUSES. There is nothing to score the teacher against |
-| teacher evaluation | train | Runs only with `evaluation.num_few_shot_examples: 0`, since few-shot examples come from the train split. Normally teacher evaluation runs on the seed data's train split |
+| teacher evaluation | train | Runs zero-shot: `evaluation.num_few_shot_examples` is capped to the train rows |
 | model training | train | REFUSES. There is nothing to train on |
 | model training | test | Runs and produces a model, but no evaluation results at all |
 
-Tell the user before they choose an empty split:
+Tell the user before they build on an empty split:
 
 - **No test set means no scores**: no teacher evaluation, no base-vs-tuned comparison, no
-  verdict. `slm metrics` returns null scores, which is not a failed job. A test set can be added
-  later.
-- **No train set means synthgen must run before training**: it fills the split from the task
-  description, the tool or class definitions and `unstructured.jsonl`, with no seed examples to
-  imitate.
+  verdict. `slm metrics` returns null scores, which is not a failed job. The test set is built
+  first for that reason (`../../stages/build-a-test-set.md`).
+- **No train set means synthetic data generation must run before training**: it fills the
+  split from the task description, the tool or class definitions and the traces, with no rows
+  to imitate (`../../stages/build-a-train-set.md`).
 
 The two refusals:
 
@@ -91,13 +93,9 @@ Finetuning needs a training set, and this job has none: train.jsonl is empty.
 Generate synthetic data first, or provide training examples.
 ```
 
-A test set with no train set is the more useful of the two shapes: teacher evaluation runs
-with `evaluation.num_few_shot_examples: 0`, synthgen and training both run, and every score is
-still available.
-
 ## Validate before submitting
 
-Creating the SeedDataset is the validator (`../execution/cli.md` § The SeedDataset): it parses
-the directory exactly as the jobs will and rejects an invalid bundle with the reason, before any
-job is created. Stage outputs are already valid job-input directories, so validate what
-you write by hand.
+Creating the Dataset is the validator (`../execution/cli.md` § The Dataset): it parses the
+directory exactly as the jobs will and rejects an invalid bundle with the reason, before any
+job is created. Every expand validates the Dataset it writes with the same rules, so what you
+write by hand is the only thing to check.

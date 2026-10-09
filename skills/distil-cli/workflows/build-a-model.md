@@ -1,8 +1,9 @@
 # Workflow: Build a Model
 
-The end-to-end loop over the stages. Each step is a stage file: follow the stage's own protocol
-and return here for the next step. Before the first step, install the `distil` CLI and sign in
-per `../references/execution/README.md` § Set up the CLI, then settle the execution backend per
+The outer loop: from the user's traffic or files to a served model, and from the served model's
+traffic to the next model. Each step is a stage file: follow the stage's own protocol and
+return here for the next step. Before the first step, install the `distil` CLI and sign in per
+`../references/execution/README.md` § Set up the CLI, then settle the execution backend per
 § Choose the backend and record it in `run.md`.
 
 ## Workflow Map
@@ -10,47 +11,52 @@ per `../references/execution/README.md` § Set up the CLI, then settle the execu
 Print this map to the user when starting the workflow, before the first step:
 
 ```
- ENTRY A: an LLM in production whose traffic can go through an endpoint
+ ENTRY A: an LLM in production                    ENTRY B: files on disk
+   ▼                                               (any of traces, train, test)
+ 1 Collecting endpoint ─── fallback = the production model      │
+   ▼                                                            │
+ 2 Send traffic ─── the application calls the endpoint          │
+   │                ... days to weeks ...                        │
+   ▼                                                            │
+ 3 Traces object ─── from the endpoint's records                │
+   ▼                                                            │
+ 4 Dataset ◄────────────────────────────────────────────────────┘
+   │   A: from the traces object, with a config and a job description
+   │   B: uploaded; the splits the user does not have stay empty
    ▼
- 1 Provision a collecting endpoint ─── fallback = the production model, no primary
+ 5 Test set ─── relabel traces, then synthetic rows if needed; 100-1000 rows
+   │            gate: the user approves it; locked from here on
    ▼
- 2 Send traffic ─── the application calls the endpoint; every call is recorded
-   │                ... days to weeks, at the rate of the user's traffic ...
+ 6 Teacher evaluation ─── the shortlist and the production model, one run each
+   │  └─ gate: pick the teacher, PROCEED only
    ▼
- 3 Create a traces object ─── from the endpoint's records    ◄── ENTRY B: a trace file
+ 7 Train set ─── relabel some of the remaining traces, then synthetic rows: smoke ► full
    ▼
- 4 Test set from traces ─── relabelled test set + original-model baseline
-   │                         (first iteration; later iterations skip to 5)
+ 8 Train and decide ─┬─ Deploy candidate, above the baseline ─► 9
+   │                 └─ Not good enough ─► model-iterations.md (the inner loop)
    ▼
- 5 Seed dataset from traces ─── trace processing             ◄── ENTRY C: a labelled dataset
-   │  └─ gate: teacher evaluation, PROCEED only
+ 9 Serving endpoint ─── the student as primary, the production model as fallback
    ▼
- 6 Synthetic data ─── smoke ► full
-   ▼
- 7 Train and decide ─┬─ Deploy candidate ─► 8
-   │                 ├─ Retune ─► 7 again, no regeneration
-   │                 └─ Iterate, or below the original model ─► model-iterations.md
-   ▼
- 8 Deploy to an inference endpoint ─── serving endpoint: the student as primary,
-   │                                    the production model as fallback
-   ▼
- 9 Send traffic through the model ─── the serving endpoint records it
-   └──────────► back to 3, then 5: its records are the next iteration's traces
+10 Send traffic ─── its records are the next model's traces: back to 3, then 4
 ```
+
+Every Dataset-producing step creates a new Dataset whose parent is the previous one
+(`../references/platform.md` § Entities and jobs). Record the chain of ids in `run.md` as it
+grows; `distil dataset show` recovers a parent from a child.
 
 ## Entry Points
 
-Ask what the user has, then start at the matching step. Every entry ends in the same loop.
+Ask what the user has, then start at the matching step. Both entries meet at Step 4.
 
-| The user has | Start at |
+| The user has | Entry |
 |---|---|
-| An LLM in production that OpenRouter serves, and can point the application at an inference endpoint | Step 1 |
-| A file of production traces (the LLM's requests and responses), including exported logs of a production model that OpenRouter does not serve | Step 3 |
-| A labelled dataset with a test set, and no production traffic to collect | Step 5 |
+| An LLM in production that OpenRouter serves, and can point the application at an inference endpoint | A, Step 1 |
+| Files: a trace file (exported logs, converted), a labelled train set, a test set, or any combination | B, Step 4 |
 
-Prefer Step 1 whenever the production model is on OpenRouter: Step 8 needs an endpoint anyway,
-and an endpoint's fallback must be an OpenRouter model. Entry C needs a test set, because the
-teacher-evaluation gate and every verdict are read on it; it has no original-model baseline.
+Prefer entry A whenever the production model is on OpenRouter: Step 9 needs an endpoint anyway,
+and an endpoint's fallback must be an OpenRouter model. A user with a trace file and an
+OpenRouter production model can do both: upload the file now (B) and put the endpoint in place
+for the next iteration.
 
 ## Step 1: Provision a Collecting Endpoint
 
@@ -60,96 +66,122 @@ application calls today as the fallback.
 ## Step 2: Send Traffic
 
 The user moves the application onto the endpoint (`../stages/inference-endpoint.md` Step 6).
-The workflow pauses until the endpoint holds enough traces:
-`num_traces_to_relabel + 2 × num_synthetic_examples + num_traces_as_training_base`, 400 at the
-defaults (`../references/configuration.md` § traces_to_test_set, § trace_processing). The direct
-route sees a call about 24 hours after it was made
-(`../references/inference-endpoints.md` § From records to a traces object). Agree with the user
-when to come back, and stop.
+The workflow pauses until the endpoint holds enough traces for Steps 5 and 7: at least
+`num_test_relabelled + num_train_relabelled`, 400 at the defaults, plus the generation
+context each generation run takes, `T + min(T, 1000)` for a target of T or all that are left
+(`../references/platform.md` § The expand operations). At the defaults with no synthetic test
+rows, 400 traces give a test set and a train set, and every trace beyond that becomes context
+for the train generation. The direct route
+sees a call about 24 hours after it was made (`../references/inference-endpoints.md` § From
+records to a traces object). Agree with the user when to come back, and stop.
 
 ## Step 3: Create a Traces Object
 
-Both routes read `config.yaml` and `job_description.json` from the `--data` directory, so write
-them first. Pick the task type (`../references/task-types.md`) and write the job description
-(`../references/job-description.md`). The config needs:
+`../stages/inference-endpoint.md` Step 7, direct route: the platform pulls the endpoint's
+records into a PreparedTraces. Nothing else is needed yet; the config and the job description
+come at Step 4.
+
+## Step 4: Create the Dataset
+
+Pick the task type (`../references/task-types.md`) and write the job description
+(`../references/job-description.md`) and the config (`../references/configuration.md`). The
+config needs:
 
 - `base.task`;
-- `base.teacher_model_name`: the teacher that relabels the traces. Default to the large GLM 5.3
-  teacher, `zai.glm-5.3-low-thinking` (`../references/model-catalog.md` § Defaults);
+- `base.teacher_model_name`: the teacher that relabels the traces at Step 5. Default to the
+  large GLM 5.3 teacher, `zai.glm-5.3-low-thinking` (`../references/model-catalog.md`
+  § Defaults); Step 6 may replace it for Step 7;
+- `base.student_model_name`: the student Step 8 will train by default
+  (`../references/model-catalog.md` § Defaults), so the chain does not carry the library
+  default;
 - `evaluation.llm_as_a_judge_model_name`: the judge, set once here and kept for every later run,
   so every score in the project is read by the same judge. Its criteria, including format rules
   such as no code fences, go in `llm_as_a_judge_instructions` in the job description
   (`../references/job-description.md` § What each field feeds);
-- `trace_processing.observation_format`: `langfuse` for the direct route, `openai_messages` for a
-  converted upload (`../references/data-preparation/traces.md`).
+- `trace_processing.observation_format`: `langfuse` for a traces object from an endpoint,
+  `openai_messages` for a converted trace file (`../references/data-preparation/traces.md`).
 
-Then create the traces object:
+Then create the Dataset (`../references/execution/cli.md` § The Dataset):
 
-- **From the endpoint (entry A, and every later iteration):** `../stages/inference-endpoint.md`
-  Step 7.
-- **From a trace file (entry B):** convert it per `../references/data-preparation/traces.md`
-  and upload it (`../references/execution/cli.md` § Test set from traces and trace processing).
+- **Entry A**: `distil dataset create-from-traces` on the traces object. The traces are copied,
+  train and test are empty.
+- **Entry B**: prepare the directory (`../references/data-preparation/overview.md`), show it to
+  the user, and `distil dataset create --data`. The create validates the files; an uploaded
+  `test.jsonl` or `train.jsonl` is kept and added to in Steps 5 and 7.
 
-In a later iteration, put the current `test.jsonl` in the `--data` directory so the test set
-stays the same.
+In a later iteration (Step 10), the Dataset is created with the current `test.jsonl` next to
+the new traces, so the test set stays the same.
 
-## Step 4: Test Set from Traces
+## Step 5: Build the Test Set
 
-First iteration only. Run `../stages/test-set-from-traces.md` on the traces object, with
-`traces_to_test_set.evaluate_original_model: true`. The user approves this test set: it gates
-every verdict that follows.
+Run `../stages/build-a-test-set.md`. The user approves the result: it is the test set every
+score in the project is read on, and it is locked from here on. With a complete uploaded test
+set, the stage is its review only.
 
-Later iterations skip this step and go to Step 5, unless `model-iterations.md` Step 3 says the
-test set cannot measure the failure.
+## Step 6: Teacher Evaluation
 
-## Step 5: Seed Dataset
+Run `../stages/teacher-evaluation.md` on the test-set Dataset: one run per candidate teacher,
+and one with the production model as teacher, which is the baseline the student must beat.
+When the production model has no catalog entry there is no baseline, and Step 8 reads the
+student against the teacher and the base student only.
 
-- **From traces (entries A and B):** run `../stages/trace-processing.md` on the traces object:
-  the updated one from Step 4, or the one from Step 3 when Step 4 was skipped.
-- **From a labelled dataset (entry C):** prepare the input directory at `seed-dataset/input/`
-  under the project root (`../references/data-preparation/overview.md`), show it to the user,
-  and create the
-  SeedDataset (`../references/execution/cli.md` § The SeedDataset).
+**Gate:** continue only on PROCEED (`../references/evaluation-metrics.md` § Verdicts), with the
+best teacher as `base.teacher_model_name` for Step 7.
 
-**Gate:** run `../stages/teacher-evaluation.md` on the SeedDataset and continue only on PROCEED
-(`../references/evaluation-metrics.md` § Verdicts).
+## Step 7: Build the Train Set
 
-## Step 6: Synthetic Data
+Run `../stages/build-a-train-set.md` on the test-set Dataset with the teacher from Step 6.
 
-Run `../stages/synthetic-data-generation.md` on the SeedDataset with the teacher that passed
-evaluation.
+## Step 8: Train and Decide
 
-## Step 7: Train and Decide
+Run `../stages/model-training.md` on the Dataset Step 7 produced, then decide with the user.
+Every score is the primary metric agreed for the project
+(`../references/evaluation-metrics.md` § Primary metric per task), and the verdicts are in
+`../references/evaluation-metrics.md` § Verdicts:
 
-Run `../stages/model-training.md` on the TrainingDataset, then decide with the user. Every score
-is the primary metric agreed for the project (`../references/evaluation-metrics.md` § Primary
-metric per task),
-and the verdicts are in `../references/evaluation-metrics.md` § Verdicts:
+- **Deploy candidate**, and above the production model when there is a baseline → Step 9. For
+  a sweep, the smallest student that clears the bar.
+- **Anything else** → `model-iterations.md`, which decides whether to retune (Step 8 again on
+  the same Dataset), rebuild the train set (Step 7), change the teacher (Step 6), or, with the
+  user's approval, change the test set (Step 5). It returns here with a deploy candidate, or
+  with a report of why it stopped.
 
-- **Deploy candidate** → Step 8. For a sweep, the smallest student that clears the bar.
-- **Retune** → Step 7 again on the same TrainingDataset, with another student or tuning.
-- **Iterate**, or below the original model → `model-iterations.md`.
-
-## Step 8: Deploy to an Inference Endpoint
+## Step 9: Deploy to an Inference Endpoint
 
 Run `../stages/inference-endpoint.md` Steps 1-5 for a serving endpoint: the student as primary,
-the production model as fallback (for entry C, the model the user wants answering when the
-student cannot). It is always a new endpoint (`../references/inference-endpoints.md` § Lifetime).
+the production model as fallback (for entry B without an endpoint, the model the user wants
+answering when the student cannot). It is always a new endpoint
+(`../references/inference-endpoints.md` § Lifetime).
 
 To run the model on the user's own GPU instead, use `../stages/local-deployment.md`. That ends
 the loop: nothing records local traffic.
 
-## Step 9: Send Traffic Through the Model
+## Step 10: Send Traffic Through the Model
 
 The user moves the application to the serving endpoint (`../stages/inference-endpoint.md`
 Step 6). Its requests must carry the model's system prompt, the job description's
 `task_description`, or go through `model_client.py` (`../references/deployment.md` § Why
-model_client.py instead of raw requests). Delete the deployment per `../stages/inference-endpoint.md` Step 8 when
-the student should stop answering.
+model_client.py instead of raw requests). Delete the deployment per
+`../stages/inference-endpoint.md` Step 8 when the student should stop answering.
 
 The hosted deployment is a session for trying the model (`../references/inference-endpoints.md`
 § Lifetime). Once it ends, the fallback answers every call, so the records after that are the
 fallback's answers. For a permanent deployment, the user contacts contact@distillabs.ai; with a
-permanent primary, the serving endpoint's records are the student's traffic. The records are the
-next iteration's traces: back to Step 3, then Step 5, with `model-iterations.md` deciding what to
-change.
+permanent primary, the serving endpoint's records are the student's traffic.
+
+**The transition to the next model.** The records are the next iteration's traces. When the
+user wants the model retrained on them:
+
+1. Step 3: a new traces object from the serving endpoint (or the download route, filtered on
+   `metadata.source` for the answers the next model should learn from).
+2. Step 4: a new Dataset from the new traces, with the current `test.jsonl` and the best
+   iteration's `train.jsonl` included (`dataset create --traces --test --train`, after
+   `traces download` for the direct route, with `observation_format: langfuse` kept;
+   `../references/execution/cli.md` § The Dataset). The test set stays the same and Step 7
+   becomes a top-up instead of a rebuild. The old Dataset's leftover traces are not carried.
+3. Step 5: keep the test set as it is, or extend it with the new traces. Extending makes every
+   earlier score stale (`../stages/build-a-test-set.md` Step 5); it is the right call when the
+   failures the user sees in production are not in the test set.
+4. Step 6 only when the test set changed; with the same rows, the teacher and the baseline
+   scores in `test-set.md` still hold. Then Steps 7 and 8. The previous model's scores are in
+   the ledger; with the same test set, the new model is read against them.

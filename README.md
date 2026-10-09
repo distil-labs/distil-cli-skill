@@ -66,9 +66,10 @@ Once the skill is installed, ask your agent to build you a model:
 > "Help me build a classification model for customer support intent detection"
 
 The agent starts from the model you already run in production: it puts an inference endpoint in
-front of it to collect traces, or takes a trace file or a labelled dataset if you have one. It
-then checks feasibility with a teacher evaluation, generates synthetic training data, trains the
-student, and serves it behind a new endpoint that takes the traffic the traces came from. Every
+front of it to collect traces, or takes the files you have: traces, a train set, a test set, or
+any combination. It builds a test set, picks the teacher with a teacher evaluation, builds the
+train set from relabelled traces and synthetic data, trains the student, and serves it behind a
+new endpoint that takes the traffic the traces came from. Every
 stage confirms the setup and the expected credit cost with you before it submits anything.
 
 ## Documentation

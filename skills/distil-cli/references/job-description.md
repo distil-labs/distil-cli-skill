@@ -72,7 +72,7 @@ the model trains and serves with, so write it as one.
   the judge mismeasures, update these instructions or use a stronger judge model; either is a
   measurement change, so earlier scores are not comparable.
 - `trace_processing_instructions` (optional, all task types): task-specific guidance appended
-  to the trace-processing rewrite and fix instructions only. It is unused outside trace
-  processing. Use it when the edits must respect something unusual about the traces, for
+  to the relabelling rewrite and fix instructions only. It is unused outside relabelling
+  (`../stages/relabel-traces.md`). Use it when the edits must respect something unusual about the traces, for
   example "this is a live phone call; preserve the caller's interruptions and any cut-off
   utterances verbatim". Leave it out when no special handling is needed.

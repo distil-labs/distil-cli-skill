@@ -16,10 +16,11 @@ always set the teacher explicitly.
 **The judge stays fixed.** `evaluation.llm_as_a_judge_model_name` scores every run, so set it
 explicitly in the first config (the large teacher, `zai.glm-5.3-low-thinking`, unless the user
 chooses another) and never change it: scores from two judges are not comparable. It defaults to
-`base.teacher_model_name`, resolved once when the config is first expanded, so a config read
-back for an override already names it, and changing the teacher there leaves the judge as it
-was. `trace_processing.teacher_model_name`, the relabelling model, defaults the same way and is
-set on its own.
+`base.teacher_model_name`, resolved once when the config is first expanded (every Dataset an
+expand writes carries the expanded config), so a config read back for an override already
+names it, and changing the teacher there leaves the judge as it was.
+`trace_processing.teacher_model_name`, the relabelling model, defaults the same way: once
+expanded it is set on its own, so a new teacher for relabelling is set in both fields.
 
 ## Student models (`base.student_model_name`)
 

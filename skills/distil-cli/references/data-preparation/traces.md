@@ -1,16 +1,17 @@
 # Data Preparation: Traces
 
-Input for the test set from traces and trace processing stages.
+The trace file, `traces.jsonl`: one production conversation per line. It is the input of
+relabelling and the context of synthetic data generation (`../platform.md` § The expand
+operations), and it reaches the platform in one of three ways:
 
-## Trace directory
+- `distil traces upload --traces traces.jsonl`, then `distil dataset create-from-traces` with a
+  config and a job description (`../execution/cli.md` § Creating the job inputs);
+- `distil dataset create --traces traces.jsonl` next to the config, the job description and any
+  `train.jsonl` or `test.jsonl` (`overview.md`);
+- `distil traces create-from-inference-endpoint`, where the platform pulls an endpoint's records
+  and no file is written by hand.
 
-```
-traces-input/
-├── config.yaml           # trace_processing and traces_to_test_set sections (../configuration.md)
-├── job_description.json  # task definition (../job-description.md)
-├── traces.jsonl
-└── test.jsonl            # optional curated test set; test set from traces adds to it
-```
+The config's `trace_processing.observation_format` must name the shape of the lines.
 
 ## Observation formats (`trace_processing.observation_format`)
 
@@ -25,11 +26,12 @@ traces-input/
 `{"type": "text", ...}` / `{"type": "image_url", "image_url": {"url": ...}}` parts.
 
 **`unstructured_with_openai_messages`**: each line has a `context` field whose string wraps
-a messages array. Use it for traces doubling as unstructured context.
+a messages array. A shape the previous platform wrote (`../migrating-old-entities.md`); never
+written by hand.
 
 **`langfuse`**: the records of a distil labs inference endpoint, as a traces object created
 directly from the endpoint stores them (`../execution/cli.md` § Traces from an endpoint). Never
-written by hand.
+written by hand; set it in the config of the Dataset created from that traces object.
 
 ## From an inference endpoint
 
@@ -37,7 +39,7 @@ An inference endpoint's records become a traces object either directly, with
 `observation_format: langfuse` and no conversion, or by download, conversion and upload. When
 to use which: `../inference-endpoints.md` § From records to a traces object. This section is the
 conversion for the download route (`../execution/cli.md` § Download the traces, or
-`../execution/backend-api.md` § Read the traces).
+`../execution/backend-api.md` § Read the traces and § Export the traces to a file).
 
 A downloaded record is one call, not an observation format. The fields that matter:
 
@@ -84,7 +86,8 @@ with open("<endpoint-name>-traces.jsonl") as src, open("traces.jsonl", "w") as d
             dst.write(json.dumps(converted, ensure_ascii=False) + "\n")
 ```
 
-Check the first converted line and the kept count against the download before uploading. The
+Check the first converted line and the kept count against the download before uploading
+(`distil dataset create --traces traces.jsonl …`, with `observation_format: openai_messages`). The
 reply can carry `reasoning` next to `content` when the fallback is a reasoning model; the
 conversion keeps `content`, which is what the application used.
 
@@ -96,7 +99,7 @@ conversion keeps `content`, which is what the application used.
   user message, model output → assistant message.
 - Every trace is a multi-turn conversation rewritten whole. A simple exchange is a two-turn
   conversation.
-- `synthgen.validation_max_total_length` applies to processed examples
+- `synthgen.validation_max_total_length` applies to relabelled rows
   (`../configuration.md`); raise it when traces embed documents or schemas.
 - Emit clean JSONL: strip control characters and unicode line separators (U+2028/U+2029).
 

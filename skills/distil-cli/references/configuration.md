@@ -1,8 +1,14 @@
 # Configuration
 
-`config.yaml` has six sections: `base`, `tuning`, `evaluation`, `synthgen`,
-`trace_processing`, `traces_to_test_set`. Only `base.task` is required; every other parameter
-has a default. Always set `task`, `student_model_name` and `teacher_model_name`.
+`config.yaml` has five sections: `base`, `tuning`, `evaluation`, `synthgen`,
+`trace_processing`. Only `base.task` is required; every other parameter has a default. Always
+set `task`, `student_model_name` and `teacher_model_name`.
+
+A config written for the previous platform still loads: `synthgen.generation_target` is an
+alias of `train_generation_target`, `trace_processing.num_traces_as_training_base` moves to
+`num_train_relabelled`, `traces_to_test_set.num_traces_to_relabel` to `num_test_relabelled`
+and `traces_to_test_set.num_synthetic_examples` to `synthgen.test_generation_target`; the rest
+of the removed keys are dropped (`migrating-old-entities.md`).
 
 ## base
 
@@ -47,33 +53,36 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 
 | Parameter | Default | Notes |
 |---|---|---|
-| `num_few_shot_examples` | `1` | Teacher evaluation few-shot. At least one per class for classification. § Cross-field validation |
+| `num_few_shot_examples` | `1` | Teacher evaluation few-shot, drawn from the train split. § Cross-field validation |
 | `llm_as_a_judge_model_name` | inherits `base.teacher_model_name` | Set it once and keep it fixed across all runs. `model-catalog.md` § Defaults |
 
 ## synthgen
 
 | Parameter | Default | Notes |
 |---|---|---|
-| `generation_target` | `10000` | A target, not an exact count: generation runs in `generation_iteration_size` batches until the target is met, so the result can exceed it by up to one batch, and validation losses shift where that boundary is |
+| `train_generation_target` | `10000` | Synthetic rows one `generate-synthetic-data-train` run adds to the train split; `generation_target` is an alias. A target, not an exact count: generation runs in `generation_iteration_size` batches until the target is met, so the result can exceed it by up to one batch, and validation losses shift where that boundary is |
+| `test_generation_target` | `0` | Synthetic rows one `generate-synthetic-data-test` run adds to the test split. Same rounding |
+| `use_traces_as_context` | `true` | The traces in the Dataset serve as context for generation and the used ones leave the Dataset: `T + min(T, 1000)` for a target of T, or all that are left. Below `min(T / 4, 10)` traces, or with `false`, the job generates without context and leaves the traces alone. `platform.md` § The expand operations |
 | `generation_in_single_call` | `4` | Examples per teacher call |
-| `generation_iteration_size` | `128` | Generate-validate batch size, and also the granularity `generation_target` rounds up to |
-| `num_positive_exemplars_per_generation` | `1` | In-context examples per generation call (for classification, of the class being generated, and a per-class floor on train data). § Cross-field validation |
+| `generation_iteration_size` | `128` | Generate-validate batch size, and also the granularity a generation target rounds up to |
+| `num_positive_exemplars_per_generation` | `1` | In-context examples per generation call (for classification, of the class being generated). § Cross-field validation |
 | `num_negative_exemplars_per_generation` | `1` | In-context examples for the classes NOT being generated. Classification only. § Cross-field validation |
-| `num_unlabelled_exemplars_per_generation` | `1` | Unstructured dataset must be at least this size |
+| `num_unlabelled_exemplars_per_generation` | `1` | Context traces shown per generation call, when the run has context |
 | `validation_max_total_length` | `30000` | Chars, question+answer+context; applies to uploaded data too |
-| `validation_similarity_threshold` | `0.95` | Dedup vs seed data. Lower it if synthgen produces near-duplicates |
+| `validation_similarity_threshold` | `0.95` | Dedup against the rows already in the split. Lower it if synthgen produces near-duplicates |
 | `teacher_temperature` | `0.7` | § Cross-field validation for reasoning teachers |
 | `teacher_max_tokens` | `32000` | |
 | `match_generated_distribution_to_seed` | `false` | Classification only |
 | `output_is_json` | `false` | QA only. Also forces answers in uploaded data to be valid JSON |
 | `mutators` | `[]` | One entry per dimension to vary. `mutators.md` |
 | `mutator_update_frequency` | `5` | Batches between two classifier runs of an adaptive mutator. `mutators.md` § Adaptive mutators |
-| `max_tool_calls_per_turn` | `null` | Chat completion only: cap on tool calls per generated assistant turn. `data-preparation/chat-completion.md` § Tool calls per turn |
+| `max_tool_calls_per_turn` | `null` (1 with tools declared, 0 without) | Chat completion only: cap on tool calls per generated assistant turn. `data-preparation/chat-completion.md` § Tool calls per turn |
 | `clean_training_targets` | `false` | Final teacher pass that minimally repairs corrupted/truncated training targets. Expansion follows `base.should_expand_dataset`; `false` cleans only supplied final-turn targets |
 
 ## trace_processing
 
-Read by both trace jobs: trace processing, and test set from traces for how it relabels.
+Read by `relabel-traces-train` and `relabel-traces-test` (`../stages/relabel-traces.md`);
+`observation_format` is also read when a Dataset is created from traces.
 
 | Parameter | Default | Notes |
 |---|---|---|
@@ -82,25 +91,14 @@ Read by both trace jobs: trace processing, and test set from traces for how it r
 | `relevance_filtering_batch_size` | `32` | |
 | `min_relevance_score` | `4` | 1-5 |
 | `min_coherence_score` | `3` | 1-5. Lower lets corrupted traces through for committee repair |
-| `num_traces_as_training_base` | `200` | Traces relabeled into the train split. Both trace jobs refuse a trace set smaller than this, test set from traces included, since both parse the traces with the same validation. Leftover traces become unstructured data |
-| `max_unstructured` | `10000` | |
+| `num_train_relabelled` | `200` | Traces one `relabel-traces-train` run turns into train rows. The Dataset must hold at least this many distinct traces or the job refuses to run; fewer rows can come out, because filtering drops some. The used traces leave the Dataset |
+| `num_test_relabelled` | `200` | The same for `relabel-traces-test` and the test split |
 | `observation_format` | `openai_messages` | See `data-preparation/traces.md` |
 | `remove_system_prompt_from_traces` | `true` | `data-preparation/traces.md` § Conversion guidance |
 | `compress_job_description` | `false` | For very long task descriptions |
 | `teacher_model_name` | inherits `base.teacher_model_name` | Does filtering and relabel arbitration. `model-catalog.md` § Defaults |
 | `relabelling_committee_models` | `[]` | Non-empty list enables committee relabeling |
 | `committee_max_input_length` | `250000` | Chars. Traces whose projected committee-aggregator input exceeds this skip the committee (direct teacher edit) |
-
-## traces_to_test_set
-
-Read by the test set from traces job (`../stages/test-set-from-traces.md`).
-
-| Parameter | Default | Notes |
-|---|---|---|
-| `num_traces_to_relabel` | `200` | Traces relabeled into test examples, with the `trace_processing` relabeling settings. They leave the trace set |
-| `num_synthetic_examples` | `0` | Synthetic test examples generated from the relabeled ones with the `synthgen` section. The next `2 * num_synthetic_examples` traces are the generation context and also leave the trace set. A floor: generation runs in `synthgen.generation_iteration_size` batches, so more rows can come back |
-| `evaluate_original_model` | `false` | Scores the original model's answers on the relabeled traces with the student's metric suite. `false` writes null metrics. `evaluation-metrics.md` § Verdicts |
-| `min_relabelled_examples` | `0` | Fails the job when fewer relabeled test examples survive. Best kept at the default 0, which sets no floor |
 
 ## Cross-field validation
 
@@ -116,25 +114,19 @@ These fail at config load.
   (`model-catalog.md` § Tool-calling compatibility).
 - `synthgen.max_tool_calls_per_turn` must match whether the job description declares tools
   (`data-preparation/chat-completion.md` § Tool calls per turn).
-- No in-context exemplar count may exceed the number of train rows. The four counts are
-  `synthgen.num_positive_exemplars_per_generation`,
-  `synthgen.num_negative_exemplars_per_generation`, `evaluation.num_few_shot_examples` and
-  `tuning.num_few_shot_examples_student`. Every job rejects a count above the train row count,
-  except trace processing, which lowers the counts to fit the train split it produced
-  (`../stages/trace-processing.md`):
+- `base.enable_thinking: true` is refused by relabelling (`../stages/relabel-traces.md`).
 
-  ```
-  {'synthgen.num_positive_exemplars_per_generation': 3} asks for more in-context exemplars
-  than the training dataset holds (1). Lower the counts, or provide more training data.
-  ```
+The four in-context exemplar counts (`synthgen.num_positive_exemplars_per_generation`,
+`synthgen.num_negative_exemplars_per_generation`, `evaluation.num_few_shot_examples`,
+`tuning.num_few_shot_examples_student`) are not validated: every job lowers them to the number
+of rows the split it draws from holds, down to zero on an empty split. Read the counts a job ran
+with from its config.
 
 Inert: `evaluation.batch_size`, `synthgen.validation_max_answer_length`,
 `synthgen.parallel_llm_calls`, `synthgen.basic_mutators_to_use`,
-`tuning.awq_quantize_tuned_model`, `tuning.train_eval_split`,
-`trace_processing.num_traces_as_testing_base`, `trace_processing.min_generated_examples`,
-`trace_processing.evaluate_original_model`. They appear in every config the platform returns
-and have no effect. Leave them untouched in a config you override, and do not add them to one
-you write.
+`tuning.awq_quantize_tuned_model`, `tuning.train_eval_split`. They appear in every expanded
+config the platform returns and have no effect. Leave them untouched in a config you override, and do not
+add them to one you write.
 
 ## Conversation expansion
 

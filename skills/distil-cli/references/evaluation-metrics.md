@@ -61,8 +61,7 @@ The default primary metric:
 The user or the agent can name a different one per task, agreed at the start of the project:
 for example `llm-as-a-judge` (scored against the reference), or `binary` exact match for set or
 structured outputs where exact match is the faithful measure. Every score in § Verdicts
-(teacher, base, tuned, original model, `closed`) is the agreed key, the original model's
-included (`base_model_performance` from `traces metrics`).
+(teacher, base, tuned, production model, `closed`) is the agreed key.
 
 ## Verdicts
 
@@ -92,7 +91,7 @@ closed = (tuned - base) / (teacher - base)     # each term is the primary metric
 | `closed` | Verdict | Action |
 |---|---|---|
 | **≥ 0.8** | Deploy candidate | Continue to deployment; for a sweep, take the smallest student that clears the bar |
-| **0.4 - 0.8** | Retune | Train again on the same TrainingDataset with a different student or tuning settings; nothing is regenerated (`../stages/model-training.md`) |
+| **0.4 - 0.8** | Retune | Train again on the same Dataset with a different student or tuning settings; nothing is regenerated (`../workflows/model-iterations.md`, re-entry at Step 8) |
 | **< 0.4** | Iterate | The teacher's knowledge is not reaching the student, and retuning will not fix it. `../workflows/model-iterations.md` |
 
 A `closed` of 1 or above means the student matches or beats the teacher's score on this test
@@ -101,15 +100,13 @@ set, which is the default target of `../workflows/model-iterations.md`.
 These are gates for judgement. When `teacher - base` is small the ratio is unstable, and when
 the gap is inside the noise band no branch follows from the numbers: say so.
 
-**The original model is a floor.** When the test set came from traces and the job ran with
-`traces_to_test_set.evaluate_original_model: true`, the original production model's score on
-it is the score the student replaces, and a student below it is not deployed whatever `closed`
-says. Read it with `traces metrics` on the updated PreparedTraces: `base_model_performance` is
-the original model's answers scored with the same metric suite as the student, against the
-relabelled answers as references. Compare the same primary-metric key:
-`base_model_performance["llm-as-a-judge-reference-free"]`, or
-`base_model_performance["accuracy"]` for classification (the original label against the
-relabelled one).
+**The production model is a floor.** The model the user runs in production is scored on the
+test set by a teacher evaluation with it as `base.teacher_model_name`
+(`../stages/teacher-evaluation.md`): `teacher_performance` of that run is its answers scored
+with the same metric suite as the student, against the same references. A student below it is
+not deployed whatever `closed` says. Compare the same primary-metric key. When the production
+model is not in the catalog, there is no baseline, and the user judges the student on the
+absolute score.
 
 With an empty test split there are no reference points and no verdict
 (`data-preparation/overview.md` § Empty splits): report the model as unmeasured.

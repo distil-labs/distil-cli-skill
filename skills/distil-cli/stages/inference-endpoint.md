@@ -94,12 +94,13 @@ step comes days or weeks after Step 6. Choose between the two routes
 (`../references/inference-endpoints.md` § From records to a traces object):
 
 - **Directly from the endpoint** (`../references/execution/cli.md` § Traces from an endpoint),
-  for the full trace set.
+  for the full trace set. The result is a PreparedTraces; `../workflows/build-a-model.md`
+  Step 4 turns it into a Dataset with a config whose `trace_processing.observation_format` is
+  `langfuse`.
 - **Download, convert, upload** (`../references/data-preparation/traces.md` § From an inference
   endpoint), when the traces are needed now or must be filtered first, for example on
-  `metadata.source`.
-
-The result is a PreparedTraces, the input of `test-set-from-traces.md`.
+  `metadata.source`. The converted file goes straight into a Dataset with
+  `distil dataset create --traces`, together with the current `test.jsonl` in a later iteration.
 
 ## Step 8: Delete the Deployment (serving endpoint only)
 

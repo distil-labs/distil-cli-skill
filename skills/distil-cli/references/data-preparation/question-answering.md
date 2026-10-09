@@ -16,4 +16,5 @@ Rules beyond the shared checklist (`overview.md`):
   noise.
 - For JSON outputs set `synthgen.output_is_json: true`. Every assistant answer must then
   parse as JSON.
-- Optional `unstructured.jsonl` supplies in-domain texts sampled as inspiration.
+- Traces left in the Dataset are sampled as inspiration for generation
+  (`../platform.md` § The expand operations).

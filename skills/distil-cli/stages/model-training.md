@@ -1,9 +1,9 @@
 # Stage: Model Training
 
-Finetunes the student on the TrainingDataset and evaluates the base and the tuned student on the
-test set, which gives the base-vs-tuned-vs-teacher comparison. Training is the GPU stage
-(duration: `../references/platform.md` § Job status), so how much to experiment here is the
-user's budget decision.
+Finetunes the student on the Dataset's train split and evaluates the base and the tuned
+student on its test split, which gives the base-vs-tuned-vs-teacher comparison. Training is the
+GPU stage (duration: `../references/platform.md` § Job status), so how much to experiment here
+is the user's budget decision.
 
 An empty train split stops the run, and an empty test split produces a model with no scores
 (`../references/data-preparation/overview.md` § Empty splits). With no test set, tell the user
@@ -13,10 +13,11 @@ before submitting that the model cannot be measured yet.
 
 ```
 model-training/
-├── base-input/          # the TrainingDataset id and its config; every run derives from it
+├── base-input/          # the Dataset id and its config; every run derives from it
+│                        # (one per Dataset trained on: base-input-2/ for the next iteration)
 ├── smoke-<student>-1/   # memory check; one series per selected student
 │   ├── input/           # the config sent for this run
-│   ├── run.md           # the TrainingDataset id, the override sent and the SLM id returned
+│   ├── run.md           # the Dataset id, the override sent and the SLM id returned
 │   └── output/          # fetched metrics and training logs
 ├── smoke-<student>-2/   # next memory check for that student, after an OOM fix
 └── full-<student>-1/    # one full training per student
@@ -24,10 +25,10 @@ model-training/
 
 ## Step 1: Prepare the Input
 
-The input is a TrainingDataset id: the one synthetic data generation produced, or an existing
-one to retrain on (`../references/execution/cli.md` § Model training, § Reuse synthetic data for
+The input is a Dataset id: the one `build-a-train-set.md` produced, or an earlier one to
+retrain on (`../references/execution/cli.md` § Model training, § Reuse the data for
 training-only runs). Its config is readable only once its job reaches `JOB_SUCCESS`, so poll
-synthetic data generation to completion before reading it.
+the last expand to completion before reading it.
 
 Read its config once into `base-input/` (`../references/execution/cli.md` § Overrides). Every run
 edits the fields it varies and sends the whole file as an override.
@@ -43,15 +44,14 @@ The settings that matter are in `base` and `tuning` (`../references/configuratio
 Before submitting anything, present and confirm:
 
 - **The path**, from the balances (`../references/platform.md` § Credits):
-  - `slms_from_training_datasets_smoke_post` pays for the memory-check smokes (Steps 3-5), one
-    per attempt. With none left, go to Step 6.
-  - `slms_from_training_datasets_post` pays for one full run each, so a sweep of N students
-    needs N.
+  - `slms_from_datasets_smoke_post` pays for the memory-check smokes (Steps 3-5), one per
+    attempt. With none left, go to Step 6.
+  - `slms_from_datasets_post` pays for one full run each, so a sweep of N students needs N.
   - With credits for both, the user chooses: normal (a memory check per student, then the full
     run) or fast (skip Steps 3-5, the usual choice for a re-run of a proven setup).
 - **The student list**, fixed now, because each student is checked for memory separately. Fast
-  path: one student, `Qwen3.5-4B` unless the deployment target needs smaller
-  (`../references/model-catalog.md` § Defaults). Normal path: students across the sizes that fit
+  path: one student, the best iteration's student when there is one, else `Qwen3.5-4B` unless
+  the deployment target needs smaller (`../references/model-catalog.md` § Defaults). Normal path: students across the sizes that fit
   the deployment target (`../references/model-catalog.md` § Size tiers).
 
 ## Step 3: Smoke Run
@@ -76,20 +76,20 @@ Move on once every student fits.
 ## Step 6: Full Run
 
 Present the plan first: the students, each one's settings, and the cost (one
-`slms_from_training_datasets_post` credit per student). On the user's go-ahead, submit one
-training per student against the same TrainingDataset, without `--smoke`: all the training
-data, `num_train_epochs` at its default of 4, and the settings that passed the smoke. Each
-submission sends a full copy of the config with its student and settings. The submissions run
-concurrently.
+`slms_from_datasets_post` credit per student). On the user's go-ahead, submit one training per
+student against the same Dataset, without `--smoke`: all the training data, `num_train_epochs`
+at its default of 4, and the settings that passed the smoke. Each submission sends a full copy
+of the config with its student and settings. The submissions run concurrently.
 
 ## Step 7: Analyze the Results
 
 Confirm each job succeeded, then fetch the base and tuned metrics into `output/`
 (`../references/execution/cli.md` § Fetch metrics). With no test set, report that there are no
 scores and stop. Otherwise compare on the primary metric agreed for the project
-(`../references/evaluation-metrics.md` § Primary metric per task): base student (floor), teacher
-(ceiling), tuned student, one row per student. What to do next is decided in
-`../workflows/build-a-model.md` Step 7.
+(`../references/evaluation-metrics.md` § Primary metric per task): base student (floor), the
+production model (the baseline, from `test-set.md`; `teacher-evaluation.md` Step 5), teacher
+(ceiling), tuned student, one row per student. What to
+do next is decided in `../workflows/build-a-model.md` Step 8.
 
 ## Dealing with OOM
 
@@ -101,11 +101,10 @@ than the one before:
    slower).
 3. `use_qlora: true` together with `memory_optimized_training: true` (4-bit base model, about 3x
    less GPU memory).
-4. Remove the longest ~1% of training rows, which drive peak memory. Download the dataset,
-   remove the rows from `train.jsonl`, and create a new TrainingDataset from the directory with
-   `distil training-dataset create` (`../references/execution/cli.md` § Supplying files). This
-   costs one `training_datasets_download_get` credit, which starts at zero, so it is usually
-   unavailable, and one `training_datasets_post` credit.
+4. Remove the longest ~1% of training rows, which drive peak memory. Download the Dataset,
+   remove the rows from `train.jsonl`, and upload the directory as a new Dataset with
+   `distil dataset create --data` (`../references/execution/cli.md` § Supplying files; one
+   `datasets_post` credit).
 
 The first three are config overrides; only the fourth changes the data.
 
@@ -124,6 +123,6 @@ The first three are config overrides; only the fourth changes the data.
   cut off in evaluation, which matters for long and reasoning answers.
 - **Memory settings** (§ Dealing with OOM): what lets a larger student or batch fit at all.
 
-All are config overrides on the same TrainingDataset, and nothing regenerates, so this is the
-least expensive stage to iterate on. Cost: one `slms_from_training_datasets_post` credit per
-run; several runs can go in parallel.
+All are config overrides on the same Dataset, and nothing regenerates, so this is the least
+expensive stage to iterate on. Cost: one `slms_from_datasets_post` credit per run; several runs
+can go in parallel.
