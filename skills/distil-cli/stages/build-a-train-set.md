@@ -37,8 +37,8 @@ Decide the two counts:
 
 - `trace_processing.num_train_relabelled`: how many of the remaining traces become real train
   rows. Default 200; more when the pool is large. Leave traces for context: generation wants
-  `T + min(T, 1000)` of them for a target of T, takes what is left otherwise, and generates
-  without context below `min(T / 4, 10)` (`../references/platform.md` § The expand operations).
+  `T + min(T, 1000)` of them for a target of T, takes what is left otherwise, and logs a
+  warning and generates without context below `min(T / 4, 10)` (`../references/platform.md` § The expand operations).
   With a few hundred traces left, relabelling most of them and generating with little context
   is the better trade: a relabelled row is worth more than a context trace.
 - `synthgen.train_generation_target`: the synthetic rows to add. 10,000 unless the user asks

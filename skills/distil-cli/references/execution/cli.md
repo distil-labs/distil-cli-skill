@@ -37,10 +37,7 @@ argument. Paths in the snippets are illustrative; the stage files own the workin
 | model-training | SLM | `distil slm create-from-dataset [--smoke] <dataset-id>` | `distil slm {list,show,status,logs,metrics,download,download-metadata,download-predictions}` | yes |
 | inference-endpoint | Deployment, InferenceEndpoint | `distil deployment create-from-slm <slm-id>`, then `distil inference-endpoint create-from-deployment <deployment-id>`; or `distil inference-endpoint create` with no SLM | `distil deployment {status,logs}`, `distil inference-endpoint {list,show,download-traces}` | no config of its own |
 
-`distil seed-dataset` and `distil training-dataset` are the groups of the two entities the
-Dataset replaced. Their `list`, `show`, `download` and `download-metadata` still work for
-reading old entities; everything else prints the replacement and exits 1. Moving an old entity
-into the new chain: `../migrating-old-entities.md`.
+Seed datasets and training datasets: `../migrating-old-entities.md`.
 
 ### Which commands speak JSON
 
@@ -58,7 +55,8 @@ It is not registered on the commands that read local files (`traces upload`,
 `traces create-from-inference-endpoint`, on `inference-endpoint link-api-key` and
 `unlink-api-key`, or on any download command. Passing it there fails with
 `No flag registered for --output` and creates nothing. Those commands print the new id in a
-sentence; read it from the output.
+sentence (`dataset create`: `Upload successful. Dataset ID: <id>`; `dataset create-from-traces`
+and `traces upload`: `… created. ID: <id>`); read it from the output.
 
 Without `--output json` a read prints a panel for a human reader. Parse the JSON form.
 
@@ -70,7 +68,7 @@ a directory, and the CLI uploads the files in it by name:
 | Command | Required in `--data <dir>` | Optional |
 |---|---|---|
 | `distil traces upload` | `traces.jsonl` | none |
-| `distil dataset create` | `config.yaml`, `job_description.json` | `train.jsonl`, `test.jsonl`, `traces.jsonl`; a missing one is an empty split |
+| `distil dataset create` | `config.yaml`, `job_description.json` | `train.jsonl`, `test.jsonl`, `traces.jsonl`; a missing one is stored as an empty split |
 | `distil slm create` | `model.tar`, `config.yaml` | none |
 
 `config.yml` is accepted for `config.yaml`. The per-file flags (`--traces`, `--train`, `--test`,
@@ -140,7 +138,7 @@ endpoint traces (`../../workflows/build-a-model.md` Step 10).
 From files on disk (`../data-preparation/overview.md`), any subset of the three data files:
 
 ```bash
-distil dataset create --data input                                   # prints the Dataset id
+distil dataset create --data input          # Upload successful. Dataset ID: <id>
 distil dataset create --config input/config.yaml \
   --job-description input/job_description.json --traces traces.jsonl --test test.jsonl
 ```
@@ -154,7 +152,7 @@ with the row named).
 ## Submitting jobs
 
 Every job is created by naming the id of its parent. Nothing uploads, because the parent's files
-are already on the platform. Typical durations: `../platform.md` § Job status.
+are already on the platform.
 
 ### Relabel traces
 
@@ -197,8 +195,9 @@ distil dataset generate-synthetic-data-train --output json \
 ```
 
 `dataset download-metadata` writes `config.yaml` and `job_description.json` and nothing else.
-The config of a Dataset written by an expand is fully expanded: every default written out, keys sorted,
-comments dropped. An uploaded Dataset returns its config as uploaded.
+The config of a Dataset written by an expand is fully expanded: every default written out, keys
+sorted, comments dropped. A Dataset from `dataset create --data` returns its config as uploaded;
+one from `dataset create-from-traces` returns it normalised (comments dropped).
 
 A config with a complete `base` but no `synthgen` or `tuning` section is accepted, and those
 sections take their defaults with no error: against a parent with `train_generation_target: 512`
@@ -274,16 +273,19 @@ answers `JOB_SUCCESS` at once and has empty logs. Deployments answer
 
 Read the `status` field, not the exit code: a status command that reaches the platform exits 0
 whatever the job did. Creates and downloads report through the exit code: a rejected bundle, an
-invalid config or a download of something not produced yet exits 1 with the reason on stderr,
-and a download never writes an empty file.
+invalid config or a download of something not produced yet exits 1 with the reason on stderr
+(`Dataset <id> is not ready. Its job status is JOB_RUNNING.`). With `--output json` an error is
+printed to stdout as `{"error": …}` and the command exits 1, so `| jq -r .id` prints `null`:
+check the exit code.
 
-`logs` returns `{"logs": "…"}`, the whole job log as one string. It fills while the job runs.
+`logs` returns `{"logs": "…"}`, the whole job log as one string. It fills while the job runs;
+in the first seconds it reads `No logs for this dataset.`
 
 `list` returns one object per entity, newest first, with `id`, `created_at` and the parent's id
 under its own key (`dataset_id`, `slm_id`, and so on). A Dataset also carries its `operation`
 and its parent as `parent_dataset_id` or `parent_prepared_traces_id`; a PreparedTraces its
-`source`. `dataset show <id>` prints the same for one Dataset, plus its status when a job
-produced it. `list` recovers a lost id, and `show` walks a chain back to its root.
+`source`. `dataset show <id>` prints the same for one Dataset, plus its status (`JOB_SUCCESS` at once
+for a Dataset no job produced). `list` recovers a lost id, and `show` walks a chain back to its root.
 
 ## Output layout
 
@@ -312,9 +314,7 @@ distil dataset metrics --output json <dataset-id>
 # {"train_data_size_bytes": …, "test_data_size_bytes": …, "traces_size_bytes": …}
 ```
 
-`dataset download` writes whichever of the five files the Dataset holds, and fails only when it
-holds none. A file a Dataset does not have is not written, so a missing `train.jsonl` means an
-empty train split. The rows of a split are the parent's rows followed by the ones the expand
+`dataset download` writes all five files; an empty split is an empty file. The rows of a split are the parent's rows followed by the ones the expand
 added; to see only the new rows, download the parent too and diff.
 
 ## Fetch metrics
@@ -330,15 +330,18 @@ distil teacher-evaluation download-predictions <teacher-evaluation-id>
 distil slm download-predictions <slm-id>
 ```
 
-The `*_performance` object maps metric name to score; for classification its shape differs
+Without `--output json`, `metrics` prints every metric, `llm-as-a-judge-reference-free`
+included. The `*_performance` object maps
+metric name to score; for classification its shape differs
 (`../evaluation-metrics.md` § Metrics by task). A metric the run did not compute is `null`
 rather than absent, so filter nulls before averaging.
 
 Two things about a predictions file:
 
 - It is JSONL, one test example per line, with `prompt`, `completion`, `prediction` and that
-  example's score under each metric name. `prompt` is the full prompt as a message list, and
-  `completion` and `prediction` are assistant messages. Read one row and work from what is there.
+  example's score under each metric name. `prompt` is the test row's messages without the
+  few-shot examples, and `completion` and `prediction` are assistant messages. Read one row and
+  work from what is there.
 - `slm download-predictions` holds the tuned model's predictions only. The base model's scores
   are in `slm metrics`; its per-example predictions are not available.
 
@@ -358,7 +361,8 @@ distil slm download-metadata --destination model <slm-id>
 # model/config.yaml, model/job_description.json, model/model_client.py
 ```
 
-A few kilobytes instead of the tarball. How to use the client: `../deployment.md`.
+A few kilobytes instead of the tarball; `model_client.py` is there once the SLM reaches
+`JOB_SUCCESS`. How to use the client: `../deployment.md`.
 
 ## Reuse the data for training-only runs
 

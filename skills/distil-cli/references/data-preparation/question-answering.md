@@ -10,8 +10,8 @@ assistant = the expected output. The catch-all task for text-in text-out problem
 
 Rules beyond the shared checklist (`overview.md`):
 
-- Synthgen generates question-answer pairs one-shot from `task_description` and the seed
-  examples. Add `synthetic_data_generation_instructions` to job_description.json (fields:
+- Synthgen generates question-answer pairs one-shot from `task_description` and the rows in
+  the train split. Add `synthetic_data_generation_instructions` to job_description.json (fields:
   `../job-description.md`) to describe the generated inputs: formats, domains, variation,
   noise.
 - For JSON outputs set `synthgen.output_is_json: true`. Every assistant answer must then

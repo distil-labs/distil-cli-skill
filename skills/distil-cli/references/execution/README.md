@@ -43,7 +43,7 @@ access token that `distil access-token` prints.
    `distil logout` first to switch accounts.
 
 The CLI keeps its session in `~/.config/distillabs/session.json` (under `$XDG_CONFIG_HOME` when
-that is set) and refreshes it, so a run spanning hours needs no second sign-in.
+that is set) and refreshes it, so a long project needs no second sign-in.
 `distil update` replaces the binary in place.
 
 ## Choose the backend

@@ -11,8 +11,8 @@ Dataset, and both run before the train set is built:
   (`../references/evaluation-metrics.md` § Verdicts). It is not a candidate unless the user
   says so.
 
-There is no smoke run: the evaluation always runs on the full test set (durations:
-`../references/platform.md` § Job status), so each run is a complete evaluation.
+There is no smoke run: the evaluation always runs on the full test set, so each run is a
+complete evaluation.
 
 ## Working Directory
 

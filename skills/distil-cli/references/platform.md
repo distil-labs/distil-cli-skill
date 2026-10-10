@@ -16,7 +16,7 @@ PreparedTraces ─► Dataset ─► Dataset ─► Dataset … ─┬─► Tea
 - A **PreparedTraces** holds one `traces.jsonl` and nothing else. It is uploaded, or created
   from an inference endpoint's records. It runs no job.
 - A **Dataset** holds `config.yaml`, `job_description.json`, `train.jsonl`, `test.jsonl` and
-  `traces.jsonl`; any data file can be empty or missing. It is created in three ways, recorded
+  `traces.jsonl`; any data file can be empty. It is created in three ways, recorded
   in its `operation`:
   - `direct_upload`: the files on disk, any subset of the three data files. No job runs.
   - `from_prepared_traces`: a PreparedTraces plus a config and a job description. The traces
@@ -51,8 +51,8 @@ Four rules apply to all of them:
 
 - **Each expand removes the traces it used.** A trace is used at most once along a chain, so
   test and train never come from the same trace, and the trace pool shrinks with every expand.
-- **Relabelling needs the traces it is asked for.** The job fails before relabelling when the
-  Dataset holds fewer distinct traces than `num_{split}_relabelled`. Fewer rows than traces can
+- **Relabelling needs the traces it is asked for.** The job fails when the Dataset holds fewer
+  distinct traces than `num_{split}_relabelled`. Fewer rows than traces can
   come out, because filtering and schema checks drop some; zero rows is still a success.
 - **Generation uses traces as context when there are enough.** With
   `synthgen.use_traces_as_context: true` (the default) and a target of T rows, the job takes
@@ -65,8 +65,9 @@ Four rules apply to all of them:
 
 Generation also drops new rows that duplicate rows already in the split
 (`synthgen.validation_similarity_threshold`) or any row of the other split. The other split and
-the config and job description are copied through unchanged. Nothing in a row says whether it
-was uploaded, relabelled or generated: to tell the new rows apart, compare
+the config and job description are carried over with the same content. Relabelling writes
+`traces.jsonl` back in `openai_messages` form without the system prompts. Nothing in a row says whether it was
+uploaded, relabelled or generated: to tell the new rows apart, compare
 against the parent Dataset, whose download is free.
 
 ## Job status
@@ -83,16 +84,7 @@ against the parent Dataset, whose download is free.
 Deployments report `deployment_status` and `endpoint_status` instead of `status`.
 
 Creating a job returns its id at once, and only the status says how the job is going. How long
-a job takes depends on the size of the data and the problem: a small dataset finishes in
-minutes. Typical durations for a full-size run:
-
-| Job | Typical duration |
-|---|---|
-| Relabel traces | 45 min for 200 traces; scales with the count and the committee size |
-| Synthetic data generation | 90 min for 10,000 rows |
-| Teacher evaluation | 30 min |
-| Model training | 90 min |
-| Deployment | 40 min |
+a job takes depends on the size of the data and the problem.
 
 So submit, then poll between other work and tell the user where the job is, rather than
 blocking on one long wait.
@@ -122,6 +114,9 @@ All accept config and job-description overrides, and all spend the smoke credit 
 (§ Credits), never a full-run credit. A smoke expand writes a Dataset of its own, a side branch
 of the parent: the full run is submitted on the same parent, not on the smoke's child, so the
 smoke never costs the full run any traces.
+
+Never continue from a smoke child: its config carries the smoke values. The full run, and every
+expand after it, is submitted on the smoke's parent.
 
 ## Overrides
 
@@ -168,7 +163,7 @@ asks for a grant. Read a balance against the whole plan rather than the next sub
 test set, a train set and a model are at least four full expand credits and one training
 credit, and synthetic data generation is wasted if no training credit is left after it.
 
-A call against an exhausted route is refused. A failed job spends its credit like any other.
+A call against an exhausted route is refused.
 
 Only metered routes appear in a balance. A route the platform never charges for is absent
 rather than reported as unlimited, so a missing key is not a zero.
@@ -184,7 +179,8 @@ rather than reported as unlimited, so a missing key is not a zero.
 | Deployment | none | none | none |
 
 Metrics and files answer once that entity's own job reaches `JOB_SUCCESS`. Before that a
-metrics field is null and a download names the job's state and fails. Config and job
+metrics field is null and a download names the job's state and fails. An empty split is an
+empty file and reads `0` in the metrics. Config and job
 description are settled at submission: a TeacherEvaluation or SLM answers within seconds of the
 create, so an override can be read back from a running job. A Dataset made by an expand
 answers only once its job succeeds.

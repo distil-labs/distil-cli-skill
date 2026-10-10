@@ -54,9 +54,11 @@ Two behaviours to expect:
 - **No floor on the rows.** Filtering, relabelling, validation and the overlap check against
   the other split each drop traces, and whatever survives is written, zero rows included. A
   count far below the traces used usually means the traces do not match the task type, for
-  example multi-turn traces for a single-turn task. The job log counts each drop.
+  example multi-turn traces for a single-turn task.
 - **The traces are shuffled and deduplicated first**, so two runs on the same parent pick
   different traces, and duplicates in `traces.jsonl` do not count.
+- **The remaining traces are written back in `openai_messages` form**, without their system
+  prompts, whatever the parent's observation format.
 
 ## Step 2: Confirm the Setup with the User
 
@@ -75,7 +77,7 @@ Before submitting anything, present and confirm:
 ## Step 3: Smoke Run
 
 Submit with `--smoke` (`../references/execution/cli.md` § Relabel traces), which relabels 128
-traces of the parent whatever the config says. The smoke's Dataset is a side branch: the full
+traces of the parent whatever the config says. Below 128 traces, take the fast path. The smoke's Dataset is a side branch: the full
 run goes on the same parent (`../references/platform.md` § Smoke runs). Record the parent id,
 the command and the new Dataset id in `run.md`.
 

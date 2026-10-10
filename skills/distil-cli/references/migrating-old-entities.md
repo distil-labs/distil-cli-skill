@@ -1,21 +1,17 @@
 # Migrating Old Entities
 
-The platform used to hold data in three entities: PreparedTraces with a config, a job
-description and an optional test set; SeedDataset (`train.jsonl`, `test.jsonl`, optional
-`unstructured.jsonl`); and TrainingDataset (`train.jsonl`, `test.jsonl`). The Dataset replaced
-the last two (`platform.md` § Entities and jobs). Old entities stay readable and nothing else:
-`distil seed-dataset {list,show,download,download-metadata}` and the same for
-`distil training-dataset` work; every other command of theirs, and `distil traces
-expand-test-set`, prints the replacement and exits 1.
-
-To keep working from an old entity, move its files into a Dataset:
+A seed dataset (`train.jsonl`, `test.jsonl`, optional `unstructured.jsonl`) and a training
+dataset (`train.jsonl`, `test.jsonl`) are readable with `distil seed-dataset` and
+`distil training-dataset` `list`, `show`, `download` and `download-metadata`; their other
+commands, and `distil traces expand-test-set`, exit 1 naming the command to use. To build on one,
+move its files into a Dataset:
 
 1. Download it: `distil seed-dataset download -d old <id>` or
    `distil training-dataset download -d old <id>` (free). For an old PreparedTraces,
    `distil traces download -d old <id>` gives its `traces.jsonl` only; the config, job
    description and test set it was uploaded with are not downloadable, so take them from your
    own files.
-2. Fix what the new format rejects:
+2. Fix what a Dataset rejects:
    - **Flat rows** (`{"question": ..., "answer": ...}`): rewrite every row as a `messages`
      conversation (`data-preparation/overview.md` § Row format).
    - **`unstructured.jsonl`**: if trace processing wrote it (each row is one serialised trace),
@@ -23,14 +19,14 @@ To keep working from an old entity, move its files into a Dataset:
      unstructured_with_openai_messages` in the config. If it holds uploaded documents, leave it
      out: a Dataset has no place for context documents.
    - **`final-synthetic-dataset/`**: move its `train.jsonl` and `test.jsonl` to the top level.
-   - **Removed task types** (`question-answering-open-book`, `question-answering-closed-book`,
+   - **Task types a Dataset does not accept** (`question-answering-open-book`, `question-answering-closed-book`,
      `information-extraction`, `question-answering-open-book-synthetic-context`,
      `question-answering-legacy`): set `base.task: question-answering` and drop `context` from
-     the rows (`task-types.md`).
+     the rows (`task-types.md`). A multi-turn tool-calling task maps to `chat-completion`
+     or `chat-completion-agentic`.
    - **A QA job description** with text in `input_description` or `context_description`:
      remove the two keys.
-   - The config's old keys load as they are and move to their new names
-     (`configuration.md`); nothing to edit.
+   - **Deprecated config keys**: replace or delete them (`configuration.md` § Deprecated keys).
 3. Upload the directory: `distil dataset create --data old` (`execution/cli.md` § The Dataset).
    The create validates it and names the first row that fails.
 

@@ -26,8 +26,8 @@ development, with a CLI signed in to the same environment:
 export DL_PLATFORM_URL=https://api-dev.distillabs.ai
 ```
 
-Access tokens are short-lived, much shorter than a generation or training run, so the preamble
-below fetches a token per request rather than holding one. `pyyaml` is needed because a config
+Access tokens are short-lived, so the preamble below fetches a token per request rather than
+holding one. `pyyaml` is needed because a config
 is read back as `config.yaml` text and sent as a JSON object.
 
 ## Preamble
@@ -46,6 +46,7 @@ import yaml
 
 PLATFORM_URL = os.getenv("DL_PLATFORM_URL", "https://api.distillabs.ai")
 POLL_INTERVAL_SECONDS = 20
+POLL_TIMEOUT_SECONDS = 6 * 60 * 60
 
 # A staging response names each file by extension; a create body names it by
 # field. These maps are the only place that difference is spelled out.
@@ -61,8 +62,7 @@ SLM_FIELDS = {"model": "model_tar", "config": "config_yaml"}
 
 
 def auth():
-    """Tokens are short-lived, much shorter than a training run, so this is
-    called per request rather than cached. A failure carries the CLI's message,
+    """Tokens are short-lived, so this is called per request rather than cached. A failure carries the CLI's message,
     such as `Not logged in or session expired`."""
     result = subprocess.run(
         ["distil", "access-token"], capture_output=True, text=True
@@ -199,12 +199,7 @@ submission. See § Overrides.
 | model-training | SLM | `POST /slms/from-datasets[-smoke]`, or `POST /slms` from a staged tarball | `GET /slms[/<id>]`, `GET /slms/<id>/{status,logs,metrics,download,download-metadata}` | yes |
 | inference-endpoint | Deployment, InferenceEndpoint | `POST /deployments/from-slms`, then `POST /inference-endpoints` with the deployment as `primary`; or `POST /inference-endpoints` with no primary | `GET /deployments/<id>/{status,endpoint,logs}`, `DELETE /deployments/<id>`, `GET /inference-endpoints[/<name>]` | no config of its own |
 
-`/seed-datasets` and `/training-datasets` are the collections of the two entities the Dataset
-replaced. Their list, get-one, `download` and `download-metadata` routes still work for
-reading old entities; every other route of theirs, and `/prepared-traces/with-expanded-test-set`
-and the status, logs, metrics and download-metadata routes of a PreparedTraces, answer 410 Gone
-naming the replacement, so a 410 means the path is the problem, not the payload. Moving an old
-entity into the new chain: `../migrating-old-entities.md`.
+Seed datasets, training datasets and 410 responses: `../migrating-old-entities.md`.
 
 ### Supplying files
 
@@ -299,7 +294,7 @@ nothing:
 ```python
 body = stage("/staging-slms-s3-urls", {"model": "model.tar", "config": "config.yaml"}, SLM_FIELDS)
 slm_id = post("/slms", body)["id"]
-poll("slms", slm_id, 60 * 30)
+poll("slms", slm_id, POLL_TIMEOUT_SECONDS)
 ```
 
 The tarball must hold the LoRA adapter under `model-adapter/`, as `GET /slms/<id>/download`
@@ -313,14 +308,6 @@ which starts at zero, so it needs a grant before the first upload (`../platform.
 Every job is created by posting the id of the entity before it. Nothing is uploaded at this
 point, because the parent's files are already on the platform.
 
-| Job | Collection | Typical timeout |
-|---|---|---|
-| Relabel traces | `datasets` | 45 min for 200 traces; scales with the count |
-| Synthetic data generation | `datasets` | 90 min for 10,000 rows |
-| Teacher evaluation | `teacher-evaluations` | 30 min |
-| Model training | `slms` | 90 min |
-| Deployment | `deployments` | 40 min |
-
 ### Relabel traces
 
 One route runs all four expand operations, relabelling and generation alike (`../platform.md` § The expand operations). The body names the parent
@@ -331,17 +318,17 @@ the one sent:
 test_relabelled_id = post("/datasets/from-datasets", {
     "from": dataset_id, "operation": "relabel_traces_test",
 })["id"]
-poll("datasets", test_relabelled_id, 60 * 60)
+poll("datasets", test_relabelled_id, POLL_TIMEOUT_SECONDS)
 
 train_relabelled_id = post("/datasets/from-datasets", {
     "from": test_relabelled_id, "operation": "relabel_traces_train",
 })["id"]
-poll("datasets", train_relabelled_id, 60 * 60)
+poll("datasets", train_relabelled_id, POLL_TIMEOUT_SECONDS)
 
 train_generated_id = post("/datasets/from-datasets", {
     "from": train_relabelled_id, "operation": "generate_synthetic_data_train",
 })["id"]
-poll("datasets", train_generated_id, 60 * 90)
+poll("datasets", train_generated_id, POLL_TIMEOUT_SECONDS)
 ```
 
 The count comes from the parent's config, `trace_processing.num_{split}_relabelled`, or from
@@ -359,7 +346,7 @@ The same route and body with `operation: generate_synthetic_data_train` or
 smoke_id = post("/datasets/from-datasets-smoke", {
     "from": dataset_id, "operation": "generate_synthetic_data_train", "config": config,
 })["id"]
-poll("datasets", smoke_id, 60 * 30)
+poll("datasets", smoke_id, POLL_TIMEOUT_SECONDS)
 ```
 
 The smoke's Dataset is a side branch; the full run is posted on the same parent. Errors: 400 for
@@ -413,7 +400,7 @@ so `config_of("datasets", child_id)` reads them back.
 
 ```python
 teacher_evaluation_id = post("/teacher-evaluations", {"from_dataset_id": dataset_id})["id"]
-poll("teacher-evaluations", teacher_evaluation_id, 60 * 30)
+poll("teacher-evaluations", teacher_evaluation_id, POLL_TIMEOUT_SECONDS)
 ```
 
 Another teacher, or sharper judge instructions, is the same Dataset with an override:
@@ -425,7 +412,7 @@ config["base"]["teacher_model_name"] = "<production-model>"
 baseline_id = post("/teacher-evaluations", {
     "from_dataset_id": dataset_id, "config": config,
 })["id"]
-poll("teacher-evaluations", baseline_id, 60 * 30)
+poll("teacher-evaluations", baseline_id, POLL_TIMEOUT_SECONDS)
 ```
 
 ### Model training
@@ -435,7 +422,7 @@ expands means the common case needs no override:
 
 ```python
 slm_id = post("/slms/from-datasets", {"from": dataset_id})["id"]
-poll("slms", slm_id, 60 * 90)
+poll("slms", slm_id, POLL_TIMEOUT_SECONDS)
 ```
 
 A memory check before the full run is the same submission on `/slms/from-datasets-smoke`: one
@@ -448,7 +435,7 @@ config = config_of("datasets", dataset_id)
 config["base"]["student_model_name"] = "<student-a>"
 
 smoke_id = post("/slms/from-datasets-smoke", {"from": dataset_id, "config": config})["id"]
-poll("slms", smoke_id, 60 * 90)
+poll("slms", smoke_id, POLL_TIMEOUT_SECONDS)
 ```
 
 A sweep is N submissions against the same Dataset, one per student. Read the Dataset's config
@@ -465,7 +452,7 @@ for student in students:
     slm_ids[student] = post("/slms/from-datasets", {"from": dataset_id, "config": config})["id"]
 
 for student, slm_id in slm_ids.items():
-    poll("slms", slm_id, 60 * 90)
+    poll("slms", slm_id, POLL_TIMEOUT_SECONDS)
 ```
 
 The deep copy matters: mutating one dict across iterations would send every student the last
@@ -479,7 +466,7 @@ Poll `GET /<collection>/<id>/status` every 20 seconds. `poll()` in the preamble 
 status values and how to run a poller: `../platform.md` § Job status.
 
 ```python
-poll("datasets", train_generated_id, 60 * 90)
+poll("datasets", train_generated_id, POLL_TIMEOUT_SECONDS)
 ```
 
 Deployments report `deployment_status` rather than `status`, so they need
@@ -493,8 +480,7 @@ Each item has `id`, `created_at` and the parent's id under its own key (`dataset
 A Dataset also carries its `operation` and either `parent_dataset_id` or
 `parent_prepared_traces_id`; a PreparedTraces its `source` (`direct_upload` or
 `inference_endpoint`). The list carries no status; `GET /<collection>/<id>` returns the same
-fields with `status` added, which a Dataset that no job produced omits (read it as
-`JOB_SUCCESS`). Walking `parent_dataset_id` from a child recovers the whole chain.
+fields with `status` added (`JOB_SUCCESS` at once for a Dataset no job produced). Walking `parent_dataset_id` from a child recovers the whole chain.
 
 ```python
 slms = get("/slms")
@@ -504,8 +490,8 @@ from_dataset = [slm["id"] for slm in slms if slm.get("dataset_id") == dataset_id
 ## Output layout
 
 Nothing is fetched by object-storage path. Outputs arrive either as JSON in the response or as
-presigned URLs. A `/download` route returns one URL per file, with `null` for a file the entity
-does not have. Which outputs each entity produces, and the conditions on them:
+presigned URLs. A `/download` route returns one URL per file; a Dataset returns all five, an
+empty split as an empty file. Which outputs each entity produces, and the conditions on them:
 `../platform.md` § What each entity produces.
 
 | Entity | `/metrics` | `/download` | `/download-metadata` | Other |
@@ -524,11 +510,10 @@ the entity and its status, because the raw failure (`Invalid URL 'None'`) names 
 ```python
 download = get(f"/datasets/{dataset_id}/download")
 for field, name in [("train_data_url", "train.jsonl"), ("test_data_url", "test.jsonl"), ("traces_url", "traces.jsonl")]:
-    if download[field] is not None:
-        Path(name).write_bytes(requests.get(download[field]).content)
+    Path(name).write_bytes(requests.get(download[field]).content)
 ```
 
-A `null` URL is an empty split. The rows of a split are the parent's rows followed by the ones
+An empty split is an empty file. The rows of a split are the parent's rows followed by the ones
 the expand added, and nothing in a row says which; download the parent too and diff to isolate
 the new rows. `/sample` returns `{"rows": [...]}`, up to 128 rows of the train split, for a
 quick look without the download.
@@ -615,7 +600,7 @@ the student.
 
 ```python
 deployment_id = post("/deployments/from-slms", {"from": slm_id})["id"]
-poll("deployments", deployment_id, 60 * 40, status_field="deployment_status")
+poll("deployments", deployment_id, POLL_TIMEOUT_SECONDS, status_field="deployment_status")
 ```
 
 A deployment is never called directly. Once it reaches `JOB_SUCCESS`, an inference endpoint with

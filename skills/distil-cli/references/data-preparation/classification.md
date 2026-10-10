@@ -17,4 +17,4 @@ Rules beyond the shared checklist (`overview.md`):
 - Traces left in the Dataset serve as context for generation and improve synthetic input
   realism (`../platform.md` § The expand operations).
 - `synthgen.match_generated_distribution_to_seed: true` keeps generated class balance equal
-  to the seed's.
+  to the train split's.

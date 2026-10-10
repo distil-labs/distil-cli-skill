@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "10.0.0"
+  version: "10.0.3"
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing a
   dataset (config.yaml, job_description.json, traces, train and test rows), running or
@@ -16,7 +16,7 @@ description: >
   distil traces, distil dataset, distil teacher-evaluation, distil slm, distil deployment,
   distil inference-endpoint, distil api-keys, distil access-token), the distil labs REST API,
   config.yaml parameters, supported student and teacher models, what an evaluation metric
-  means, or moving an old seed dataset or training dataset to the new platform.
+  means, or moving a seed dataset or training dataset into a Dataset.
 ---
 
 # Building Models
@@ -79,8 +79,7 @@ a smoke run follow one template:
 7. Analyze the Results
 
 A smoke run (`smoke-1`, `smoke-2`, then `full-1`) catches config, data and prompt problems
-on a subsample before the full run (`references/platform.md` § Smoke runs; durations in
-§ Job status). The user picks the normal path (smoke first) or the fast path (full run
+on a subsample before the full run (`references/platform.md` § Smoke runs). The user picks the normal path (smoke first) or the fast path (full run
 directly). Stages without a smoke run number their steps consecutively.
 
 Every stage opens with a user gate: present the input, the key config choices, the plan and
@@ -125,7 +124,7 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
 | `references/evaluation-metrics.md` | Metrics per task type, primary metrics, verdicts |
 | `references/deployment.md` | Model artifacts, the inference client, local serving |
 | `references/inference-endpoints.md` | Inference endpoints: collecting and serving, lifetime, keys, records, the two routes to traces |
-| `references/migrating-old-entities.md` | Moving a seed dataset, training dataset or old traces object into a Dataset |
+| `references/migrating-old-entities.md` | Moving a seed dataset or a training dataset into a Dataset |
 | `references/execution/README.md` | Install the CLI, sign in and choose the backend |
 | `references/execution/cli.md` | Execution backend: every `distil` command (default) |
 | `references/execution/backend-api.md` | Execution backend: every distil labs REST API request |
@@ -147,7 +146,7 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
   `references/execution/README.md` § Set up the CLI and § Choose the backend first.
 - Results are disappointing ("teacher score is low", "student is far below teacher"), or "keep
   iterating until the model is good" → `workflows/model-iterations.md`.
-- An old seed dataset, training dataset or a command that now says it was removed →
+- A seed dataset, a training dataset, or a command that exits 1 naming another command →
   `references/migrating-old-entities.md`.
 - Lookup question (a config parameter, a metric, a data format, a command) → the matching
   reference file.

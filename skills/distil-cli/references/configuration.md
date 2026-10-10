@@ -4,12 +4,6 @@
 `trace_processing`. Only `base.task` is required; every other parameter has a default. Always
 set `task`, `student_model_name` and `teacher_model_name`.
 
-A config written for the previous platform still loads: `synthgen.generation_target` is an
-alias of `train_generation_target`, `trace_processing.num_traces_as_training_base` moves to
-`num_train_relabelled`, `traces_to_test_set.num_traces_to_relabel` to `num_test_relabelled`
-and `traces_to_test_set.num_synthetic_examples` to `synthgen.test_generation_target`; the rest
-of the removed keys are dropped (`migrating-old-entities.md`).
-
 ## base
 
 | Parameter | Default | Notes |
@@ -60,9 +54,9 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 
 | Parameter | Default | Notes |
 |---|---|---|
-| `train_generation_target` | `10000` | Synthetic rows one `generate-synthetic-data-train` run adds to the train split; `generation_target` is an alias. A target, not an exact count: generation runs in `generation_iteration_size` batches until the target is met, so the result can exceed it by up to one batch, and validation losses shift where that boundary is |
+| `train_generation_target` | `10000` | Synthetic rows one `generate-synthetic-data-train` run adds to the train split. A target, not an exact count: generation runs in `generation_iteration_size` batches until the target is met, so the result can exceed it by up to one batch, and validation losses shift where that boundary is |
 | `test_generation_target` | `0` | Synthetic rows one `generate-synthetic-data-test` run adds to the test split. Same rounding |
-| `use_traces_as_context` | `true` | The traces in the Dataset serve as context for generation and the used ones leave the Dataset: `T + min(T, 1000)` for a target of T, or all that are left. Below `min(T / 4, 10)` traces, or with `false`, the job generates without context and leaves the traces alone. `platform.md` § The expand operations |
+| `use_traces_as_context` | `true` | The traces in the Dataset serve as context for generation and the used ones leave the Dataset: `T + min(T, 1000)` for a target of T, or all that are left. Below `min(T / 4, 10)` traces the job logs a warning and generates without context; with `false` it generates without context. Either way it leaves the traces alone. `platform.md` § The expand operations |
 | `generation_in_single_call` | `4` | Examples per teacher call |
 | `generation_iteration_size` | `128` | Generate-validate batch size, and also the granularity a generation target rounds up to |
 | `num_positive_exemplars_per_generation` | `1` | In-context examples per generation call (for classification, of the class being generated). § Cross-field validation |
@@ -119,8 +113,7 @@ These fail at config load.
 The four in-context exemplar counts (`synthgen.num_positive_exemplars_per_generation`,
 `synthgen.num_negative_exemplars_per_generation`, `evaluation.num_few_shot_examples`,
 `tuning.num_few_shot_examples_student`) are not validated: every job lowers them to the number
-of rows the split it draws from holds, down to zero on an empty split. Read the counts a job ran
-with from its config.
+of rows the split it draws from holds, down to zero on an empty split.
 
 Inert: `evaluation.batch_size`, `synthgen.validation_max_answer_length`,
 `synthgen.parallel_llm_calls`, `synthgen.basic_mutators_to_use`,
@@ -139,3 +132,18 @@ turn. It applies to training, to evaluation, and to the expansion before
 | `auto` (default) | Expands multi-turn tasks, unless at least half of the examples share history prefixes with other examples (data that is already split per turn) |
 | `false` | Each supplied row stays one example, with only its final assistant turn as the target; earlier assistant turns are history. Evaluation scores each test row's final turn only. Use it for pre-split rows whose final responses were selected or rewritten |
 | `true` | Expands every conversation, pre-split data included. Valid only for the chat completion tasks |
+
+## Deprecated keys
+
+These keys are not part of the config. Each one has a replacement or no equivalent:
+
+| Deprecated key | Use instead |
+|---|---|
+| `synthgen.generation_target` | `synthgen.train_generation_target` |
+| `trace_processing.num_traces_as_training_base` | `trace_processing.num_train_relabelled` |
+| `traces_to_test_set.num_traces_to_relabel` | `trace_processing.num_test_relabelled` |
+| `traces_to_test_set.num_synthetic_examples` | `synthgen.test_generation_target` |
+| `traces_to_test_set.evaluate_original_model` | a teacher evaluation with the production model as `base.teacher_model_name` |
+| `traces_to_test_set.min_relabelled_examples` | none |
+| `trace_processing.max_unstructured`, `num_traces_as_testing_base`, `min_generated_examples`, `evaluate_original_model`, `convert_to_single_turn` | none |
+| `synthgen.generation_per_unstructured_context`, `num_distractor_context_blocks` | none |

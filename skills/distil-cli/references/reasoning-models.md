@@ -42,7 +42,7 @@ it writes carries the setting, so training inherits it and needs no override.
 1. **Generation.** The teacher writes `reasoning_content` next to every assistant message it
    generates.
 2. **Backfill.** After generation, a teacher pass writes reasoning on the final assistant message
-   of every training row that has none, seed rows included. It changes only the reasoning,
+   of every training row that has none, uploaded and relabelled rows included. It changes only the reasoning,
    costs one teacher call per row, and drops rows still without reasoning after a retry. The log
    says `Reasoning backfill: kept X of Y`.
 

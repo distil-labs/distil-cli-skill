@@ -62,7 +62,7 @@ synthgen:
 
 For `chat-completion`, also add a value such as "the assistant answers in text with no tool
 call" when the model should sometimes answer without a tool. Set `target_distribution:
-match_seed` to follow the tool mix of the seed data instead of an even split, or give one
+match_seed` to follow the tool mix of the split's rows instead of an even split, or give one
 weight per value (`../mutators.md`). Check the tool counts in the smoke output (the
 synthetic-data-generation stage, Step 4, axis 3).
 

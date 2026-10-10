@@ -38,7 +38,8 @@ What the job reads from the Dataset:
   test never leaks train rows and the reverse.
 - **The traces are the context** when `synthgen.use_traces_as_context` is true: `T +
   min(T, 1000)` of them for a target of T, or all that are left, and they leave the Dataset.
-  Below `min(T / 4, 10)` traces the job generates without context and leaves the traces alone.
+  Below `min(T / 4, 10)` traces the job logs a warning, generates without context and leaves the
+  traces alone.
   Count the traces before deciding the target, because this run can empty the pool for every
   expand after it.
 
@@ -72,7 +73,7 @@ Before submitting anything, present and confirm:
 ## Step 3: Smoke Run
 
 Submit with `--smoke` (`../references/execution/cli.md` § Synthetic data generation), which
-generates 128 rows whatever the target says. The smoke's Dataset is a side branch: the full run
+sets the target to 128 whatever the config says. The smoke's Dataset is a side branch: the full run
 goes on the same parent (`../references/platform.md` § Smoke runs). Record the command and the
 new Dataset id in `run.md`.
 
@@ -81,8 +82,8 @@ new Dataset id in `run.md`.
 Confirm the job succeeded, then download the new Dataset into `output/`
 (`../references/execution/cli.md` § Reading a Dataset). The new rows are the lines of the split
 after the parent's rows; diff against the parent's file to isolate them, since nothing in a row
-says it was generated. Falling well short of 128 means validation filtered heavily, usually on
-length or format; the job log counts the drops.
+says it was generated. Falling short of 128 means validation filtered heavily, usually on
+length or format.
 
 Analyze the new rows on three axes:
 

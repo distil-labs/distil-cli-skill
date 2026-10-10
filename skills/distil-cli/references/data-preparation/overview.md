@@ -34,8 +34,7 @@ Train and test rows are chat-format conversations.
 - Chat completion rows, tool calls and role rules: `chat-completion.md`.
 - An assistant message may carry `reasoning_content` for a reasoning student
   (`../reasoning-models.md`); it is dropped on load unless `base.enable_thinking` is true.
-- The flat `{"question": ..., "answer": ...}` row format of the previous platform is refused
-  (`../migrating-old-entities.md`).
+- Flat `{"question": ..., "answer": ...}` rows are refused.
 
 Trace rows follow `trace_processing.observation_format` (`traces.md`).
 
@@ -69,9 +68,9 @@ rule above. What each stage does with an empty split:
 | relabel traces | train or test | Fills it. The job needs traces, not rows |
 | synthetic data generation | the split it fills | Runs zero-shot, and the output becomes the split |
 | synthetic data generation | traces | Runs without context (`../platform.md` § The expand operations) |
-| teacher evaluation | test | REFUSES. There is nothing to score the teacher against |
+| teacher evaluation | test | Fails: there is nothing to score the teacher against |
 | teacher evaluation | train | Runs zero-shot: `evaluation.num_few_shot_examples` is capped to the train rows |
-| model training | train | REFUSES. There is nothing to train on |
+| model training | train | Fails: there is nothing to train on |
 | model training | test | Runs and produces a model, but no evaluation results at all |
 
 Tell the user before they build on an empty split:
@@ -83,7 +82,7 @@ Tell the user before they build on an empty split:
   split from the task description, the tool or class definitions and the traces, with no rows
   to imitate (`../../stages/build-a-train-set.md`).
 
-The two refusals:
+The two failures, in the job log:
 
 ```
 Teacher evaluation scores the teacher against a test set, and this job has none:

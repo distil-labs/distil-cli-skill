@@ -26,8 +26,7 @@ The config's `trace_processing.observation_format` must name the shape of the li
 `{"type": "text", ...}` / `{"type": "image_url", "image_url": {"url": ...}}` parts.
 
 **`unstructured_with_openai_messages`**: each line has a `context` field whose string wraps
-a messages array. A shape the previous platform wrote (`../migrating-old-entities.md`); never
-written by hand.
+a messages array. Set only by `../migrating-old-entities.md`; never written by hand.
 
 **`langfuse`**: the records of a distil labs inference endpoint, as a traces object created
 directly from the endpoint stores them (`../execution/cli.md` § Traces from an endpoint). Never

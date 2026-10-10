@@ -2,8 +2,7 @@
 
 Finetunes the student on the Dataset's train split and evaluates the base and the tuned
 student on its test split, which gives the base-vs-tuned-vs-teacher comparison. Training is the
-GPU stage (duration: `../references/platform.md` § Job status), so how much to experiment here
-is the user's budget decision.
+GPU stage, so how much to experiment here is the user's budget decision.
 
 An empty train split stops the run, and an empty test split produces a model with no scores
 (`../references/data-preparation/overview.md` § Empty splits). With no test set, tell the user

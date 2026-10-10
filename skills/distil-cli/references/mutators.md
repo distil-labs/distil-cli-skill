@@ -78,10 +78,10 @@ synthgen:
 ```
 
 - The detector reads the job description and a random sample of up to `auto_detect_sample_size`
-  seed examples, and works with an empty seed set too. It aims at what the task meets in
-  production, so expect values the seed data lacks, typically 3-8.
+  the split's rows, and works with an empty split too. It aims at what the task meets in
+  production, so expect values the split's rows lack, typically 3-8.
 - One teacher call per detecting mutator. An unparsable or empty answer fails the run.
-- The detected values are logged (`Detected <name> values from the job description and N seed
+- The detected values are logged (`Detected <name> values from the job description and N
   examples: [...]`) and not written back into the config.
 - A weight list is a config error here, since there are no listed values to weight.
 
@@ -126,15 +126,15 @@ synthgen:
   first classifier run. Set `generation_iteration_size: 32` and `mutator_update_frequency: 1` in
   the smoke config to see it adapt, and restore both for the full run.
 
-## Matching the seed distribution
+## Matching the split's distribution
 
-`target_distribution: match_seed` has the teacher classify the seed examples along the dimension
+`target_distribution: match_seed` has the teacher classify the split's rows along the dimension
 once, at the start of the run, and uses the proportions it finds as the target. It works with
-either `method` and costs one teacher call per seed example.
+either `method` and costs one teacher call per row in the split.
 
-- Values absent from the seed data get zero weight and are never asked for. To get a value the
-  seed lacks, give explicit weights.
-- With no seed data, or none that matches any value, the mutator samples uniformly.
+- Values absent from the split's rows get zero weight and are never asked for. To get a value the
+  split lacks, give explicit weights.
+- With no rows in the split, or none that matches any value, the mutator samples uniformly.
 - It works per mutator, on any task and any dimension. `match_generated_distribution_to_seed`
   is the classification-only setting for the class mix.
 
@@ -178,6 +178,6 @@ synthgen:
 ## Which option for which problem
 
 - Values unknown: § Auto-detected values. A value comes up short: `method: adaptive` or a
-  heavier weight. Proportions should follow the seed data: `target_distribution: match_seed`.
-- Wrong length or difficulty profile: a § Recipes mutator. Near-duplicates of the seed data:
+  heavier weight. Proportions should follow the split's rows: `target_distribution: match_seed`.
+- Wrong length or difficulty profile: a § Recipes mutator. Near-duplicates of the split's rows:
   `synthgen.validation_similarity_threshold` (`configuration.md`), not a mutator.
