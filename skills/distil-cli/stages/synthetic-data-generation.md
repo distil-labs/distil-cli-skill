@@ -75,6 +75,21 @@ What shapes the generated rows:
   `generation_in_single_call` and the exemplar counts when rows are long; `output_is_json: true`
   when answers must be JSON (question answering only).
 
+### Optional LLM validation
+
+Use `synthgen.validation_instructions` when the user wants generated examples checked
+against specific criteria. The checks can be independent of the job description.
+For example:
+
+```yaml
+synthgen:
+  validation_instructions: |
+    Reject examples where the assistant hangs up without saying goodbye.
+```
+
+See `../references/configuration.md` § LLM validation for judge selection, filtering
+and extra calls. Leave it disabled when no custom checks are needed.
+
 ## Step 2: Confirm the Setup with the User
 
 Before submitting anything, present and confirm:
@@ -82,6 +97,8 @@ Before submitting anything, present and confirm:
 - the split, the key `synthgen` config and the intended target
 - the examples (row count of the split) and the context (trace count, and what is left after)
 - the mutator plan: dimensions and values, values left for the teacher to detect, or none yet
+- whether LLM validation is enabled; if so, the instructions, judge model and extra
+  judge calls after structural and diversity filtering
 - the remaining credits: `datasets_from_datasets_smoke_post` per smoke,
   `datasets_from_datasets_generate_synthetic_data_post` per full run
   (`../references/platform.md` § Credits)
@@ -119,6 +136,9 @@ Analyze the new rows on three axes:
 For a reasoning student, also check the reasoning (`../references/reasoning-models.md`). With
 `base.variable_system_prompt` on, also check the system messages
 (`../references/variable-system-prompts.md` § Generation).
+
+If LLM validation is enabled, read a sample of the examples it kept and check that
+they meet your validation instructions. The judge can make mistakes.
 
 ## Step 5: Iterate Until the Smoke Passes
 

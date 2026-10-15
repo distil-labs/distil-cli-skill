@@ -63,6 +63,7 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 | `num_unlabelled_exemplars_per_generation` | `1` | Context traces shown per generation call, when the run has context |
 | `validation_max_total_length` | `30000` | Chars, question+answer+context; applies to uploaded data too |
 | `validation_similarity_threshold` | `0.95` | Dedup against the rows already in the split. Lower it if synthgen produces near-duplicates |
+| `validation_instructions` | `null` | Optional instructions for an LLM to check each generated example against your own criteria. § LLM validation |
 | `teacher_temperature` | `0.7` | § Cross-field validation for reasoning teachers |
 | `teacher_max_tokens` | `32000` | |
 | `match_generated_distribution_to_seed` | `false` | Classification only |
@@ -71,6 +72,20 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 | `mutator_update_frequency` | `5` | Batches between two classifier runs of an adaptive mutator. `mutators.md` § Adaptive mutators |
 | `max_tool_calls_per_turn` | `null` (1 with tools declared, 0 without) | Chat completion only: cap on tool calls per generated assistant turn. `data-preparation/chat-completion.md` § Tool calls per turn |
 | `clean_training_targets` | `false` | Final teacher pass that minimally repairs corrupted/truncated training targets. Expansion follows `base.should_expand_dataset`; `false` cleans only supplied final-turn targets |
+
+### LLM validation
+
+Set `synthgen.validation_instructions` to a non-empty prompt to enable these checks.
+The criteria do not have to appear in the job description. The judge receives the
+instructions, the job description and the complete example, including its system
+prompt, tool calls and images.
+
+Validation uses `evaluation.llm_as_a_judge_model_name`, falling back to
+`base.teacher_model_name`. It runs only during synthetic generation, after structural
+and diversity checks, with one judge call per surviving example and the configured
+request parallelism. Rejected examples and malformed judgments are dropped without
+rewriting. Omit the field or set it to `null` to disable it; an empty string is invalid.
+This check does not run during relabeling, target cleanup or dataset loading.
 
 ## trace_processing
 
