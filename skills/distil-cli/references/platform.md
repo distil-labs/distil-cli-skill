@@ -66,7 +66,8 @@ Four rules apply to all of them:
 Generation also drops new rows that duplicate rows already in the split
 (`synthgen.validation_similarity_threshold`) or any row of the other split. The other split and
 the config and job description are carried over with the same content. Relabelling writes
-`traces.jsonl` back in `openai_messages` form without the system prompts. Nothing in a row says whether it was
+`traces.jsonl` back in `openai_messages` form without the system prompts, unless
+`base.variable_system_prompt` is on (`variable-system-prompts.md`). Nothing in a row says whether it was
 uploaded, relabelled or generated: to tell the new rows apart, compare
 against the parent Dataset, whose download is free.
 

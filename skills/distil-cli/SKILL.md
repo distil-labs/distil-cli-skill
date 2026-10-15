@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "10.0.3"
+  version: "10.1.0"
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing a
   dataset (config.yaml, job_description.json, traces, train and test rows), running or
@@ -120,6 +120,7 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
 | `references/configuration.md` | config.yaml parameters, defaults, cross-field validation |
 | `references/model-catalog.md` | Teacher and student models, defaults, task compatibility |
 | `references/reasoning-models.md` | Everything about reasoning students (`base.enable_thinking`) |
+| `references/variable-system-prompts.md` | Everything about per-row system prompts (`base.variable_system_prompt`) |
 | `references/mutators.md` | Synthetic data diversity controls (`synthgen.mutators`) |
 | `references/evaluation-metrics.md` | Metrics per task type, primary metrics, verdicts |
 | `references/deployment.md` | Model artifacts, the inference client, local serving |
@@ -148,5 +149,8 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
   iterating until the model is good" → `workflows/model-iterations.md`.
 - A seed dataset, a training dataset, or a command that exits 1 naming another command →
   `references/migrating-old-entities.md`.
+- One model for many system prompts ("per-request system prompt", "multi-tenant prompt",
+  "the model should follow the system message", traces with different system prompts) →
+  `references/variable-system-prompts.md`.
 - Lookup question (a config parameter, a metric, a data format, a command) → the matching
   reference file.

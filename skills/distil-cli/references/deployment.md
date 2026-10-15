@@ -27,7 +27,9 @@ client on its own).
 A small model degrades sharply outside its training-time setup, and the client reproduces that
 setup:
 
-- The trained system prompt, which the client contains as `SYSTEM_PROMPT`.
+- The system prompt comes from the caller's conversation, which must start with it: the client
+  adds none, sends the conversation as it is, and raises `ValueError` without one.
+  `DEFAULT_CONVERSATION` shows the system prompt from the training data.
 - `temperature=0`, and the thinking setting of training sent as `chat_template_kwargs`
   (`reasoning-models.md` § Deployment).
 - Chat completion models with tools call with `tools=TOOLS, tool_choice="auto"`, so the model
@@ -42,11 +44,12 @@ answers `200`, reasoning text appears in the answer of a model trained without t
 the score falls well below the evaluation metrics. So every new caller and integration queries
 through the client, and every deployment is smoke-tested with it on a few test-set rows.
 
-The model must run with the system prompt it was trained with: the job description's
-`task_description`. `model_client.py` sends it. An application that calls the endpoint with its
-own requests must send that same system prompt, with `temperature=0` and thinking as in
-training. When the application's production prompt differs from `task_description`, change the
-application's system prompt to it, or call through `model_client.py`.
+The model must run with a system prompt in every request: the `task_description` it was
+trained with, or, with `variable_system_prompt` on, the system prompt the application chooses
+for that request (`variable-system-prompts.md`). An application that calls the endpoint with its
+own requests must send that system prompt, with `temperature=0` and thinking as in training.
+With the flag off, when the application's production prompt differs from `task_description`,
+change the application's system prompt to it.
 
 When quality is worse than expected, check the prompt format first, then that the request
 names the adapter (`model`), not the base model (`base`).
@@ -65,7 +68,7 @@ a list of chat messages and returns the answer:
 from model_client import DistilLabsLLM
 
 client = DistilLabsLLM(model_name="model", base_url="http://127.0.0.1:8000/v1")
-print(client.invoke([{"role": "user", "content": "..."}]))
+print(client.invoke([{"role": "system", "content": "<system prompt>"}, {"role": "user", "content": "..."}]))
 ```
 
 As a command it takes `--base-url` (default `http://127.0.0.1:8000/v1`), `--api-key`,
@@ -73,7 +76,7 @@ As a command it takes `--base-url` (default `http://127.0.0.1:8000/v1`), `--api-
 test data that the client contains:
 
 ```bash
-python model_client.py --conversation '[{"role": "user", "content": "..."}]'
+python model_client.py --conversation '[{"role": "system", "content": "<system prompt>"}, {"role": "user", "content": "..."}]'
 ```
 
 ## Serving locally
@@ -92,7 +95,7 @@ vllm serve <huggingface-base-model> \
   --api-key EMPTY \
   <family flags>                          # port 8000
 
-python model_client.py --conversation '[{"role": "user", "content": "..."}]'
+python model_client.py --conversation '[{"role": "system", "content": "<system prompt>"}, {"role": "user", "content": "..."}]'
 ```
 
 - `--lora-modules model=./model-adapter` serves the adapter under the name `model`, which is the

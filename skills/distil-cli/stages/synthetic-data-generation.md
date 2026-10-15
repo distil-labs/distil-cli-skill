@@ -7,6 +7,22 @@ removed (`../references/platform.md` § The expand operations). The same mechani
 outcomes: `build-a-test-set.md` runs it on the test split, `build-a-train-set.md` on the train
 split. This file is the procedure for one run; the outcome stages say how many rows to aim for.
 
+## The Settings That Control the Rows
+
+| Setting | File | What it changes |
+|---|---|---|
+| **`synthetic_data_generation_instructions`** (the generation instructions) | `job_description.json` | A constant added to every generation call: what the inputs look like (formats, domains, register, noise). Moves every row the same way |
+| **`synthgen.mutators`** | `config.yaml` | The dimensions the rows are spread over, one value sampled per call (`../references/mutators.md`). Sets the mix: slices that are missing, rare or over-represented |
+| `synthgen.train_generation_target`, `synthgen.test_generation_target` and the rest of `synthgen` | `config.yaml` | How many rows, and how much survives validation (`../references/configuration.md` § synthgen) |
+| `base.teacher_model_name` | `config.yaml` | Who writes the rows |
+
+`task_description` is not one of them: it defines what a correct answer is for evaluation and
+the judge too, and stays fixed (`../references/job-description.md` § What each field feeds).
+To change a setting, download the parent Dataset's `config.yaml` and `job_description.json`
+(`distil dataset download-metadata`), edit the file, and submit it with `--job-description` or
+`--config` on the same parent (`../references/execution/cli.md` § Overrides). Each option and
+when to use it: § What Can Be Changed to Improve the Next Iteration.
+
 ## Working Directory
 
 ```
@@ -24,7 +40,8 @@ synthetic-data-generation-<split>/
 
 The input is a Dataset id. Changes to it are a config or job-description override
 (`../references/execution/cli.md` § Overrides), kept in `input/`. For a reasoning student, see
-`../references/reasoning-models.md`.
+`../references/reasoning-models.md`. With `base.variable_system_prompt` on, add the
+system-prompt mutator (`../references/variable-system-prompts.md` § Generation).
 
 What the job reads from the Dataset:
 
@@ -99,7 +116,9 @@ Analyze the new rows on three axes:
    for. Mutator values are requests and can produce nothing. Gate on this axis only when the
    mutator grid has at most 16 cells; with more, check it on the full run.
 
-For a reasoning student, also check the reasoning (`../references/reasoning-models.md`).
+For a reasoning student, also check the reasoning (`../references/reasoning-models.md`). With
+`base.variable_system_prompt` on, also check the system messages
+(`../references/variable-system-prompts.md` § Generation).
 
 ## Step 5: Iterate Until the Smoke Passes
 

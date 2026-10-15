@@ -339,8 +339,8 @@ rather than absent, so filter nulls before averaging.
 Two things about a predictions file:
 
 - It is JSONL, one test example per line, with `prompt`, `completion`, `prediction` and that
-  example's score under each metric name. `prompt` is the test row's messages without the
-  few-shot examples, and `completion` and `prediction` are assistant messages. Read one row and
+  example's score under each metric name. `prompt` is the test row's messages, system
+  message first, and `completion` and `prediction` are assistant messages. Read one row and
   work from what is there.
 - `slm download-predictions` holds the tuned model's predictions only. The base model's scores
   are in `slm metrics`; its per-example predictions are not available.
@@ -451,7 +451,7 @@ trained model behind a serving endpoint is queried with its own client:
 distil slm download-metadata -d model <slm-id>
 uv run model/model_client.py --base-url https://inference.distillabs.ai/v1 \
   --api-key <endpoint-api-key> --model support-slm-Qk3bZ1 \
-  --conversation '[{"role": "user", "content": "…"}]'
+  --conversation '[{"role": "system", "content": "<system prompt>"}, {"role": "user", "content": "…"}]'
 ```
 
 ### Download the traces

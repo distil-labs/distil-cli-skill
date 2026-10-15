@@ -96,11 +96,11 @@ When a training run runs out of memory, apply these in order; each costs more sp
 than the one before:
 
 1. Lower `per_device_train_batch_size` (halve it, down to 1).
-2. `memory_optimized_training: true` (activation offloading and gradient checkpointing; much
-   slower).
-3. `use_qlora: true` together with `memory_optimized_training: true` (4-bit base model, about 3x
+2. `memory_optimized_training: 1` (gradient checkpointing; slower).
+3. `memory_optimized_training: 2` (level 1 plus activation offloading to CPU RAM; much slower).
+4. `use_qlora: true` together with `memory_optimized_training: 2` (4-bit base model, about 3x
    less GPU memory).
-4. Remove the longest ~1% of training rows, which drive peak memory. Download the Dataset,
+5. Remove the longest ~1% of training rows, which drive peak memory. Download the Dataset,
    remove the rows from `train.jsonl`, and upload the directory as a new Dataset with
    `distil dataset create --data` (`../references/execution/cli.md` § Supplying files; one
    `datasets_post` credit).

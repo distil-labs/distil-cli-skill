@@ -159,8 +159,9 @@ the loop: nothing records local traffic.
 ## Step 10: Send Traffic Through the Model
 
 The user moves the application to the serving endpoint (`../stages/inference-endpoint.md`
-Step 6). Its requests must carry the model's system prompt, the job description's
-`task_description`, or go through `model_client.py` (`../references/deployment.md` § Why
+Step 6). Its requests must carry a system prompt: the `task_description` the model was
+trained with, or, with `variable_system_prompt` on, the system prompt the application chooses
+for that request, sent directly or through `model_client.py` (`../references/deployment.md` § Why
 model_client.py instead of raw requests). Delete the deployment per
 `../stages/inference-endpoint.md` Step 8 when the student should stop answering.
 

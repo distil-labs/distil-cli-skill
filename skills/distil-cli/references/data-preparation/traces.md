@@ -92,9 +92,10 @@ conversion keeps `content`, which is what the application used.
 
 ## Conversion guidance
 
-- **The system prompt moves to the job description.** `remove_system_prompt_from_traces`
-  (default true) strips leading system messages, so the system prompt's content belongs in
-  `task_description`, which says the same thing (`../job-description.md`). Variable input →
+- **The system prompt moves to the job description.** Leading system messages are replaced by
+  the job description's prompt, so the system prompt's content belongs in `task_description`,
+  which says the same thing (`../job-description.md`). With `base.variable_system_prompt` on,
+  each trace keeps its own system message instead (`../variable-system-prompts.md`). Variable input →
   user message, model output → assistant message.
 - Every trace is a multi-turn conversation rewritten whole. A simple exchange is a two-turn
   conversation.

@@ -12,8 +12,23 @@ The `trace_processing` config section controls this stage; its parameters and de
 `../references/configuration.md` § trace_processing. Never set `relabel: false`: the production
 answers would pass through unreviewed, and the student would only learn to imitate the model it
 is meant to beat. When relabelled answers look worse than the originals, change the relabelling
-teacher or committee instead. The job refuses `base.enable_thinking: true`: relabel with it off,
-and turn it on for synthetic data generation (`../references/reasoning-models.md`).
+teacher or committee instead. With `base.enable_thinking: true` every relabelled
+assistant turn carries reasoning (`../references/reasoning-models.md` § Where the reasoning
+comes from); the test split needs none, so relabel it with thinking off.
+
+## The Settings That Control the Rows
+
+| Setting | File | What it changes |
+|---|---|---|
+| **`trace_processing_instructions`** (the relabelling instructions) | `job_description.json` | Guidance added to every relabelling call: how to rewrite the answers of these traces, without changing what a correct answer is |
+| `trace_processing.teacher_model_name`, `trace_processing.relabelling_committee_models` | `config.yaml` | Who rewrites the answers |
+| `trace_processing.relevance_filtering`, `min_relevance_score`, `min_coherence_score` | `config.yaml` | Which traces may become rows |
+| `trace_processing.num_{split}_relabelled` | `config.yaml` | How many traces become rows |
+
+To change one, download the parent Dataset's `config.yaml` and `job_description.json`
+(`distil dataset download-metadata`), edit the file, and submit it with `--job-description` or
+`--config` on the same parent (`../references/execution/cli.md` § Overrides). Each option and
+when to use it: § What Can Be Changed to Improve the Next Iteration.
 
 ## Working Directory
 
@@ -58,7 +73,7 @@ Two behaviours to expect:
 - **The traces are shuffled and deduplicated first**, so two runs on the same parent pick
   different traces, and duplicates in `traces.jsonl` do not count.
 - **The remaining traces are written back in `openai_messages` form**, without their system
-  prompts, whatever the parent's observation format.
+  prompts unless `base.variable_system_prompt` is on, whatever the parent's observation format.
 
 ## Step 2: Confirm the Setup with the User
 

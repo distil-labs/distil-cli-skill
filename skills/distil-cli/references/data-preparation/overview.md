@@ -34,6 +34,9 @@ Train and test rows are chat-format conversations.
 - Chat completion rows, tool calls and role rules: `chat-completion.md`.
 - An assistant message may carry `reasoning_content` for a reasoning student
   (`../reasoning-models.md`); it is dropped on load unless `base.enable_thinking` is true.
+- A row may start with one `system` message. It is kept only when
+  `base.variable_system_prompt` is true, and replaced by the job description's prompt otherwise
+  (`../variable-system-prompts.md`).
 - Flat `{"question": ..., "answer": ...}` rows are refused.
 
 Trace rows follow `trace_processing.observation_format` (`traces.md`).
@@ -69,7 +72,7 @@ rule above. What each stage does with an empty split:
 | synthetic data generation | the split it fills | Runs zero-shot, and the output becomes the split |
 | synthetic data generation | traces | Runs without context (`../platform.md` § The expand operations) |
 | teacher evaluation | test | Fails: there is nothing to score the teacher against |
-| teacher evaluation | train | Runs zero-shot: `evaluation.num_few_shot_examples` is capped to the train rows |
+| teacher evaluation | train | Runs: teacher evaluation is always zero-shot |
 | model training | train | Fails: there is nothing to train on |
 | model training | test | Runs and produces a model, but no evaluation results at all |
 

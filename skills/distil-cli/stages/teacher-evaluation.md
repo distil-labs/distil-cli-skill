@@ -33,10 +33,9 @@ override on it (`../references/execution/cli.md` § Overrides), kept in that run
 `base.teacher_model_name` set to the model under evaluation.
 
 The test split must be populated: an empty one stops the job
-(`../references/data-preparation/overview.md` § Empty splits). The evaluation takes its
-few-shot examples from the train split and caps `evaluation.num_few_shot_examples` to the rows
-there are, so it runs zero-shot on a Dataset whose train split is still empty, which is the
-normal case at this point.
+(`../references/data-preparation/overview.md` § Empty splits). The evaluation is zero-shot:
+the teacher answers each test row with its system prompt and nothing added, so it does not read
+the train split, which is usually still empty at this point.
 
 What to set deliberately:
 
@@ -86,6 +85,9 @@ best candidate's predictions:
    reference-based metrics with care when the candidate is also the model that relabelled the
    test set: it is scored against its own answers, which flatters it; the reference-free judge
    metric does not have that bias.
+4. **System prompts**: with `base.variable_system_prompt` on, add one run with the flag off to
+   check that the answers depend on each row's system prompt
+   (`../references/variable-system-prompts.md` § Evaluation).
 
 ## Step 5: Verdict and Next Step
 

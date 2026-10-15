@@ -48,7 +48,9 @@ for tools: `data-preparation/chat-completion.md`.
 
 Every field except `task_description` (and `classes_description` / `tools` where shown) is
 optional. There is no system-prompt field: `task_description` is rendered into the system prompt
-the model trains and serves with, so write it as one.
+the model trains and serves with, so write it as one. For classification the list of classes
+follows it. With `base.variable_system_prompt` on, each row carries its own system prompt
+instead (`variable-system-prompts.md`).
 
 ## What each field feeds
 
@@ -57,6 +59,8 @@ the model trains and serves with, so write it as one.
   example, include/exclude rules, edge cases. It must stay matched to that production
   prompt and unchanged across iterations: it defines what a correct answer is for evaluation
   and the judge too. To improve results, change the teacher or the data, not this field.
+  With `base.variable_system_prompt` on, it states only what every application's system
+  prompt has in common (`variable-system-prompts.md` § What `task_description` becomes).
 - `classes_description` and `tools`: define the label and call space. Their descriptions
   directly shape generated data.
 - `synthetic_data_generation_instructions` (all task types): extra guidance injected into every

@@ -113,7 +113,8 @@ the user may change.
 
 Download the student's predictions and the teacher evaluation's predictions on the same test
 set (`../references/execution/cli.md` § Fetch metrics). Match rows on the last user message, not on
-the whole prompt: the two prompts differ in their few-shot examples, and one test row can expand
+the whole prompt (with `base.variable_system_prompt` on, on the system message and the last user
+message together, since one user message can appear under several system prompts): one test row can expand
 to several evaluation rows, one per assistant turn. For each row the student got wrong, record
 what the student answered, what the reference says, and whether the teacher got it right.
 
@@ -130,8 +131,8 @@ Map each failure mode to the earliest step of `build-a-model.md` that can fix it
 | The reference answer itself looks wrong, or the teacher and the student are both wrong in the same way | wrong test labels | Step 5: the user corrects the rows (§ Changing the test set) |
 | The teacher is wrong where the student is wrong | the teacher cannot do it | Step 6: another teacher (`../stages/teacher-evaluation.md`), then the train set |
 | The judge marks correct answers bad, or wrong answers good | the measure is wrong | ask the user, then Step 6: a new judge model or new judge instructions change what every score means, so every teacher evaluation runs again and every earlier student score is stale, as with a new test set |
-| The teacher is right; the student is wrong on a slice the training data barely covers | coverage | Step 7: a top-up with mutators for the slice (`../stages/build-a-train-set.md` § Topping Up) |
-| The teacher is right; the student is wrong the same way everywhere (format, a misread rule) | the training data teaches it wrong | Step 7: generation instructions or a stronger teacher (`../stages/synthetic-data-generation.md`), or relabelling when the relabelled rows carry the mistake (`../stages/relabel-traces.md`) |
+| The teacher is right; the student is wrong on a slice the training data barely covers | coverage | Step 7: a top-up with `synthgen.mutators` for the slice (`../stages/build-a-train-set.md` § Topping Up) |
+| The teacher is right; the student is wrong the same way everywhere (format, a misread rule) | the training data teaches it wrong | Step 7: `synthetic_data_generation_instructions` or a stronger teacher (`../stages/synthetic-data-generation.md`), or relabelling with `trace_processing_instructions` when the relabelled rows carry the mistake (`../stages/relabel-traces.md`) |
 | The teacher is right; the errors are spread with no pattern, and the gap to the teacher is small | capacity or too little training | Step 8 (`../stages/model-training.md`) |
 | The test set has no rows for a failure the user sees in production | the test set cannot measure it | Step 5, with the user's approval, and with traces that show the failure (§ Changing the test set) |
 
@@ -151,8 +152,10 @@ about training.
 Prefer the cheapest step that can fix the failure mode. From cheapest to most expensive:
 
 - **Step 8, training**: nothing regenerates; one training credit.
-- **Step 7, the train set**: a top-up on the best kept iteration's Dataset is the default (one
-  generation credit and training); when the synthetic rows were bad, generation again on the
+- **Step 7, the train set**: the settings are `synthetic_data_generation_instructions` and
+  `synthgen.mutators` for generation, and `trace_processing_instructions` for relabelling
+  (each stage's § The Settings That Control the Rows). A top-up on the best kept iteration's
+  Dataset is the default (one generation credit and training); when the synthetic rows were bad, generation again on the
   parent of the bad run (the relabel-train Dataset, which keeps the relabelled rows); when the
   relabelled rows carry the mistake, relabelling again on the test-set Dataset, then
   generation.

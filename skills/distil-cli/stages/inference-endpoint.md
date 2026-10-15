@@ -82,9 +82,10 @@ endpoint name. Everything else stays the same, the system prompt included
 (`../references/data-preparation/traces.md` § Conversion guidance).
 
 When a serving endpoint replaces a collecting one, only the `model` string changes, because the
-same key can be linked to both. Requests to a serving endpoint must carry the model's system
-prompt, the job description's `task_description`: the application sends it as its system prompt,
-or calls through `model_client.py` (`../references/deployment.md` § Why model_client.py instead
+same key can be linked to both. Requests to a serving endpoint must carry a system prompt: the
+`task_description` the model was trained with, or, with `variable_system_prompt` on, the system
+prompt the application chooses for that request. The application sends it as the first message,
+directly or through `model_client.py` (`../references/deployment.md` § Why model_client.py instead
 of raw requests). The old endpoint keeps recording until the application stops calling it.
 
 ## Step 7: Turn the Records into a Traces Object

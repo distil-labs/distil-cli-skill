@@ -28,8 +28,9 @@ student use `Qwen3.5-4B`, not `Qwen3-4B-Instruct-2507`.
 train split, as an override on the Dataset it runs on (`platform.md` § Overrides). The Dataset
 it writes carries the setting, so training inherits it and needs no override.
 
-- Relabelling rejects `true`: traces carry no reasoning and the job writes none. Build the test
-  set and relabel the train rows with it off, then turn it on for generation.
+- Relabelling into the train split accepts it too and writes reasoning on the relabelled rows
+  (§ Where the reasoning comes from). Test rows need no reasoning, so relabel the test set with
+  it off.
 - Turning it on only at training, on a Dataset generated without it, trains an empty thinking
   block without an error. Generate again with it on instead.
 - `synthgen.train_generation_target: 0` skips generation and still writes reasoning onto the
@@ -39,9 +40,14 @@ it writes carries the setting, so training inherits it and needs no override.
 
 ## Where the reasoning comes from
 
-1. **Generation.** The teacher writes `reasoning_content` next to every assistant message it
+1. **Relabelling.** Every relabelled assistant turn carries reasoning. Reasoning found in the
+   trace (`reasoning_content`, or `reasoning` as OpenRouter and newer vLLM return it) is kept
+   when it is correct, grounded and leads to the answer; missing or bad reasoning is written by
+   the teacher. With `relabel: false` the rows are written as traced and the backfill fills the
+   gaps. With `enable_thinking: false`, reasoning is removed from the traces.
+2. **Generation.** The teacher writes `reasoning_content` next to every assistant message it
    generates.
-2. **Backfill.** After generation, a teacher pass writes reasoning on the final assistant message
+3. **Backfill.** After generation, a teacher pass writes reasoning on the final assistant message
    of every training row that has none, uploaded and relabelled rows included. It changes only the reasoning,
    costs one teacher call per row, and drops rows still without reasoning after a retry. The log
    says `Reasoning backfill: kept X of Y`.

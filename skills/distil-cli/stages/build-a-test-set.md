@@ -80,6 +80,8 @@ then the synthetic rows. Review:
   than the original answers where they differ. Read traces and rows side by side.
 - **Coverage**: the rows against the traces on the dimensions that matter for the task (topic,
   length, class balance). Read the synthetic rows with more care than the relabelled ones.
+  With `base.variable_system_prompt` on, the rows carry realistic system prompts per row, the
+  kinds the application will send (`../references/variable-system-prompts.md`).
 
 Drop or fix what fails. To change the settings, run the mechanics stage again on its parent
 (a new side branch; the old one is abandoned). To edit rows by hand, download the Dataset,

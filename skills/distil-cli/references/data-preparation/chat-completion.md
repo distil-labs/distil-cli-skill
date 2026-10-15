@@ -31,7 +31,8 @@ The two variants differ on one axis: tool results.
 Conversation rules (validated at parse):
 
 - Roles: user / assistant (+ tool for agentic only). NO system messages; `task_description`
-  becomes the generated system prompt. Strict alternation otherwise: user → assistant,
+  becomes the generated system prompt. With `base.variable_system_prompt` on, one leading
+  system message is allowed (`../variable-system-prompts.md`). Strict alternation otherwise: user → assistant,
   assistant → user.
 - Assistant turns: `content`, `tool_calls`, or both; a turn with neither fails.
   `function.arguments` is a JSON object, not a string.

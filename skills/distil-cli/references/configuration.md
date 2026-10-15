@@ -11,6 +11,7 @@ set `task`, `student_model_name` and `teacher_model_name`.
 | `task` | required | See `task-types.md` |
 | `visual_task` | `false` | Inputs carry images; QA tasks only, and every model must be vision-capable |
 | `enable_thinking` | `false` | Reasoning student. See `reasoning-models.md` |
+| `variable_system_prompt` | `false` | Every row keeps its own system message; the model follows the system prompt each request sends. See `variable-system-prompts.md` |
 | `student_model_name` | `Llama-3.2-1B-Instruct` | See `model-catalog.md` |
 | `teacher_model_name` | `openai.gpt-oss-120b` | See `model-catalog.md` |
 | `random_seed` | `123` | Seeds sampling everywhere, including mutators |
@@ -32,9 +33,8 @@ set `task`, `student_model_name` and `teacher_model_name`.
 | `per_device_eval_batch_size` | `1` | |
 | `num_train_epochs` | `4` | Steps ≈ rows x epochs / (batch x `gradient_accumulation_steps`) |
 | `gradient_accumulation_steps` | `1` | Multiplies effective batch size |
-| `num_few_shot_examples_student` | `0` | Few-shot for student eval/tuning. § Cross-field validation |
 | `enable_trainer_internal_eval` | `false` | Per-epoch validation during training. Final metrics come from the post-training suite either way |
-| `memory_optimized_training` | `false` | Only when training runs out of GPU memory; much slower |
+| `memory_optimized_training` | `0` | `0`, `1` or `2`; raise only when training runs out of GPU memory. `1`: gradient checkpointing, slower (RLVR also sleeps vLLM between generations). `2`: `1` plus activation offloading to CPU RAM, much slower. `true` reads as `2`, `false` as `0`. `../stages/model-training.md` |
 | `use_qlora` | `false` | 4-bit NF4 base model. Linux-only bitsandbytes |
 | `max_completion_length` | `2048` | Tokens the student may generate in evaluation and RLVR. Raise it when training warns it is below the longest training completion |
 
@@ -47,7 +47,6 @@ RLVR (optional RL stage after SFT, enabled when `rlvr_dataset_size > 0`):
 
 | Parameter | Default | Notes |
 |---|---|---|
-| `num_few_shot_examples` | `1` | Teacher evaluation few-shot, drawn from the train split. § Cross-field validation |
 | `llm_as_a_judge_model_name` | inherits `base.teacher_model_name` | Set it once and keep it fixed across all runs. `model-catalog.md` § Defaults |
 
 ## synthgen
@@ -88,7 +87,7 @@ Read by `relabel-traces-train` and `relabel-traces-test` (`../stages/relabel-tra
 | `num_train_relabelled` | `200` | Traces one `relabel-traces-train` run turns into train rows. The Dataset must hold at least this many distinct traces or the job refuses to run; fewer rows can come out, because filtering drops some. The used traces leave the Dataset |
 | `num_test_relabelled` | `200` | The same for `relabel-traces-test` and the test split |
 | `observation_format` | `openai_messages` | See `data-preparation/traces.md` |
-| `remove_system_prompt_from_traces` | `true` | `data-preparation/traces.md` § Conversion guidance |
+| `remove_system_prompt_from_traces` | `true` | Deprecated, no effect. `base.variable_system_prompt` decides (`variable-system-prompts.md`) |
 | `compress_job_description` | `false` | For very long task descriptions |
 | `teacher_model_name` | inherits `base.teacher_model_name` | Does filtering and relabel arbitration. `model-catalog.md` § Defaults |
 | `relabelling_committee_models` | `[]` | Non-empty list enables committee relabeling |
@@ -108,18 +107,22 @@ These fail at config load.
   (`model-catalog.md` § Tool-calling compatibility).
 - `synthgen.max_tool_calls_per_turn` must match whether the job description declares tools
   (`data-preparation/chat-completion.md` § Tool calls per turn).
-- `base.enable_thinking: true` is refused by relabelling (`../stages/relabel-traces.md`).
 
-The four in-context exemplar counts (`synthgen.num_positive_exemplars_per_generation`,
-`synthgen.num_negative_exemplars_per_generation`, `evaluation.num_few_shot_examples`,
-`tuning.num_few_shot_examples_student`) are not validated: every job lowers them to the number
-of rows the split it draws from holds, down to zero on an empty split.
+The two in-context exemplar counts (`synthgen.num_positive_exemplars_per_generation`,
+`synthgen.num_negative_exemplars_per_generation`) are not validated: every generation job lowers
+them to the number of rows the split it draws from holds, down to zero on an empty split.
 
 Inert: `evaluation.batch_size`, `synthgen.validation_max_answer_length`,
 `synthgen.parallel_llm_calls`, `synthgen.basic_mutators_to_use`,
 `tuning.awq_quantize_tuned_model`, `tuning.train_eval_split`. They appear in every expanded
 config the platform returns and have no effect. Leave them untouched in a config you override, and do not
 add them to one you write.
+
+Also without effect: `evaluation.num_few_shot_examples` and
+`tuning.num_few_shot_examples_student`. Teacher evaluation, training and student evaluation use
+each row as it is, with no examples added. To show the model examples, put them in the system
+prompt: `task_description`, or each row's system message with `base.variable_system_prompt` on
+(`variable-system-prompts.md`).
 
 ## Conversation expansion
 

@@ -150,6 +150,11 @@ the smoke whenever mutators are on.
 For chat completion with tools, add a mutator with one value per tool:
 `data-preparation/chat-completion.md` § Synthetic data with tools.
 
+## System-prompt mutator
+
+With `base.variable_system_prompt` on, add a mutator whose values describe a system message that
+changes the correct answer: `variable-system-prompts.md` § Generation.
+
 ## Recipes
 
 Three general-purpose mutators to copy. Use one of them at a time: their directives conflict

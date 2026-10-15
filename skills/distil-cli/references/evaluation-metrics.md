@@ -15,7 +15,7 @@ object that a `metrics` command returns; the per-example predictions are a separ
 All 0-1:
 
 - `llm-as-a-judge`: LLM verdict (good=1, bad=0) on whether the prediction matches the
-  reference. The judge sees the full prefix (question and context). Unparseable verdicts
+  reference. The judge sees the full prefix (system message, question and context). Unparseable verdicts
   become NaN and drop from the mean.
 - `llm-as-a-judge-reference-free`: LLM verdict (good=1, bad=0) on whether the prediction solves
   the problem, from the full prefix and the prediction alone. The judge never sees the
