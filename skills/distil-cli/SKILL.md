@@ -141,7 +141,9 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
   `stages/build-a-test-set.md`.
 - More or better training data ("generate synthetic data", "add training examples for X",
   "relabel my traces") → `stages/build-a-train-set.md`, or the mechanics stage directly for a
-  single run.
+  single run. New rows come from synthetic data generation and relabelling, never from
+  external datasets the agent downloads (`stages/build-a-train-set.md` § Where New Rows Come
+  From).
 - Single-stage request ("run a teacher eval", "train on this dataset") → that stage file plus
   the execution backend in use. If none is set up yet, run
   `references/execution/README.md` § Set up the CLI and § Choose the backend first.

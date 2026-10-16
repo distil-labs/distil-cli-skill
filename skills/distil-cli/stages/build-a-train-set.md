@@ -13,6 +13,28 @@ passed `teacher-evaluation.md`. The train set is real rows first and synthetic r
 Both runs leave `test.jsonl` unchanged, so the model trained on the result is scored on the
 locked test set (`build-a-test-set.md`).
 
+## Where New Rows Come From
+
+New train rows come from synthetic data generation, and from relabelling when there are
+traces. Do not download, scrape or assemble external datasets (public benchmarks, databases,
+papers) to fill the train set, and do not propose it as an option, unless the user asks for it.
+This holds even when the labels look like facts that exist somewhere: synthetic data
+generation is how the platform builds a train set.
+
+When the teacher's labels look weak, fix it inside generation:
+
+- a stronger or better-suited teacher (`teacher-evaluation.md`; evaluate more of the catalog
+  before concluding that no teacher can do the task);
+- mutators for the slice the teacher gets wrong (`../references/mutators.md`);
+- `synthetic_data_generation_instructions` for a rule the teacher misses
+  (`synthetic-data-generation.md`);
+- `synthgen.validation_instructions` to drop rows that break a stated criterion
+  (`../references/configuration.md` § LLM validation).
+
+External data the user already has may serve to measure, for example to check a sample of
+synthetic labels against known values, and only with the user's agreement. It never becomes
+train rows unless the user asks for that.
+
 ## Working Directory
 
 The mechanics stages own their directories (`relabel-traces-train/`,
