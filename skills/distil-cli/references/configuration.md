@@ -34,7 +34,7 @@ set `task`, `student_model_name` and `teacher_model_name`.
 | `num_train_epochs` | `4` | Number of fine-tuning epochs |
 | `gradient_accumulation_steps` | `1` | Steps whose gradients accumulate before one optimizer update. Multiplies the effective batch size without using more memory |
 | `enable_trainer_internal_eval` | `false` | Fine-tuning and RLVR evaluate on the validation set, which is the test split, before training and at the end of every epoch. Final metrics come from the post-training evaluation either way; `false` trains faster and with less memory |
-| `logging_steps` | `0.1` | How often fine-tuning and RLVR log their metrics, as a fraction of all optimizer steps (`0.01` logs every 1%). Above 0, at most 1 |
+| `logging_steps` | `0.01` | How often fine-tuning and RLVR log their metrics, as a fraction of all optimizer steps (`0.1` logs every 10%). Above 0, at most 1 |
 | `save_steps` | `0.25` | How often fine-tuning and RLVR save a checkpoint, as a fraction of all optimizer steps (`0.1` saves every 10%). Above 0, at most 1 |
 | `memory_optimized_training` | `0` | `0`, `1` or `2`; raise it only when training runs out of GPU memory. `1`: gradient checkpointing, which recomputes activations in the backward pass instead of storing them, and is slower (RLVR also puts vLLM to sleep between generations). `2`: `1` plus activation offloading to CPU RAM, much slower. `true` reads as `2` and `false` as `0`. `../stages/model-training.md` |
 | `use_qlora` | `false` | Loads the base model in 4-bit NF4 (QLoRA) for fine-tuning and attaches the LoRA adapter in higher precision. The base model uses about a third of the GPU memory, and training is slightly slower. Requires bitsandbytes (Linux only) |
