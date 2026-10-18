@@ -41,12 +41,12 @@ What to set deliberately:
 
 - **The shortlist**: the default teacher (`../references/model-catalog.md` § Defaults) and the
   production model, plus any teacher the user names. The production model is named by its
-  catalog entry (`provider.model`, `../references/model-catalog.md` § Teacher models), not by
-  the OpenRouter slug the endpoint uses; find the matching entry, and when there is none (most
-  proprietary models), say so and skip the baseline: the user then judges the student on the
-  absolute score.
+  catalog entry (`provider.model`, `../references/model-catalog.md` § Teacher models and
+  § Production baselines), not by the OpenRouter slug the endpoint uses; find the matching
+  entry, and when there is none, say so and skip the baseline: the user then judges the student
+  on the absolute score.
 - `llm_as_a_judge_instructions`: what the judge accepts on free-text tasks
-  (`../references/job-description.md`). Not valid for classification.
+  (`../references/job-description.md`).
 - `evaluation.llm_as_a_judge_model_name`: the judge model. It is set once and stays the same for
   every run, so scores stay comparable. When switching the teacher, keep the judge as it is
   (`../references/model-catalog.md` § Defaults).
@@ -71,7 +71,8 @@ evaluation); they run concurrently. Record each command and TeacherEvaluation id
 
 ## Step 4: Pull and Analyze the Results
 
-Confirm each job succeeded, then fetch the metrics and the predictions into `output/`
+Wait for each job (`../references/execution/cli.md` § Wait for a job), then fetch the metrics
+and the predictions into `output/`
 (`../references/execution/cli.md` § Fetch metrics). Put the scores on the primary metric
 (`../references/evaluation-metrics.md` § Primary metric per task) in one table, and analyze the
 best candidate's predictions:
@@ -100,9 +101,10 @@ Review the table and the failure patterns with the user
   root's `test-set.md`, next to the test-set Dataset id; `model-training.md` Step 7 and
   `../workflows/model-iterations.md` read them from there.
 - **ITERATE**: add a better-suited teacher to the shortlist, or fix mislabelled test rows
-  (`build-a-test-set.md` Step 4). Change the judge instructions only when Step 4 shows the judge
-  is mismeasuring. The job description stays as it is (`../references/job-description.md`
-  § What each field feeds).
+  (`build-a-test-set.md` Step 4). When the teacher misses conventions the user's labels follow,
+  write them into `task_description` with the user's approval, then evaluate again
+  (`../references/job-description.md` § What each field feeds). Change the judge instructions
+  only when Step 4 shows the judge is mismeasuring.
 - **RETHINK**: no teacher does the task well: check the task type
   (`../references/task-types.md`), whether the task is well defined, and whether the judge
   measures the right thing.

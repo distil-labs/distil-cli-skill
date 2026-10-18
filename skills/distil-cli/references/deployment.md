@@ -30,8 +30,9 @@ setup:
 - The system prompt comes from the caller's conversation, which must start with it: the client
   adds none, sends the conversation as it is, and raises `ValueError` without one.
   `DEFAULT_CONVERSATION` shows the system prompt from the training data.
-- `temperature=0`, and the thinking setting of training sent as `chat_template_kwargs`
-  (`reasoning-models.md` § Deployment).
+- The sampling settings the student was evaluated with (the vendor's recommended ones; none,
+  so the server defaults, for a student without a recommendation), and the thinking setting of
+  training sent as `chat_template_kwargs` (`reasoning-models.md` § Deployment).
 - Chat completion models with tools call with `tools=TOOLS, tool_choice="auto"`, so the model
   decides whether to call. `invoke` returns the whole assistant message, content and tool calls
   included.
@@ -47,7 +48,8 @@ through the client, and every deployment is smoke-tested with it on a few test-s
 The model must run with a system prompt in every request: the `task_description` it was
 trained with, or, with `variable_system_prompt` on, the system prompt the application chooses
 for that request (`variable-system-prompts.md`). An application that calls the endpoint with its
-own requests must send that system prompt, with `temperature=0` and thinking as in training.
+own requests must send that system prompt, with the sampling settings and thinking setting in
+`model_client.py`.
 With the flag off, when the application's production prompt differs from `task_description`,
 change the application's system prompt to it.
 

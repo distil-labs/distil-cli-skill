@@ -26,8 +26,8 @@ model-training/
 
 The input is a Dataset id: the one `build-a-train-set.md` produced, or an earlier one to
 retrain on (`../references/execution/cli.md` § Model training, § Reuse the data for
-training-only runs). Its config is readable only once its job reaches `JOB_SUCCESS`, so poll
-the last expand to completion before reading it.
+training-only runs). Its config is readable only once its job reaches `JOB_SUCCESS`, so wait
+for the last expand (`../references/execution/cli.md` § Wait for a job) before reading it.
 
 Read its config once into `base-input/` (`../references/execution/cli.md` § Overrides). Every run
 edits the fields it varies and sends the whole file as an override.
@@ -63,8 +63,9 @@ student, since students of different sizes fit differently. Record `run.md`.
 
 ## Step 4: Pull and Analyze the Smoke Outputs
 
-Confirm the job succeeded: the run fit in memory, the training loss decreased in the log, and
-base and tuned metrics came back. Do not download the model, and do not read the smoke's scores
+Wait for the job (`../references/execution/cli.md` § Wait for a job), then confirm it
+succeeded: the run fit in memory, the training loss decreased in the log, and base and tuned
+metrics came back. Do not download the model, and do not read the smoke's scores
 as a quality signal.
 
 ## Step 5: Iterate Until the Smoke Passes
@@ -82,7 +83,8 @@ of the config with its student and settings. The submissions run concurrently.
 
 ## Step 7: Analyze the Results
 
-Confirm each job succeeded, then fetch the base and tuned metrics into `output/`
+Wait for each job (`../references/execution/cli.md` § Wait for a job; training takes hours,
+`../references/platform.md` § Job status), then fetch the base and tuned metrics into `output/`
 (`../references/execution/cli.md` § Fetch metrics). With no test set, report that there are no
 scores and stop. Otherwise compare on the primary metric agreed for the project
 (`../references/evaluation-metrics.md` § Primary metric per task): base student (floor), the

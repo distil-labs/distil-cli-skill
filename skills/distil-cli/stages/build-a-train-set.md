@@ -21,6 +21,18 @@ papers) to fill the train set, and do not propose it as an option, unless the us
 This holds even when the labels look like facts that exist somewhere: synthetic data
 generation is how the platform builds a train set.
 
+Do not write rows yourself either: no generator scripts, no templates, no rows composed by
+hand, even when the task looks rule-based enough to script. Your own data work is converting
+the rows the user supplied into the Dataset format (`../references/data-preparation/overview.md`).
+A rule or a case you would encode in a script goes into `synthetic_data_generation_instructions`
+or a mutator instead, so the teacher writes the rows. The same holds for the test split: its
+rows come from the user, relabelling or synthetic data generation (`build-a-test-set.md`).
+
+Rows whose answers the user wrote or vouches for (human labels, production answers someone
+reviewed) are labelled rows. They go straight into `train.jsonl`, with a held-out part in
+`test.jsonl`, not into `traces.jsonl` to be relabelled. Relabelling is for answers nobody
+vouches for.
+
 When the teacher's labels look weak, fix it inside generation:
 
 - a stronger or better-suited teacher (`teacher-evaluation.md`; evaluate more of the catalog
@@ -120,9 +132,10 @@ a later run. Top up on the Dataset before that run instead, with the full target
 - **The synthetic rows** (`synthetic-data-generation.md` § What Can Be Changed to Improve the
   Next Iteration): instructions,
   mutators, the `synthgen` config, or a top-up.
-- **Hand-corrected rows**: download the Dataset, fix `train.jsonl`, upload the directory as a
-  new Dataset (`../references/execution/cli.md` § Supplying files).
+- **Rows the user corrects**: download the Dataset, the user corrects the rows in `train.jsonl`,
+  and you upload the directory as a new Dataset (`../references/execution/cli.md` § Supplying
+  files).
 
-Cheapest first: a top-up or a hand correction (one credit), then generation again, then
+Cheapest first: a top-up or the user's correction (one credit), then generation again, then
 relabelling again (and generation after it), then a new teacher (teacher evaluation, then
 both).

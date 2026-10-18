@@ -45,8 +45,8 @@ import requests
 import yaml
 
 PLATFORM_URL = os.getenv("DL_PLATFORM_URL", "https://api.distillabs.ai")
-POLL_INTERVAL_SECONDS = 20
-POLL_TIMEOUT_SECONDS = 6 * 60 * 60
+POLL_INTERVAL_SECONDS = 60
+POLL_BUDGET_SECONDS = 8 * 60
 
 # A staging response names each file by extension; a create body names it by
 # field. These maps are the only place that difference is spelled out.
@@ -164,23 +164,26 @@ def credits():
     return get("/credits/endpoints")["balances"]
 
 
-def poll(collection, entity_id, timeout_seconds, status_field="status"):
-    """Block until the job reaches a final state. Raises on failure with the
-    tail of the job log, which is where the cause is. A Dataset that no job
-    produced answers JOB_SUCCESS at once."""
-    deadline = time.time() + timeout_seconds
+def poll(collection, entity_id, status_field="status"):
+    """Read the job's status once a minute for at most POLL_BUDGET_SECONDS.
+    Return JOB_SUCCESS, raise with the tail of the job log on JOB_FAILURE or
+    JOB_STOPPED, and return None when the job is still running at the end:
+    call it again. A status read that fails counts as still running."""
+    deadline = time.time() + POLL_BUDGET_SECONDS
     while time.time() < deadline:
-        status = get(f"/{collection}/{entity_id}/status")[status_field]
+        try:
+            status = get(f"/{collection}/{entity_id}/status").get(status_field)
+        except (requests.exceptions.RequestException, RuntimeError) as error:
+            status = f"status read failed ({error})"
         if status == "JOB_SUCCESS":
-            return
+            return status
         if status in ("JOB_FAILURE", "JOB_STOPPED"):
             logs = get(f"/{collection}/{entity_id}/logs")["logs"]
             raise RuntimeError(f"{collection}/{entity_id} {status}:\n{logs[-4000:]}")
         print(f"{collection}/{entity_id}: {status}", flush=True)
         time.sleep(POLL_INTERVAL_SECONDS)
-    raise TimeoutError(
-        f"{collection}/{entity_id} did not finish within {timeout_seconds}s"
-    )
+    print(f"{collection}/{entity_id}: still running after {POLL_BUDGET_SECONDS}s", flush=True)
+    return None
 ```
 
 ## The entity model
@@ -294,7 +297,7 @@ nothing:
 ```python
 body = stage("/staging-slms-s3-urls", {"model": "model.tar", "config": "config.yaml"}, SLM_FIELDS)
 slm_id = post("/slms", body)["id"]
-poll("slms", slm_id, POLL_TIMEOUT_SECONDS)
+poll("slms", slm_id)
 ```
 
 The tarball must hold the LoRA adapter under `model-adapter/`, as `GET /slms/<id>/download`
@@ -318,18 +321,20 @@ the one sent:
 test_relabelled_id = post("/datasets/from-datasets", {
     "from": dataset_id, "operation": "relabel_traces_test",
 })["id"]
-poll("datasets", test_relabelled_id, POLL_TIMEOUT_SECONDS)
 
+# after poll("datasets", test_relabelled_id) returned JOB_SUCCESS:
 train_relabelled_id = post("/datasets/from-datasets", {
     "from": test_relabelled_id, "operation": "relabel_traces_train",
 })["id"]
-poll("datasets", train_relabelled_id, POLL_TIMEOUT_SECONDS)
 
+# after poll("datasets", train_relabelled_id) returned JOB_SUCCESS:
 train_generated_id = post("/datasets/from-datasets", {
     "from": train_relabelled_id, "operation": "generate_synthetic_data_train",
 })["id"]
-poll("datasets", train_generated_id, POLL_TIMEOUT_SECONDS)
 ```
+
+Record each id in `run.md` as the create returns it, and wait for its job (§ Wait for a job)
+before the next expand names it as `from`.
 
 The count comes from the parent's config, `trace_processing.num_{split}_relabelled`, or from
 the `config` override. A smoke is the same body posted to `/datasets/from-datasets-smoke`,
@@ -346,14 +351,13 @@ The same route and body with `operation: generate_synthetic_data_train` or
 smoke_id = post("/datasets/from-datasets-smoke", {
     "from": dataset_id, "operation": "generate_synthetic_data_train", "config": config,
 })["id"]
-poll("datasets", smoke_id, POLL_TIMEOUT_SECONDS)
+poll("datasets", smoke_id)
 ```
 
 The smoke's Dataset is a side branch; the full run is posted on the same parent. Errors: 400 for
 a config that fails validation, 404 for a missing parent, 409 for a parent whose job has not
 succeeded, 402 for insufficient credits. A job that fails validation of the Dataset it produced
-(for example a classification split missing a class) ends in `JOB_FAILURE` with the cause in the
-log.
+ends in `JOB_FAILURE` with the cause in the log.
 
 ### Overrides
 
@@ -400,7 +404,7 @@ so `config_of("datasets", child_id)` reads them back.
 
 ```python
 teacher_evaluation_id = post("/teacher-evaluations", {"from_dataset_id": dataset_id})["id"]
-poll("teacher-evaluations", teacher_evaluation_id, POLL_TIMEOUT_SECONDS)
+poll("teacher-evaluations", teacher_evaluation_id)
 ```
 
 Another teacher, or sharper judge instructions, is the same Dataset with an override:
@@ -412,7 +416,7 @@ config["base"]["teacher_model_name"] = "<production-model>"
 baseline_id = post("/teacher-evaluations", {
     "from_dataset_id": dataset_id, "config": config,
 })["id"]
-poll("teacher-evaluations", baseline_id, POLL_TIMEOUT_SECONDS)
+poll("teacher-evaluations", baseline_id)
 ```
 
 ### Model training
@@ -422,7 +426,7 @@ expands means the common case needs no override:
 
 ```python
 slm_id = post("/slms/from-datasets", {"from": dataset_id})["id"]
-poll("slms", slm_id, POLL_TIMEOUT_SECONDS)
+poll("slms", slm_id)
 ```
 
 A memory check before the full run is the same submission on `/slms/from-datasets-smoke`: one
@@ -435,7 +439,7 @@ config = config_of("datasets", dataset_id)
 config["base"]["student_model_name"] = "<student-a>"
 
 smoke_id = post("/slms/from-datasets-smoke", {"from": dataset_id, "config": config})["id"]
-poll("slms", smoke_id, POLL_TIMEOUT_SECONDS)
+poll("slms", smoke_id)
 ```
 
 A sweep is N submissions against the same Dataset, one per student. Read the Dataset's config
@@ -450,30 +454,40 @@ for student in students:
     config = json.loads(json.dumps(base_config))  # a copy per submission
     config["base"]["student_model_name"] = student
     slm_ids[student] = post("/slms/from-datasets", {"from": dataset_id, "config": config})["id"]
-
-for student, slm_id in slm_ids.items():
-    poll("slms", slm_id, POLL_TIMEOUT_SECONDS)
+print(slm_ids)
 ```
 
 The deep copy matters: mutating one dict across iterations would send every student the last
 one's value. `per_device_train_batch_size`, `memory_optimized_training` and `use_qlora` vary
 the same way (read, edit, resend), which is how OOM is handled without touching the data.
-Submissions run concurrently, so poll them after they are all in.
+Submissions run concurrently: record the ids, then wait for each one in its own call (§ Wait
+for a job).
 
 ## Monitor
 
-Poll `GET /<collection>/<id>/status` every 20 seconds. `poll()` in the preamble does this. The
-status values and how to run a poller: `../platform.md` § Job status.
+`GET /<collection>/<id>/status` returns the job's status; the values and what they mean:
+`../platform.md` § Job status. On failure, `GET /<collection>/<id>/logs` returns the job log.
+
+### Wait for a job
+
+`poll()` in the preamble is the one loop that waits for every job, the same loop as `cli.md`
+§ Wait for a job:
 
 ```python
-poll("datasets", train_generated_id, POLL_TIMEOUT_SECONDS)
+poll("datasets", train_generated_id)
 ```
 
-Deployments report `deployment_status` rather than `status`, so they need
-`poll(..., status_field="deployment_status")`.
+It reads the status once a minute. Only `JOB_SUCCESS`, `JOB_FAILURE` and `JOB_STOPPED` end it;
+every other status and a status read that fails keep it polling. It returns `JOB_SUCCESS`,
+raises with the tail of the job log on `JOB_FAILURE` or `JOB_STOPPED`, and returns `None` after
+8 minutes with the job still running, so one call fits in one agent tool call: call it again
+until it returns or raises. Deployments report `deployment_status` rather than `status`, so they
+need `poll(..., status_field="deployment_status")`.
 
-On failure, `GET /<collection>/<id>/logs` returns the job log, and `poll()` raises with its
-tail attached.
+Submit and wait in separate calls, so that calling `poll()` again never submits the job twice.
+A job that takes hours (`../platform.md` § Job status) is many calls. Record the id in `run.md`
+before the first call and the last status after each one, and tell the user where the job is
+between calls.
 
 `GET /<collection>` lists every entity in a collection, newest first, and recovers a lost id.
 Each item has `id`, `created_at` and the parent's id under its own key (`dataset_id`, `slm_id`).
@@ -521,7 +535,7 @@ quick look without the download.
 ## Fetch metrics
 
 Aggregated metrics arrive as the `*_performance` object in a `/metrics` response: a
-metric-name-to-score dict, flat for every task except classification (below). The per-example
+metric-name-to-score dict. The per-example
 detail is behind the presigned `predictions_download_url` alongside it.
 
 ```python
@@ -537,21 +551,8 @@ predictions = requests.get(slm_metrics["predictions_download_url"]).text
 The production model's score is the `teacher_performance` of the teacher evaluation that ran
 with it as the teacher (`../../stages/teacher-evaluation.md`).
 
-Two things about the predictions file:
-
-- It is JSONL, one test example per line, with `prompt`, `completion`, `prediction` and
-  that example's own scores. Read a row and work from what is there.
-- For classification the performance object is not flat. Alongside `accuracy` it carries one
-  key per class label, each holding `{precision, recall, f1-score, support}`, which gives
-  per-class precision and recall for free. There is no `confusion_matrix` and no
-  `classification_report`. Iterate by key rather than assuming numeric values: `accuracy` is
-  a float and every other entry is a dict.
-
-  ```python
-  performance = get(f"/slms/{slm_id}/metrics")["tuned_model_performance"]
-  accuracy = performance["accuracy"]
-  per_class = {k: v for k, v in performance.items() if isinstance(v, dict)}
-  ```
+The predictions file is JSONL, one test example per line, with `prompt`, `completion`,
+`prediction` and that example's own scores. Read a row and work from what is there.
 
 ## Fetch model artifacts
 
@@ -600,7 +601,7 @@ the student.
 
 ```python
 deployment_id = post("/deployments/from-slms", {"from": slm_id})["id"]
-poll("deployments", deployment_id, POLL_TIMEOUT_SECONDS, status_field="deployment_status")
+poll("deployments", deployment_id, status_field="deployment_status")
 ```
 
 A deployment is never called directly. Once it reaches `JOB_SUCCESS`, an inference endpoint with
@@ -651,9 +652,9 @@ already calls in production, so ask rather than guess. If they are undecided, th
 distil labs runs today: `openai/gpt-4.1-mini` (small, cheap, the most common), `openai/gpt-5.4`,
 `google/gemini-2.5-flash`, `google/gemini-3.1-flash-lite`.
 
-`trace-sample-rate` is the fraction of calls the endpoint records, 0 to 1. Send 1 unless the
-traffic is very high. An endpoint created without the field records one call in a hundred; the
-response's `trace_sampling_rate` says what an existing one does.
+`trace-sample-rate` is the fraction of calls the endpoint records, 0 to 1. The API defaults to
+0.01, one call in a hundred, while the CLI sends 1, so always set the field: 1 unless the
+traffic is very high. The response's `trace_sampling_rate` says what an existing one does.
 
 `POST /inference-endpoints` is metered (`inference_endpoints_post`) and answers 402 once that
 balance is spent.

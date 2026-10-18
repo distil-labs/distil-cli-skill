@@ -76,6 +76,17 @@ All teachers are reasoning models except `Qwen3-235B-A22B-Instruct-2507`,
 `openai.gpt-oss-20b` and `openai.gpt-oss-120b` run at `low` reasoning effort. Their `-thinking`
 values run at `medium`.
 
+## Production baselines
+
+These proprietary models are also accepted as `base.teacher_model_name`. Use them in a teacher
+evaluation to score the production model the student replaces:
+
+| Vendor | Values |
+|---|---|
+| Anthropic | `anthropic.claude-opus-4-6`, `anthropic.claude-opus-5`, `anthropic.claude-opus-5-thinking`, `anthropic.claude-sonnet-5`, `anthropic.claude-opus-5-5`, `anthropic.claude-opus-5-5-thinking`, `anthropic.claude-sonnet-5-5`, `anthropic.claude-sonnet-5-5-thinking` |
+| OpenAI | `openai.gpt-5-mini`, `openai.gpt-5.1`, `openai.gpt-5.1-thinking`, `openai.gpt-5.2`, `openai.gpt-5.2-thinking`, `openai.gpt-5.6-sol`, `openai.gpt-5.6-sol-thinking`, `openai.gpt-5.6-luna`, `openai.gpt-5.6-luna-thinking`, `openai.gpt-5.6-terra`, `openai.gpt-5.6-terra-thinking`, `openai.gpt-6-luna`, `openai.gpt-6-luna-thinking`, `openai.gpt-6-sol`, `openai.gpt-6-sol-thinking`, `openai.gpt-6.1-sol`, `openai.gpt-6.1-sol-thinking` |
+| Google | `google.gemini-3.1-pro-preview-thinking`, `google.gemini-3.1-flash-lite`, `google.gemini-3.8-flash`, `google.gemini-3.8-flash-thinking`, `google.gemini-3.5-flash-lite`, `google.gemini-3.5-flash-lite-thinking` |
+
 ## Reasoning students (`base.enable_thinking`)
 
 The students that support it: `reasoning-models.md`.

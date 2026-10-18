@@ -113,7 +113,8 @@ new Dataset id in `run.md`.
 
 ## Step 4: Pull and Analyze the Smoke Outputs
 
-Confirm the job succeeded, then download the new Dataset into `output/`
+Wait for the job (`../references/execution/cli.md` § Wait for a job), then download the new
+Dataset into `output/`
 (`../references/execution/cli.md` § Reading a Dataset). The new rows are the lines of the split
 after the parent's rows; diff against the parent's file to isolate them, since nothing in a row
 says it was generated. Falling short of 128 means validation filtered heavily, usually on
@@ -156,7 +157,9 @@ set, as an override on the parent Dataset. Record the ids in `run.md`.
 
 Repeat the Step 4 analysis on a sample of the new rows, and check the final size against the
 target. The target rounds up to the next `generation_iteration_size` batch, so landing above it
-is normal. Present the findings to the user:
+is normal. A run that adds no valid rows for 8 iterations in a row stops short of the target and
+succeeds with what it has; its logs list the most common validation errors of the last batch,
+which say what to change. Present the findings to the user:
 
 - **It passes**: the new Dataset goes to the outcome stage's next step.
 - **It fails**: do not build on it. Bad data shows up in training only as a plateau found after
@@ -173,11 +176,11 @@ is normal. Present the findings to the user:
 - **Wrong or malformed generated rows** (the teacher mislabels one slice, or breaks a rule or
   the format): either describe the slice and its correct handling in more detail in
   `synthetic_data_generation_instructions`, or use a stronger teacher
-  (`../references/model-catalog.md`), and generate again; or download the Dataset, correct the
-  rows, and upload the directory as a new Dataset with `distil dataset create --data <dir>`
-  (`../references/execution/cli.md` § Supplying files; one `datasets_post` credit). In
-  classification, also check whether a mutator causes it (`../references/mutators.md`
-  § Mutators for classification).
+  (`../references/model-catalog.md`), and generate again; or download the Dataset, have the
+  user correct the rows, and upload the directory as a new Dataset with `distil dataset create --data <dir>`
+  (`../references/execution/cli.md` § Supplying files; one `datasets_post` credit). When the
+  answer is a label, also check whether a mutator causes it (`../references/mutators.md`
+  § Mutators for labels).
 - **`synthetic_data_generation_instructions`** in the job description: a constant added to every
   generation call that describes the inputs to write (formats, domains, register, noise). It
   moves every generated row the same way, so it fits when the whole set is off in the same

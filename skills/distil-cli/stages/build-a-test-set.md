@@ -17,6 +17,9 @@ Two mechanics fill it, in this order:
    agreement with the teacher rather than with production, so they top the set up when the
    traces do not reach the target.
 
+Besides the rows the user uploads, nothing else adds test rows: never write, template or script
+test rows yourself (`build-a-train-set.md` § Where New Rows Come From).
+
 ## Working Directory
 
 The mechanics stages own their directories (`relabel-traces-test/`,
@@ -49,8 +52,9 @@ thousand the gain is small and the relabelling cost is not. Then split the targe
   expand operations); count them against the pool before the train set's share, or set
   `synthgen.use_traces_as_context: false` for this run when the traces are scarce.
 
-For classification, the relabelled rows must cover every class, or the expand fails
-validation; plan synthetic rows for the rare classes. Present the target, the split of it, the
+When the answer is a label, nothing checks that every class is present; plan synthetic rows
+for the rare classes (`../references/data-preparation/question-answering.md` § Classifying with
+question-answering). Present the target, the split of it, the
 relabelling teacher (the default large teacher, `../references/model-catalog.md` § Defaults,
 unless the user asks for a stronger one: it writes the reference answers), the judge
 (`evaluation.llm_as_a_judge_model_name` and `llm_as_a_judge_instructions`, fixed from here on)
@@ -84,8 +88,8 @@ then the synthetic rows. Review:
   kinds the application will send (`../references/variable-system-prompts.md`).
 
 Drop or fix what fails. To change the settings, run the mechanics stage again on its parent
-(a new side branch; the old one is abandoned). To edit rows by hand, download the Dataset,
-edit `test.jsonl`, and upload the whole directory as a new Dataset with
+(a new side branch; the old one is abandoned). For rows the user corrects by hand, download the
+Dataset, have the user edit `test.jsonl`, and upload the whole directory as a new Dataset with
 `distil dataset create --data` (`../references/execution/cli.md` § The Dataset). The traces come
 along, so the work continues from the upload, but the platform records no parent for an
 upload: note the jump in `run.md`.

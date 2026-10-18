@@ -8,7 +8,7 @@ The Dataset directory contract. Read it before any task-specific page.
 input-dir/
 ├── config.yaml                 # training configuration (../configuration.md)
 ├── job_description.json        # task definition (../job-description.md)
-├── train.jsonl                 # labelled training rows (optional)
+├── train.jsonl                 # training rows the user supplied (optional; relabelling and generation add the rest)
 ├── test.jsonl                  # held-out test rows (optional)
 └── traces.jsonl                # production traces (optional; ../data-preparation/traces.md)
 ```
@@ -25,7 +25,7 @@ Train and test rows are chat-format conversations.
 
 | Task | Row shape |
 |---|---|
-| `classification`, `question-answering` | `{"messages": [<user>, <assistant>]}` |
+| `question-answering` | `{"messages": [<user>, <assistant>]}` |
 | `chat-completion` | `{"messages": [<user>, <assistant>, ...]}`, assistant turns carry content, `tool_calls`, or both |
 | `chat-completion-agentic` | `{"messages": [<user>, <assistant with tool_calls>, <tool>, ..., <assistant>]}` |
 
@@ -51,15 +51,16 @@ Enforced at upload and before every expand, so check before submitting.
       carries only `tool_calls`
 - [ ] per row, total length <= `synthgen.validation_max_total_length` (`../configuration.md`)
 - [ ] train and test share NO identical rows (exact duplicates fail)
-- [ ] classification: the label sets in train, test, and `classes_description` are
-      identical; a populated split must hold every class
 - [ ] chat completion: the conversation rules in `chat-completion.md`; rows with parallel tool
       calls need `synthgen.max_tool_calls_per_turn` of 2 or more
 - [ ] `visual_task` matches whether the rows carry images
 - [ ] `traces.jsonl` parses in the configured `observation_format`
 
-There is no hard minimum row count. Aim for 20+ diverse train examples and a test set covering
-the production distribution.
+There is no minimum row count, and you never add rows to reach one
+(`../../stages/build-a-train-set.md` § Where New Rows Come From). With only a few user rows, put
+the coverage they miss into mutators (`../mutators.md`) and
+`synthetic_data_generation_instructions` (`../job-description.md`). The test set covers the
+production distribution (`../../stages/build-a-test-set.md`).
 
 ## Empty splits
 
@@ -82,7 +83,7 @@ Tell the user before they build on an empty split:
   verdict. `slm metrics` returns null scores, which is not a failed job. The test set is built
   first for that reason (`../../stages/build-a-test-set.md`).
 - **No train set means synthetic data generation must run before training**: it fills the
-  split from the task description, the tool or class definitions and the traces, with no rows
+  split from the task description, the tool definitions and the traces, with no rows
   to imitate (`../../stages/build-a-train-set.md`).
 
 The two failures, in the job log:

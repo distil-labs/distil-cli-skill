@@ -46,8 +46,7 @@ a project if you skip it. On Windows, run the CLI inside WSL.
 
 | Task Type | Use Case | Example |
 |-----------|----------|---------|
-| Question Answering | Extract answers from documents | Invoice parsing, contract analysis, ticket extraction |
-| Classification | Categorize text into fixed classes | Intent detection, sentiment analysis, ticket triage |
+| Question Answering | Extract answers from documents, or pick one label from a fixed set | Invoice parsing, contract analysis, intent detection, ticket triage |
 | Chat Completion | Conversational turns with text, tool calls, or both | Support chatbots, API routing, chatbot actions |
 | Agentic Chat Completion | Tool-calling loops where tool results feed back into the answer | DevOps assistants, file system assistants, database interfaces |
 
@@ -63,7 +62,7 @@ nothing else.
 
 Once the skill is installed, ask your agent to build you a model:
 
-> "Help me build a classification model for customer support intent detection"
+> "Help me build a model that labels the intent of customer support messages"
 
 The agent starts from the model you already run in production: it puts an inference endpoint in
 front of it to collect traces, or takes the files you have: traces, a train set, a test set, or

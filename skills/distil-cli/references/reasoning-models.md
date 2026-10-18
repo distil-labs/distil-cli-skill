@@ -92,8 +92,8 @@ the reasoning, read it in the prediction rows.
 
 ## Deployment
 
-- `model_client.py` sends `chat_template_kwargs: {"enable_thinking": true}` with
-  `temperature=0`. Use it, as for any model (`deployment.md` § Why model_client.py instead of
+- `model_client.py` sends `chat_template_kwargs: {"enable_thinking": true}` with the thinking
+  sampling settings above. Use it, as for any model (`deployment.md` § Why model_client.py instead of
   raw requests).
 - A hosted deployment needs no extra setup.
 - Local vLLM needs the reasoning parser for the family, or the thinking block stays at the start

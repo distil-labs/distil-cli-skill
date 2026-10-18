@@ -61,12 +61,15 @@ stage directory, as the stage files describe. The ledger links them.
 
 Before the first autonomous iteration, agree with the user and write into the ledger's header:
 
-- **The primary metric**: the task's default (`../references/evaluation-metrics.md` § Primary
-  metric per task) unless the user names another. Every score in the ledger is this key.
+- **The primary metric**: the default for who wrote the test answers
+  (`../references/evaluation-metrics.md` § Primary metric per task) unless the user names
+  another. Every score in the ledger is this key.
 - **The target**: a deploy candidate, that is `closed` ≥ 0.8 and above the production model's
   score from `../stages/teacher-evaluation.md` when there is one
   (`../references/evaluation-metrics.md` § Verdicts), unless the user specifies another one,
   for example the teacher's score (`closed` ≥ 1). A target the user gives takes precedence.
+  Read `closed` with one base score for the project and the noise rule of
+  `../references/evaluation-metrics.md` § Verdicts.
 - **The budget**: the credits per route the loop may spend (`../references/platform.md`
   § Credits), and a maximum number of iterations. Every iteration spends at least one
   `slms_from_datasets_post` credit, so propose the iteration count from the balances.
@@ -78,11 +81,10 @@ Before the first autonomous iteration, agree with the user and write into the le
   than the measured noise.
 - **The judge**: set `evaluation.llm_as_a_judge_model_name` and `llm_as_a_judge_instructions`
   once and keep them for every run, so every score in the ledger is read the same way.
-  Classification is scored by accuracy and has no judge; skip this for it.
 
 Within that agreement the agent iterates without asking. It must stop and ask before:
 
-- changing `task_description` or `classes_description`
+- changing `task_description`, which also needs a new teacher evaluation
   (`../references/job-description.md` § What each field feeds);
 - changing the test set (re-entering Step 5);
 - changing the judge model or the judge instructions;

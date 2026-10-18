@@ -8,7 +8,7 @@ set `task`, `student_model_name` and `teacher_model_name`.
 
 | Parameter | Default | Notes |
 |---|---|---|
-| `task` | required | The task the student solves: `question-answering`, `classification`, `chat-completion` or `chat-completion-agentic`. See `task-types.md` |
+| `task` | required | The task the student solves: `question-answering`, `chat-completion` or `chat-completion-agentic`. See `task-types.md` |
 | `visual_task` | `false` | The task inputs carry images. Question answering only; every model must be vision-capable. Image traces use the `openai_messages_with_images` observation format |
 | `enable_thinking` | `false` | The student is trained, evaluated and served with its chat template's thinking mode on. Synthetic data generation then writes the reasoning: the teacher produces it with each assistant message it generates, and a final backfill pass fills in what is still missing. Reasoning students only. See `reasoning-models.md` |
 | `variable_system_prompt` | `false` | `false`: every example is trained, evaluated and served with the `task_description` as its system message, which replaces a system message found in a row or trace. `true`: every row and relabeled trace keeps its own system message (a row without one gets the `task_description`), and the served model reads the system message each request sends. See `variable-system-prompts.md` |
@@ -74,15 +74,13 @@ set `task`, `student_model_name` and `teacher_model_name`.
 | `use_traces_as_context` | `true` | The traces in the dataset serve as context for generation and the used ones leave the dataset: `T + min(T, 1000)` for a target of T, or all that are left. Below `min(T / 4, 10)` traces the job logs a warning and generates without context; with `false` it generates without context. Either way it leaves the traces alone. `platform.md` § The expand operations |
 | `generation_in_single_call` | `4` | Examples generated per teacher call |
 | `generation_iteration_size` | `128` | Examples per generation batch: generation and validation run in batches of this size |
-| `num_positive_exemplars_per_generation` | `1` | In-context examples per generation call of the class or task being generated |
-| `num_negative_exemplars_per_generation` | `1` | In-context examples of the classes not being generated. Classification only |
+| `num_positive_exemplars_per_generation` | `1` | In-context examples per generation call |
 | `num_unlabelled_exemplars_per_generation` | `1` | Unlabeled examples (context traces) shown per generation call, when the run has context |
-| `validation_max_total_length` | `30000` | Maximum total length of an example, input plus output, in characters. Applies to uploaded data too |
+| `validation_max_total_length` | `30000` | Maximum total length of an example in characters: system message, input and output, images excluded. Applies to uploaded data too |
 | `validation_similarity_threshold` | `0.95` | Generated rows whose similarity to the rows already in the dataset is above this threshold are removed. Lower it if generation produces near-duplicates |
 | `validation_instructions` | `null` | Instructions for an LLM validator of synthetic examples. The evaluation judge (by default the teacher) checks each complete example, system prompt included, against these instructions and the job description, after the structural and diversity checks. Rejected examples and invalid judge replies are dropped. `null` turns it off and makes no validation LLM calls. § LLM validation |
 | `teacher_temperature` | `0.7` | Sampling temperature of the teacher, from 0 to 1: higher gives more varied output. § Cross-field validation for reasoning teachers |
 | `teacher_max_tokens` | `32000` | Maximum tokens in one teacher response. Kept well below typical context limits, so the reserved output does not crowd out large (for example multi-image) prompts |
-| `match_generated_distribution_to_seed` | `false` | Generated data keeps the class distribution of the seed rows. Classification only |
 | `output_is_json` | `false` | Question answering only: only synthetic rows whose output is valid JSON are generated. Answers in uploaded data must also be valid JSON |
 | `mutators` | `[]` | Mutators applied during synthetic generation, one per dimension to vary. `mutators.md` |
 | `mutator_update_frequency` | `5` | Generation batches between two runs of the topic classifier, for every adaptive mutator. The batches in between are not classified; their counts are estimated from the classified ones. Classifying costs teacher calls, so a higher number is cheaper and coarser. `mutators.md` § Adaptive mutators |
@@ -140,9 +138,9 @@ These fail at config load.
 - `synthgen.max_tool_calls_per_turn` must match whether the job description declares tools
   (`data-preparation/chat-completion.md` § Tool calls per turn).
 
-The two in-context exemplar counts (`synthgen.num_positive_exemplars_per_generation`,
-`synthgen.num_negative_exemplars_per_generation`) are not validated: every generation job lowers
-them to the number of rows the split it draws from holds, down to zero on an empty split.
+The in-context exemplar count (`synthgen.num_positive_exemplars_per_generation`) is not
+validated: every generation job lowers it to the number of rows the split it draws from holds,
+down to zero on an empty split.
 
 Inert: `evaluation.batch_size`, `synthgen.validation_max_answer_length`,
 `synthgen.parallel_llm_calls`, `synthgen.basic_mutators_to_use`,
@@ -154,7 +152,8 @@ Also without effect: `evaluation.num_few_shot_examples` and
 `tuning.num_few_shot_examples_student`. Teacher evaluation, training and student evaluation use
 each row as it is, with no examples added. To show the model examples, put them in the system
 prompt: `task_description`, or each row's system message with `base.variable_system_prompt` on
-(`variable-system-prompts.md`).
+(`variable-system-prompts.md`). Which examples may go there: `job-description.md` § What each
+field feeds.
 
 ## Conversation expansion
 
@@ -182,3 +181,5 @@ These keys are not part of the config. Each one has a replacement or no equivale
 | `traces_to_test_set.min_relabelled_examples` | none |
 | `trace_processing.max_unstructured`, `num_traces_as_testing_base`, `min_generated_examples`, `evaluate_original_model`, `convert_to_single_turn` | none |
 | `synthgen.generation_per_unstructured_context`, `num_distractor_context_blocks` | none |
+| `synthgen.match_generated_distribution_to_seed` | a mutator over the labels with `target_distribution: match_seed` (`mutators.md` § Matching the split's distribution) |
+| `synthgen.num_negative_exemplars_per_generation` | none |

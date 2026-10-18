@@ -41,22 +41,16 @@ Seed datasets and training datasets: `../migrating-old-entities.md`.
 
 ### Which commands speak JSON
 
-`--output json` (`-o`) is registered on:
+`--output json` (`-o`) is registered on every command that reads, creates, deletes, links or
+downloads, and prints one JSON object or array on stdout:
 
-- the read commands: `list`, `show`, `status`, `logs`, `metrics`, plus `whoami` and
-  `credits-balance`;
-- the creates that name a parent id: the four `dataset relabel-traces-*` and
-  `dataset generate-synthetic-data-*` commands, `teacher-evaluation create-from-dataset`,
-  `slm create-from-dataset`, `deployment create-from-slm`;
-- `inference-endpoint create` and `inference-endpoint create-from-deployment`.
+- reads and creates print the entity as the API returns it, so `| jq -r .id` reads a new id;
+- deletes print `{"id": ..., "deleted": true}` (`name` for `api-keys delete`), and
+  `link-api-key` / `unlink-api-key` print `{"unique_endpoint_name", "api_key_name", "linked"}`;
+- downloads print `{"files": [...]}`, the files written.
 
-It is not registered on the commands that read local files (`traces upload`,
-`dataset create`, `dataset create-from-traces`, `slm create`), on
-`traces create-from-inference-endpoint`, on `inference-endpoint link-api-key` and
-`unlink-api-key`, or on any download command. Passing it there fails with
-`No flag registered for --output` and creates nothing. Those commands print the new id in a
-sentence (`dataset create`: `Upload successful. Dataset ID: <id>`; `dataset create-from-traces`
-and `traces upload`: `… created. ID: <id>`); read it from the output.
+An error prints `{"error": "..."}` and exits 1. It is not registered on `auth`, `signup`,
+`logout`, `access-token`, `update`, `docs` or `skill`.
 
 Without `--output json` a read prints a panel for a human reader. Parse the JSON form.
 
@@ -145,9 +139,8 @@ distil dataset create --config input/config.yaml \
 
 `dataset create` validates the bundle before creating anything: the files are parsed exactly
 as the jobs will parse them, and an invalid bundle exits 1 with the reason on stderr and
-creates nothing (a file missing from the directory is caught locally; an unsupported task, a
-row in the wrong shape or a classification split missing a class come back from the platform
-with the row named).
+creates nothing (a file missing from the directory is caught locally; an unsupported task or a
+row in the wrong shape comes back from the platform with the row named).
 
 ## Submitting jobs
 
@@ -287,6 +280,42 @@ and its parent as `parent_dataset_id` or `parent_prepared_traces_id`; a Prepared
 `source`. `dataset show <id>` prints the same for one Dataset, plus its status (`JOB_SUCCESS` at once
 for a Dataset no job produced). `list` recovers a lost id, and `show` walks a chain back to its root.
 
+### Wait for a job
+
+One loop waits for every job. Save it once as `poll.sh` in the project root and run
+`bash poll.sh <group> <id>`, where `<group>` is `dataset`, `teacher-evaluation`, `slm` or
+`deployment`:
+
+```bash
+group=$1
+id=$2
+field=status
+if [ "$group" = deployment ]; then
+  field=deployment_status
+fi
+for attempt in 1 2 3 4 5 6 7 8; do
+  status=$(distil "$group" status --output json "$id" 2>/dev/null | jq -r ".$field // empty" 2>/dev/null)
+  case "$status" in
+    JOB_SUCCESS) echo "$status"; exit 0 ;;
+    JOB_FAILURE|JOB_STOPPED) echo "$status"; exit 1 ;;
+  esac
+  sleep 60
+done
+echo "${status:-no status read}: still running after 8 minutes"
+exit 2
+```
+
+It reads the status once a minute. Only `JOB_SUCCESS`, `JOB_FAILURE` and `JOB_STOPPED` end it
+(`../platform.md` § Job status). Every other status, a status read that fails and an empty
+answer keep it polling. It stops itself after about 8 minutes, so one run fits in one agent tool
+call. It prints the last status and exits 0 on `JOB_SUCCESS`, 1 on `JOB_FAILURE` or
+`JOB_STOPPED` (read the `logs` next), and 2 when it stopped with the job still running: run it
+again until it exits 0 or 1.
+
+A job that takes hours (`../platform.md` § Job status) is many runs of the loop. Record the id in
+`run.md` before the first run and the last status after each one, and tell the user where the
+job is between runs.
+
 ## Output layout
 
 What each entity produces, and when: `../platform.md` § What each entity produces.
@@ -300,9 +329,10 @@ What each entity produces, and when: `../platform.md` § What each entity produc
 | Deployment | none | none | none | none |
 
 Every command that writes a directory takes `--destination <dir>` (`-d`) and otherwise names one
-after the entity: `<id>-traces`, `<id>-data`, `<id>-slm`, `<id>-metadata`. The `*-predictions`
-commands write a single file, take `--file-name`, and default to `<id>-<kind>-predictions.jsonl`
-in the current directory. Downloads overwrite what is there. A download before the job has
+after the entity: `<id>-traces`, `<id>-data`, `<id>-slm`, `<id>-metadata`. The commands that
+write a single file (the `*-predictions` downloads, `inference-endpoint download-traces` and
+`download-traces-export`) take `--file-name <path>`, with `-d` as its alias. The `*-predictions` downloads default to `<id>-<kind>-predictions.jsonl` in the current
+directory. Downloads overwrite what is there. A download before the job has
 produced its output names the state (`SLM is still training`) and exits 1.
 
 ### Reading a Dataset
@@ -332,8 +362,7 @@ distil slm download-predictions <slm-id>
 
 Without `--output json`, `metrics` prints every metric, `llm-as-a-judge-reference-free`
 included. The `*_performance` object maps
-metric name to score; for classification its shape differs
-(`../evaluation-metrics.md` § Metrics by task). A metric the run did not compute is `null`
+metric name to score (`../evaluation-metrics.md` § Metrics by task). A metric the run did not compute is `null`
 rather than absent, so filter nulls before averaging.
 
 Two things about a predictions file:
@@ -399,8 +428,9 @@ distil deployment status --output json <deployment-id> | jq -r .deployment_statu
 distil deployment delete <deployment-id>
 ```
 
-Poll `deployment_status` to `JOB_SUCCESS` before creating the endpoint;
-`create-from-deployment` refuses earlier with `Deployment is not ready`. After
+Wait for `deployment_status` to reach `JOB_SUCCESS` with `bash poll.sh deployment
+<deployment-id>` (§ Wait for a job) before creating the endpoint; `create-from-deployment`
+refuses earlier with `Deployment is not ready`. After
 `deployment delete`, `deployment_status` stays `JOB_SUCCESS`; `endpoint_status` reading
 `stopped` confirms the deployment is down.
 
@@ -427,13 +457,15 @@ deployed elsewhere as the primary. No stage in this skill uses them.
 ### Keys
 
 ```bash
-distil api-keys create <key-name>      # prints the secret once, writes <key-name>.json
+distil api-keys create <key-name> > /dev/null   # writes <key-name>.json
 distil api-keys list --output json
 distil api-keys delete <key-name>
 ```
 
-`--no-file` on `create` skips writing `<key-name>.json`, for a key that goes straight into a
-secret store. Never echo a secret into the transcript or into `run.md`; name the file instead.
+`create` prints the secret once and writes it to `<key-name>.json`. Send its output to
+`/dev/null` so the secret stays out of the transcript; the file keeps it. `--no-file` skips the
+file, for a key that goes straight into a secret store. Never echo a secret into the transcript
+or into `run.md`; name the file instead.
 
 ### The call the application makes
 

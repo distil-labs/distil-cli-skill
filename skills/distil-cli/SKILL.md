@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "10.1.1"
+  version: "11.0.0"
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing a
   dataset (config.yaml, job_description.json, traces, train and test rows), running or
@@ -114,7 +114,7 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
 | `references/platform.md` | How the platform behaves: entities, the expand operations, jobs, smoke runs, overrides, credits, outputs |
 | `references/task-types.md` | The four task types and how to choose between them |
 | `references/data-preparation/overview.md` | The Dataset directory contract and validation checklist (read first) |
-| `references/data-preparation/<task>.md` | Per-task data format: `question-answering.md`, `classification.md`, `chat-completion.md` (both chat completion tasks) |
+| `references/data-preparation/<task>.md` | Per-task data format: `question-answering.md` (also classifying into labels), `chat-completion.md` (both chat completion tasks) |
 | `references/data-preparation/traces.md` | Trace formats, and converting inference endpoint records |
 | `references/job-description.md` | Writing job descriptions per task type |
 | `references/configuration.md` | config.yaml parameters, defaults, cross-field validation |
@@ -142,8 +142,8 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
 - More or better training data ("generate synthetic data", "add training examples for X",
   "relabel my traces") → `stages/build-a-train-set.md`, or the mechanics stage directly for a
   single run. New rows come from synthetic data generation and relabelling, never from
-  external datasets the agent downloads (`stages/build-a-train-set.md` § Where New Rows Come
-  From).
+  external datasets the agent downloads or from rows the agent writes or scripts itself
+  (`stages/build-a-train-set.md` § Where New Rows Come From).
 - Single-stage request ("run a teacher eval", "train on this dataset") → that stage file plus
   the execution backend in use. If none is set up yet, run
   `references/execution/README.md` § Set up the CLI and § Choose the backend first.

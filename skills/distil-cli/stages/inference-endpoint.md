@@ -48,15 +48,17 @@ Present and confirm:
 
 ## Step 3: Deploy the SLM (serving endpoint only)
 
-Create the deployment and poll `deployment_status` to `JOB_SUCCESS`
-(`../references/execution/cli.md` § Deploy an SLM). `JOB_SUCCESS` means vLLM is answering.
+Create the deployment (`../references/execution/cli.md` § Deploy an SLM) and wait for
+`deployment_status` to reach `JOB_SUCCESS` (`../references/execution/cli.md` § Wait for a job).
+`JOB_SUCCESS` means vLLM is answering.
 Record the deployment id in `run.md`.
 
 ## Step 4: Create the Endpoint and Link the Key
 
 Create the endpoint, with no primary for a collecting endpoint or from the deployment for a
 serving endpoint (`../references/execution/cli.md` § Create an endpoint). Create a key if needed
-(`../references/execution/cli.md` § Keys) and link it to the endpoint with `link-api-key`
+(`../references/execution/cli.md` § Keys), with its output kept out of the transcript, and link
+it to the endpoint with `link-api-key`
 (`../references/execution/cli.md` § Inference endpoints). Record the unique endpoint name in
 `run.md`.
 

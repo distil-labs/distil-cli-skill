@@ -57,7 +57,9 @@ command scores an existing SLM on new rows.
 A request authenticates with an inference API key, which is a different credential from the
 CLI session. A key authenticates nothing until it is linked to an endpoint. The link is
 many-to-many, so one key can serve the collecting endpoint and the serving endpoint after it.
-An account holds at most 5 keys. The secret is shown once, at creation.
+An account holds at most 5 inference API keys, so link one key to many endpoints rather than
+creating one per endpoint. The secret is returned once, at creation (`execution/cli.md`
+§ Keys).
 
 A key change takes up to a minute to reach the endpoint. A freshly linked key can be rejected
 during that minute: wait and retry rather than reporting a failure.

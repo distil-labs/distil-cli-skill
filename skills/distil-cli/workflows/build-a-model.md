@@ -122,7 +122,8 @@ set, the stage is its review only.
 
 Run `../stages/teacher-evaluation.md` on the test-set Dataset: one run per candidate teacher,
 and one with the production model as teacher, which is the baseline the student must beat.
-When the production model has no catalog entry there is no baseline, and Step 8 reads the
+When the production model has no catalog entry (`../references/model-catalog.md` § Production
+baselines) there is no baseline, and Step 8 reads the
 student against the teacher and the base student only.
 
 **Gate:** continue only on PROCEED (`../references/evaluation-metrics.md` § Verdicts), with the
@@ -170,8 +171,11 @@ The hosted deployment is a session for trying the model (`../references/inferenc
 fallback's answers. For a permanent deployment, the user contacts contact@distillabs.ai; with a
 permanent primary, the serving endpoint's records are the student's traffic.
 
-**The transition to the next model.** The records are the next iteration's traces. When the
-user wants the model retrained on them:
+**The transition to the next model.** The records are the next iteration's traces. They hold
+the student's or the fallback's answers, which are not labels: treat them as inputs that Steps 5
+and 7 relabel with the chosen teacher. If the user's own production answers are the ground
+truth, collect those as labelled rows instead (`../stages/build-a-train-set.md` § Where New
+Rows Come From). When the user wants the model retrained on the records:
 
 1. Step 3: a new traces object from the serving endpoint (or the download route, filtered on
    `metadata.source` for the answers the next model should learn from).

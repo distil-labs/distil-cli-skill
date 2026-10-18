@@ -11,8 +11,12 @@ stages say how many rows to aim for and what to do with them.
 The `trace_processing` config section controls this stage; its parameters and defaults are in
 `../references/configuration.md` § trace_processing. Never set `relabel: false`: the production
 answers would pass through unreviewed, and the student would only learn to imitate the model it
-is meant to beat. When relabelled answers look worse than the originals, change the relabelling
-teacher or committee instead. With `base.enable_thinking: true` every relabelled
+is meant to beat. If the user says the production answers are the ground truth, do not relabel
+them: upload them as rows instead (`build-a-train-set.md` § Where New Rows Come From). When the
+teacher then disagrees with those labels, that is a teacher-evaluation ITERATE: write the
+conventions the labels follow into `task_description` (`../references/job-description.md`
+§ What each field feeds), rather than replacing the labels. When relabelled answers look worse
+than the originals, change the relabelling teacher or committee instead. With `base.enable_thinking: true` every relabelled
 assistant turn carries reasoning (`../references/reasoning-models.md` § Where the reasoning
 comes from); the test split needs none, so relabel it with thinking off.
 
@@ -98,7 +102,8 @@ the command and the new Dataset id in `run.md`.
 
 ## Step 4: Pull and Analyze the Smoke Outputs
 
-Confirm the job succeeded, then download the new Dataset into `output/`
+Wait for the job (`../references/execution/cli.md` § Wait for a job), then download the new
+Dataset into `output/`
 (`../references/execution/cli.md` § Reading a Dataset). The new rows are the lines of the split
 after the parent's rows; diff against the parent's file to isolate them. Check first how many
 of the 128 traces reached the split. Near-total loss usually means the relevance filter and the

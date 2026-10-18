@@ -60,8 +60,7 @@ Four rules apply to all of them:
   `min(T / 4, 10)` traces it logs a warning, generates without context and leaves the traces
   alone. The split's existing rows are the examples; an empty split generates zero-shot.
 - **The result is validated before it is written.** A new Dataset that breaks a dataset rule
-  (`data-preparation/overview.md` § Validation rules), for example a classification split that
-  misses a class, fails the expand.
+  (`data-preparation/overview.md` § Validation rules) fails the expand.
 
 Generation also drops new rows that duplicate rows already in the split
 (`synthgen.validation_similarity_threshold`) or any row of the other split. The other split and
@@ -73,22 +72,26 @@ against the parent Dataset, whose download is free.
 
 ## Job status
 
-| Status | Meaning |
-|---|---|
-| `JOB_NOT_STARTED` | accepted, not yet scheduled |
-| `JOB_PENDING` | scheduled, waiting for capacity |
-| `JOB_RUNNING` | running |
-| `JOB_SUCCESS` | finished; outputs readable |
-| `JOB_FAILURE` | failed |
-| `JOB_STOPPED` | stopped deliberately |
+| Status | Meaning | Terminal |
+|---|---|---|
+| `JOB_NOT_STARTED` | accepted, not yet scheduled | no |
+| `JOB_PENDING` | scheduled, waiting for compute resources to be provisioned; logs are empty | no |
+| `JOB_RUNNING` | running | no |
+| `JOB_SUCCESS` | finished; outputs readable | yes |
+| `JOB_FAILURE` | failed | yes |
+| `JOB_STOPPED` | stopped deliberately | yes |
+
+There is no `JOB_FAILED`. For training, `JOB_RUNNING` covers the training and the evaluation
+after it, and the metrics appear only at `JOB_SUCCESS`.
 
 Deployments report `deployment_status` and `endpoint_status` instead of `status`.
 
 Creating a job returns its id at once, and only the status says how the job is going. How long
 a job takes depends on the size of the data and the problem.
 
-So submit, then poll between other work and tell the user where the job is, rather than
-blocking on one long wait.
+So submit, then wait with the one polling loop (`execution/cli.md` § Wait for a job), which
+stops itself after a few minutes. Run it again between other work and tell the user where the
+job is, rather than blocking on one long wait.
 
 When a job fails, its log holds the cause, but not always at the end. A crash often ends
 with a second, unrelated error, so an out-of-memory failure can finish with a pickling error
@@ -131,7 +134,9 @@ Two rules govern this, and both fail silently:
   default*, not the parent's value, and that covers individual fields as well as whole
   sections. Sending only the section you are changing reverts everything else without an
   error. So every override starts by reading the parent's file, editing one field, and sending
-  it back entire.
+  it back entire. A Dataset you uploaded returns its config as uploaded, with only the fields
+  that were set; a Dataset made by an expand returns every field. To change a field that is
+  absent, such as `synthgen.mutators`, add it to the file you read.
 - **An override reaches config and job description and nothing else.** Changing the rows means
   a new Dataset: download the parent, edit the files, upload the directory.
 

@@ -5,17 +5,6 @@ fields are rejected at validation.
 
 ## Fields by task type
 
-**Classification**:
-
-```json
-{
-  "task_description": "...",
-  "classes_description": {"class_name": "when this class applies", "...": "..."},
-  "synthetic_data_generation_instructions": "...",
-  "trace_processing_instructions": "..."
-}
-```
-
 **Question answering** (`question-answering`):
 
 ```json
@@ -46,28 +35,30 @@ tool-free conversational model. Parameter schemas can declare `default` values.
 `tool_call_equivalence` treats an argument at its default as equal to omitting it. Data rules
 for tools: `data-preparation/chat-completion.md`.
 
-Every field except `task_description` (and `classes_description` / `tools` where shown) is
-optional. There is no system-prompt field: `task_description` is rendered into the system prompt
-the model trains and serves with, so write it as one. For classification the list of classes
-follows it. With `base.variable_system_prompt` on, each row carries its own system prompt
-instead (`variable-system-prompts.md`).
+Every field except `task_description` (and `tools` where shown) is optional. There is no
+system-prompt field: `task_description` is rendered into the system prompt the model trains and
+serves with, so write it as one. With `base.variable_system_prompt` on, each row carries its own
+system prompt instead (`variable-system-prompts.md`).
 
 ## What each field feeds
 
 - `task_description`: in every teacher prompt (eval, synthgen, judge). Derive it from the
   system prompt the user's production system runs, with the same care: output format with an
-  example, include/exclude rules, edge cases. It must stay matched to that production
-  prompt and unchanged across iterations: it defines what a correct answer is for evaluation
-  and the judge too. To improve results, change the teacher or the data, not this field.
+  example, include/exclude rules, edge cases. Examples in it come from the train split or from
+  rows the user wrote for that purpose, never from `test.jsonl`. Keep them few and short: they
+  become part of the system prompt the model trains and serves with.
+  It defines what a correct answer is for evaluation and the judge too, so keep it fixed once
+  the test set is locked and scored. Before that, and whenever the teacher misses conventions
+  the user's labels follow (format, label names, length), write those conventions into it: it
+  is often the biggest lever on teacher quality. A change after the first teacher evaluation
+  needs the user's approval and a new teacher evaluation.
   With `base.variable_system_prompt` on, it states only what every application's system
   prompt has in common (`variable-system-prompts.md` § What `task_description` becomes).
-- `classes_description` and `tools`: define the label and call space. Their descriptions
-  directly shape generated data.
+- `tools`: defines the call space. Its descriptions directly shape generated data.
 - `synthetic_data_generation_instructions` (all task types): extra guidance injected into every
   synthetic-data-generation prompt. Use it to describe the generated inputs: formats, domains,
   variation, noise. For a reasoning student, also `reasoning-models.md`.
-- `llm_as_a_judge_instructions` (every task type except classification, where the create fails
-  if it is sent; classification is scored by label accuracy): the instructions the judge model
+- `llm_as_a_judge_instructions` (all task types): the instructions the judge model
   is given when it scores a prediction, for both judge metrics (`evaluation-metrics.md` § Metrics
   by task). State pass/fail criteria: what a correct answer must contain, what to ignore (order,
   whitespace, paraphrasing). A workable shape is "Output 'good' if the prediction correctly

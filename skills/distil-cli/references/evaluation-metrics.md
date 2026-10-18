@@ -9,24 +9,22 @@ object that a `metrics` command returns; the per-example predictions are a separ
 | Suite | Tasks | Metric keys |
 |---|---|---|
 | QA | `question-answering` | `rouge`, `binary`, `llm-as-a-judge`, `llm-as-a-judge-reference-free` |
-| Classification | `classification` | `accuracy`, plus one key per class label (see below) |
 | Conversation | `chat-completion`, `chat-completion-agentic` | `rouge`, `tool_call_equivalence`, `binary_tool_call`, `staged_tool_call`, `llm-as-a-judge`, `llm-as-a-judge-reference-free` |
 
 All 0-1:
 
 - `llm-as-a-judge`: LLM verdict (good=1, bad=0) on whether the prediction matches the
   reference. The judge sees the full prefix (system message, question and context). Unparseable verdicts
-  become NaN and drop from the mean.
+  count as bad (0).
 - `llm-as-a-judge-reference-free`: LLM verdict (good=1, bad=0) on whether the prediction solves
   the problem, from the full prefix and the prediction alone. The judge never sees the
-  reference, so a wrong reference does not lower the score. It is the primary metric for every
-  task except classification (§ Primary metric per task). Read it next to `llm-as-a-judge`: a
+  reference, so a wrong reference does not lower the score. It is the default primary metric
+  when the teacher wrote the references (§ Primary metric per task). Read it next to `llm-as-a-judge`: a
   prediction marked bad against the reference but good without it points at the reference row,
-  not the model. Unparseable verdicts become NaN and drop from the mean.
-- `binary`: exact string equality on the raw strings. Use it as an extra check only. Do not
-  rely on it.
+  not the model. Unparseable verdicts count as bad (0).
+- `binary`: exact string equality, ignoring differences in whitespace. The faithful measure for a label or a
+  set (§ Primary metric per task); for free text, an extra check only.
 - `rouge`: text overlap, a secondary signal.
-- `accuracy`: exact label match.
 - `tool_call_equivalence`: exact match, except an argument set to its schema default equals
   omitting it.
 - `binary_tool_call`: strict name and arguments equality.
@@ -38,30 +36,19 @@ calls are compared positionally (right calls, wrong order = 0), and extra or mis
 calls are penalised. A turn with no calls on either side scores 1 on the tool metrics, so they
 stay meaningful for tool-free rows; the judge metrics carry the text signal.
 
-The classification performance object is not flat. Alongside `accuracy` it carries one key
-per class label, each holding that class's precision, recall, f1-score and support:
-
-```json
-{"accuracy": 1.0,
- "lane_cold":    {"precision": 1.0, "recall": 1.0, "f1-score": 1.0, "support": 9.0},
- "lane_general": {"precision": 1.0, "recall": 1.0, "f1-score": 1.0, "support": 7.0}}
-```
-
-So iterate the object by key rather than assuming every value is a number: `accuracy` is a
-float and every other entry is a dict.
-
 ## Primary metric per task
 
-The default primary metric:
+The default primary metric depends on who wrote the test set's answers, for every task:
 
-- `question-answering`, `chat-completion`, `chat-completion-agentic` →
-  `llm-as-a-judge-reference-free`.
-- `classification` → `accuracy`.
+- **The user** (gold labels): `llm-as-a-judge`, scored against the reference.
+- **The teacher** (relabelled or synthetic rows): `llm-as-a-judge-reference-free`. When the
+  teachers score near 1 on it, it no longer separates them: switch to `llm-as-a-judge`.
+- **`binary`** exact match only where exact string equality is the faithful measure: a label
+  (`data-preparation/question-answering.md` § Classifying with question-answering) or a set.
+  Never for free text or code, where correct answers differ in form.
 
-The user or the agent can name a different one per task, agreed at the start of the project:
-for example `llm-as-a-judge` (scored against the reference), or `binary` exact match for set or
-structured outputs where exact match is the faithful measure. Every score in § Verdicts
-(teacher, base, tuned, production model, `closed`) is the agreed key.
+The user can name a different one, agreed at the start of the project. Every score in
+§ Verdicts (teacher, base, tuned, production model, `closed`) is the agreed key.
 
 ## Verdicts
 
@@ -100,12 +87,17 @@ set, which is the default target of `../workflows/model-iterations.md`.
 These are gates for judgement. When `teacher - base` is small the ratio is unstable, and when
 the gap is inside the noise band no branch follows from the numbers: say so.
 
+Every training run scores the base student again, so `closed` moves with the noise in both
+`tuned` and `base`. Use one base score for the project: the first run's, or the mean of the
+runs so far. Count a target as reached only when `closed` still clears it with the tuned score
+lowered by the noise band.
+
 **The production model is a floor.** The model the user runs in production is scored on the
 test set by a teacher evaluation with it as `base.teacher_model_name`
 (`../stages/teacher-evaluation.md`): `teacher_performance` of that run is its answers scored
 with the same metric suite as the student, against the same references. A student below it is
 not deployed whatever `closed` says. Compare the same primary-metric key. When the production
-model is not in the catalog, there is no baseline, and the user judges the student on the
+model is not in the catalog (`model-catalog.md` § Production baselines), there is no baseline, and the user judges the student on the
 absolute score.
 
 With an empty test split there are no reference points and no verdict

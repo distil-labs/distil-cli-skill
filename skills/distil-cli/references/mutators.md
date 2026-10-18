@@ -135,15 +135,16 @@ either `method` and costs one teacher call per row in the split.
 - Values absent from the split's rows get zero weight and are never asked for. To get a value the
   split lacks, give explicit weights.
 - With no rows in the split, or none that matches any value, the mutator samples uniformly.
-- It works per mutator, on any task and any dimension. `match_generated_distribution_to_seed`
-  is the classification-only setting for the class mix.
+- It works per mutator, on any task and any dimension.
 
-## Mutators for classification
+## Mutators for labels
 
-In classification, a mutator whose values bear on the label (a severity, a station, a
-category) can lead the teacher to the wrong class. Prefer mutators that leave the label to
-`classes_description` (style, length, phrasing), and check the labels of the generated rows in
-the smoke whenever mutators are on.
+A task whose answer is one label from a fixed set takes one mutator over all the labels, one
+value per label (`data-preparation/question-answering.md` § Classifying with
+question-answering). It is the normal exception to § How many, and in what proportions. A
+second mutator whose values bear on the label (a severity, a station, a category) can lead the
+teacher to the wrong label. Prefer second mutators that leave the label alone (style, length,
+phrasing), and check the labels of the generated rows in the smoke.
 
 ## Tool mutator for chat completion
 

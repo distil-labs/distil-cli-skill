@@ -23,7 +23,6 @@ With the flag off, every row and request uses the job description's system promp
 | Task | System prompt |
 |---|---|
 | `question-answering`, `chat-completion`, `chat-completion-agentic` | `task_description` |
-| `classification` | `task_description`, followed by the list of classes from `classes_description` |
 
 With the flag on, a row without a system message gets this same prompt.
 
@@ -50,8 +49,6 @@ decides.
   {"messages": [{"role": "system", "content": "Do not redact person names; agents need the caller's name to verify the account."}, {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
   ```
 - Rows without one are allowed and get the fixed prompt.
-- Classification: a row's own system message must list the classes itself; the class list is
-  added only to the fixed prompt.
 - Test rows carry the system messages the application will send, so the test set measures
   whether the model follows them.
 - Traces in `openai_messages` format keep the system message they were recorded with.
