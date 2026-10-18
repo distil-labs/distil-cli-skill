@@ -331,9 +331,11 @@ What each entity produces, and when: `../platform.md` § What each entity produc
 Every command that writes a directory takes `--destination <dir>` (`-d`) and otherwise names one
 after the entity: `<id>-traces`, `<id>-data`, `<id>-slm`, `<id>-metadata`. The commands that
 write a single file (the `*-predictions` downloads, `inference-endpoint download-traces` and
-`download-traces-export`) take `--file-name <path>`, with `-d` as its alias. The `*-predictions` downloads default to `<id>-<kind>-predictions.jsonl` in the current
-directory. Downloads overwrite what is there. A download before the job has
-produced its output names the state (`SLM is still training`) and exits 1.
+`download-traces-export`) take `--file-name <path>`; all but `traces download-predictions`
+also take `-d` as its alias. The `*-predictions` downloads default to
+`<id>-<kind>-predictions.jsonl` in the current directory. Downloads overwrite what is there. A
+download before the job has produced its output names the state (`SLM is still training`, or
+`SLM is waiting for compute resources to be provisioned` while it is `JOB_PENDING`) and exits 1.
 
 ### Reading a Dataset
 
