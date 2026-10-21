@@ -22,8 +22,14 @@ move its files into a Dataset:
    - **Task types a Dataset does not accept** (`question-answering-open-book`, `question-answering-closed-book`,
      `information-extraction`, `question-answering-open-book-synthetic-context`,
      `question-answering-legacy`): set `base.task: question-answering` and drop `context` from
-     the rows (`task-types.md`). A multi-turn tool-calling task maps to `chat-completion`
-     or `chat-completion-agentic`.
+     the rows (`task-types.md`).
+   - **`classification`**: set `base.task: question-answering`, move the classes and their
+     descriptions from `classes_description` into `task_description`, and add a mutator over
+     the class labels (`data-preparation/question-answering.md` § Classifying with
+     question-answering).
+   - **`tool-calling-closed-book`** and **`multi-turn-tool-calling-closed-book`**: set
+     `base.task: chat-completion`, or `chat-completion-agentic` when the rows carry tool
+     results (`data-preparation/chat-completion.md`).
    - **A QA job description** with text in `input_description` or `context_description`:
      remove the two keys.
    - **Deprecated config keys**: replace or delete them (`configuration.md` § Deprecated keys).

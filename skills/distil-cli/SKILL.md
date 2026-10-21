@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "11.0.1"
+  version: "11.0.2"
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing a
   dataset (config.yaml, job_description.json, traces, train and test rows), running or
