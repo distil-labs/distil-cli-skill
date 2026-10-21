@@ -13,15 +13,18 @@ object that a `metrics` command returns; the per-example predictions are a separ
 
 All 0-1:
 
-- `llm-as-a-judge`: LLM verdict (good=1, bad=0) on whether the prediction matches the
+- `llm-as-a-judge`: LLM verdict (good=1, bad=0, or a graded score from 0 to 1) on whether the prediction matches the
   reference. The judge sees the full prefix (system message, question and context). Unparseable verdicts
   count as bad (0).
-- `llm-as-a-judge-reference-free`: LLM verdict (good=1, bad=0) on whether the prediction solves
+- `llm-as-a-judge-reference-free`: LLM verdict (good=1, bad=0, or a graded score from 0 to 1) on whether the prediction solves
   the problem, from the full prefix and the prediction alone. The judge never sees the
   reference, so a wrong reference does not lower the score. It is the default primary metric
   when the teacher wrote the references (§ Primary metric per task). Read it next to `llm-as-a-judge`: a
   prediction marked bad against the reference but good without it points at the reference row,
   not the model. Unparseable verdicts count as bad (0).
+- Both judge metrics give a pass/fail verdict by default, and the metric is the fraction marked
+  good. When `llm_as_a_judge_instructions` ask for a number from 0 to 1, the metric is the mean
+  graded score (`job-description.md` § Judge score modes).
 - `binary`: exact string equality, ignoring differences in whitespace. The faithful measure for a label or a
   set (§ Primary metric per task); for free text, an extra check only.
 - `rouge`: text overlap, a secondary signal.
