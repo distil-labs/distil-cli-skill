@@ -13,7 +13,7 @@ set `task`, `student_model_name` and `teacher_model_name`.
 | `enable_thinking` | `false` | The student is trained, evaluated and served with its chat template's thinking mode on. Synthetic data generation then writes the reasoning: the teacher produces it with each assistant message it generates, and a final backfill pass fills in what is still missing. Reasoning students only. See `reasoning-models.md` |
 | `variable_system_prompt` | `false` | `false`: every example is trained, evaluated and served with the `task_description` as its system message, which replaces a system message found in a row or trace. `true`: every row and relabeled trace keeps its own system message (a row without one gets the `task_description`), and the served model reads the system message each request sends. See `variable-system-prompts.md` |
 | `student_model_name` | `Llama-3.2-1B-Instruct` | The base model that is fine-tuned into your student. See `model-catalog.md` |
-| `teacher_model_name` | `openai.gpt-oss-120b` | The model that generates the synthetic data and that the student learns from. See `model-catalog.md` |
+| `teacher_model_name` | `nvidia.nemotron-3.5-super-vl` | The model that generates the synthetic data and that the student learns from. See `model-catalog.md` |
 | `random_seed` | `123` | Seed for random sampling across the pipeline, mutators included |
 | `llm_num_parallel_requests` | `4` | Maximum number of LLM requests sent in parallel, across the teacher, synthetic generation and the judge. `1` turns parallelism off |
 | `should_expand_dataset` | `"auto"` | Whether a conversation becomes one example per assistant turn: `true`, `false` or `auto`. § Conversation expansion |
