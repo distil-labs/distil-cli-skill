@@ -136,7 +136,6 @@ def config_of(collection, entity_id):
 
     An override replaces the config rather than merging into it, so every
     override starts here: fetch, edit one field, send the whole thing back.
-    This read costs no credits.
     """
     response = requests.get(metadata_url(collection, entity_id, "config_url"))
     response.raise_for_status()
@@ -153,15 +152,16 @@ def job_description_of(collection, entity_id):
     return response.json()
 
 
-def credits():
-    """Remaining calls per metered route, keyed by route name. Free, and
-    answers at zero balance.
+def balance_cents():
+    """The account balance in cents."""
+    return get("/billing/balance")["balance_cents"]
 
-    Only metered routes appear. A route the platform never charges for is
-    absent from the dict rather than reported as unlimited, so read this
-    with .get() unless you know the route is metered.
-    """
-    return get("/credits/endpoints")["balances"]
+
+def price(path, body):
+    """Price a billed job without starting it: the same POST and body, with
+    ?dry_run=true. Returns charges, price_cents, balance_cents and
+    sufficient_balance."""
+    return post(f"{path}?dry_run=true", body)
 
 
 def poll(collection, entity_id, status_field="status"):
@@ -213,25 +213,28 @@ URL per file, each file is PUT to its URL, and those URLs are posted back as the
 the preamble are the only place that mapping is spelled out.
 
 `download-metadata` returns presigned URLs for an entity's `config.yaml` and
-`job_description.json` at no credit cost. `GET /slms/<id>/download-metadata` returns a third
+`job_description.json`. `GET /slms/<id>/download-metadata` returns a third
 field, `model_client_url`. A PreparedTraces has no config or job description.
 
-## Credits
+## Billing
 
-`GET /credits/endpoints` reports the calls remaining on each metered route, keyed by route
-name. The read is free and answers at zero balance. How metering works, the route table and
-the starting balances: `../platform.md` § Credits.
+`balance_cents()` reads the balance. `price()` posts a billed job's body with `?dry_run=true`,
+which prices it and starts nothing. The billed routes are `POST /teacher-evaluations`,
+`/datasets/from-datasets`, `/datasets/from-datasets-smoke`, `/slms/from-datasets`,
+`/slms/from-datasets-smoke` and `/deployments/from-slms`. Price the exact body the submission
+will send, overrides included:
 
 ```python
-balances = credits()
-print(balances["datasets_from_datasets_generate_synthetic_data_post"])
+estimate = price("/slms/from-datasets", {"from": dataset_id, "config": config})
+# {"charges": [{"event": "sft_training_tokens", "tier": "medium", "quantity": 4812000}],
+#  "price_cents": 1240, "balance_cents": 18760, "sufficient_balance": True}
+if not estimate["sufficient_balance"]:
+    ...  # tell the user the price and the balance, and ask them to add funds
 ```
 
-Routes the platform never charges for are absent from the response, so read an unfamiliar key
-with `.get()`. A submission against an exhausted route fails 402. A `-smoke` route spends its
-own `*_smoke_post` key, never the full run's. `POST /datasets/from-datasets` is metered by the
-operation in the body: `datasets_from_datasets_relabel_traces_post` for the two relabelling
-operations, `datasets_from_datasets_generate_synthetic_data_post` for the two generation ones.
+A submission the balance does not cover fails 402 with
+`This job costs $12.40 and your balance doesn't cover it. Please top up to start it.` and
+creates nothing. What each job is charged for: `../platform.md` § Billing.
 
 ## Creating the job inputs
 
@@ -282,11 +285,7 @@ dataset_id = post("/datasets", body)["id"]
 ```
 
 `POST /datasets` validates the bundle and returns 400 with the validation error when it fails.
-That is this backend's dryrun, and `raise_with_body` is what makes the message visible instead
-of a bare `HTTPError`. The route is metered (`datasets_post`), but only a successful create
-spends a credit: the balance is checked first, and the call is recorded only after validation
-passes. So validating a broken bundle repeatedly is free, and a 402 here means the balance was
-already zero before the bundle was ever read.
+`raise_with_body` is what makes the message visible instead of a bare `HTTPError`.
 
 ### The SLM from staged files
 
@@ -303,8 +302,7 @@ poll("slms", slm_id)
 The tarball must hold the LoRA adapter under `model-adapter/`, as `GET /slms/<id>/download`
 produces it (`../deployment.md` § Artifacts); the config travels beside it, not inside. The
 platform expands the tarball into the layout a trained SLM has, which is the job `poll()`
-waits on. Files that do not form a valid SLM answer 400. The route is metered on `slms_post`,
-which starts at zero, so it needs a grant before the first upload (`../platform.md` § Credits).
+waits on. Files that do not form a valid SLM answer 400.
 
 ## Submitting jobs
 
@@ -338,8 +336,7 @@ before the next expand names it as `from`.
 
 The count comes from the parent's config, `trace_processing.num_{split}_relabelled`, or from
 the `config` override. A smoke is the same body posted to `/datasets/from-datasets-smoke`,
-which forces the count to 128 whatever the config says (`../platform.md` § Smoke runs) and
-spends `datasets_from_datasets_smoke_post`.
+which forces the count to 128 whatever the config says (`../platform.md` § Smoke runs).
 
 ### Synthetic data generation
 
@@ -356,7 +353,7 @@ poll("datasets", smoke_id)
 
 The smoke's Dataset is a side branch; the full run is posted on the same parent. Errors: 400 for
 a config that fails validation, 404 for a missing parent, 409 for a parent whose job has not
-succeeded, 402 for insufficient credits. A job that fails validation of the Dataset it produced
+succeeded, 402 when the balance does not cover the job (§ Billing). A job that fails validation of the Dataset it produced
 ends in `JOB_FAILURE` with the cause in the log.
 
 ### Overrides
@@ -655,9 +652,6 @@ distil labs runs today: `openai/gpt-4.1-mini` (small, cheap, the most common), `
 `trace-sample-rate` is the fraction of calls the endpoint records, 0 to 1. The API defaults to
 0.01, one call in a hundred, while the CLI sends 1, so always set the field: 1 unless the
 traffic is very high. The response's `trace_sampling_rate` says what an existing one does.
-
-`POST /inference-endpoints` is metered (`inference_endpoints_post`) and answers 402 once that
-balance is spent.
 
 ### Keys
 

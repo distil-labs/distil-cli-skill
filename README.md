@@ -69,7 +69,7 @@ front of it to collect traces, or takes the files you have: traces, a train set,
 any combination. It builds a test set, picks the teacher with a teacher evaluation, builds the
 train set from relabelled traces and synthetic data, trains the student, and serves it behind a
 new endpoint that takes the traffic the traces came from. Every
-stage confirms the setup and the expected credit cost with you before it submits anything.
+stage confirms the setup and the expected cost with you before it submits anything.
 
 ## Documentation
 

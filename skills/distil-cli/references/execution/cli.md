@@ -1,7 +1,7 @@
 # distil CLI
 
 The commands that run each stage. How the platform behaves (entities, expand operations, job
-status, smoke runs, overrides, credits, outputs): `../platform.md`. Installing the CLI and
+status, smoke runs, overrides, billing, outputs): `../platform.md`. Installing the CLI and
 signing in: `README.md` § Set up the CLI.
 
 This is the default backend and `backend-api.md` is the alternative. Take that one when the
@@ -80,24 +80,39 @@ the data.
 inputs, because a PreparedTraces holds neither file. `distil slm create --data <dir>` registers
 an existing `model.tar` and `config.yaml` as an SLM; it does not train one.
 
-## Credits
+## Billing
 
 ```bash
-distil credits-balance
-# datasets_from_datasets_generate_synthetic_data_post    5    <- excerpt; one row per metered
-# datasets_from_datasets_relabel_traces_post             5       route, sorted by name
-# datasets_from_datasets_smoke_post                     20
-# datasets_from_prepared_traces_post                     5
-# datasets_post                                          5
-# prepared_traces_post                                 100
-# slms_from_datasets_post                                5
-# slms_from_datasets_smoke_post                         20
-# teacher_evaluations_post                               5
+distil billing balance
+# Balance: $187.60
 ```
 
-`--output json` returns `{"balances": {…}}` under the same keys. An account with nothing
-metered prints `No metered endpoints.` The route keys and starting balances:
-`../platform.md` § Credits. A `--smoke` submission spends the `*_smoke_post` key of its route.
+`--output json` returns `{"balance_cents": 18760}`. `distil billing manage` opens the billing
+page in the browser, where the user adds funds; when no browser opens, it prints the URL.
+
+The commands that start a billed job take `--dry-run`: `teacher-evaluation
+create-from-dataset`, the four `dataset` expand commands (`relabel-traces-*`,
+`generate-synthetic-data-*`), `slm create-from-dataset` and `deployment create-from-slm`. It
+prices the job and starts nothing. It combines with `--smoke`, `--config` and
+`--job-description`, so price the exact submission:
+
+```bash
+distil slm create-from-dataset --dry-run --config sweep/student.yaml <dataset-id>
+# Dry run, nothing was started.
+# Estimated Cost:                         $12.40
+# Balance:                                $187.60
+# SFT Training Tokens:                    4,812,000 (medium tier)
+```
+
+A warning follows when the balance does not cover the price. With `--output json` it prints
+the estimate instead of an entity:
+
+```json
+{"charges": [{"event": "sft_training_tokens", "tier": "medium", "quantity": 4812000}],
+ "price_cents": 1240, "balance_cents": 18760, "sufficient_balance": true}
+```
+
+What each job is charged for: `../platform.md` § Billing.
 
 ## Creating the job inputs
 

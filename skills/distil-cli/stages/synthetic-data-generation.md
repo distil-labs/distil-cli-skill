@@ -99,9 +99,8 @@ Before submitting anything, present and confirm:
 - the mutator plan: dimensions and values, values left for the teacher to detect, or none yet
 - whether LLM validation is enabled; if so, the instructions, judge model and extra
   judge calls after structural and diversity filtering
-- the remaining credits: `datasets_from_datasets_smoke_post` per smoke,
-  `datasets_from_datasets_generate_synthetic_data_post` per full run
-  (`../references/platform.md` § Credits)
+- the price of a smoke and of the full run from `--dry-run`, against the balance
+  (`../references/platform.md` § Billing)
 - the path: normal (a smoke, its analysis, then the full run) or fast (skip Steps 3-5)
 
 ## Step 3: Smoke Run
@@ -164,8 +163,8 @@ which say what to change. Present the findings to the user:
 - **It passes**: the new Dataset goes to the outcome stage's next step.
 - **It fails**: do not build on it. Bad data shows up in training only as a plateau found after
   a full training run. Change the settings per Step 5 and submit another full run on the same
-  parent, which costs one generation credit instead of a training credit and a full training
-  run.
+  parent. That costs a generation run; training on the bad data would cost a training run
+  and the time it takes.
 
 ## What Can Be Changed to Improve the Next Iteration
 
@@ -178,7 +177,7 @@ which say what to change. Present the findings to the user:
   `synthetic_data_generation_instructions`, or use a stronger teacher
   (`../references/model-catalog.md`), and generate again; or download the Dataset, have the
   user correct the rows, and upload the directory as a new Dataset with `distil dataset create --data <dir>`
-  (`../references/execution/cli.md` § Supplying files; one `datasets_post` credit). When the
+  (`../references/execution/cli.md` § Supplying files). When the
   answer is a label, also check whether a mutator causes it (`../references/mutators.md`
   § Mutators for labels).
 - **`synthetic_data_generation_instructions`** in the job description: a constant added to every
@@ -199,6 +198,5 @@ which say what to change. Present the findings to the user:
   (`clean_training_targets`). These change the volume and cleanliness of the rows, not what
   they are about.
 
-All are overrides on the same parent Dataset. Cost: one
-`datasets_from_datasets_generate_synthetic_data_post` credit per full run, the context traces
-it uses, and training again on the new Dataset.
+All are overrides on the same parent Dataset. Cost: a full generation run, the context traces it
+uses, and training again on the new Dataset.

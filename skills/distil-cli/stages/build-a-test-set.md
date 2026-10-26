@@ -58,9 +58,9 @@ question-answering). Present the target, the split of it, the
 relabelling teacher (the default large teacher, `../references/model-catalog.md` § Defaults,
 unless the user asks for a stronger one: it writes the reference answers), the judge
 (`evaluation.llm_as_a_judge_model_name` and `llm_as_a_judge_instructions`, fixed from here on)
-and the credits: one `datasets_from_datasets_relabel_traces_post`, one
-`datasets_from_datasets_generate_synthetic_data_post` when synthetic rows are planned, and the
-smoke credits each mechanics stage spends (`../references/platform.md` § Credits).
+and the price of the relabelling run from `--dry-run`, against the balance. A generation run,
+when synthetic rows are planned, is priced at its own gate once its parent exists
+(`../references/platform.md` § Billing).
 
 ## Step 3: Fill the Test Set
 

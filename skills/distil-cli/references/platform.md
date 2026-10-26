@@ -114,8 +114,8 @@ parent and with the same config otherwise:
   and the 32 longest test rows of the Dataset. The rows are chosen by length alone, not per
   class.
 
-All accept config and job-description overrides, and all spend the smoke credit routes
-(§ Credits), never a full-run credit. A smoke expand writes a Dataset of its own, a side branch
+All accept config and job-description overrides, and all are priced on their smaller inputs
+(§ Billing), a fraction of the full run. A smoke expand writes a Dataset of its own, a side branch
 of the parent: the full run is submitted on the same parent, not on the smoke's child, so the
 smoke never costs the full run any traces.
 
@@ -143,36 +143,38 @@ Two rules govern this, and both fail silently:
 An expand that ran with an override writes the overridden files into the new Dataset, so every
 Dataset after it inherits the change.
 
-## Credits
+## Billing
 
-Credits are metered per route, not from one pool, and a balance is a count of remaining
-calls to that route. Reading the balance is free and answers at zero, so every stage's setup
-gate quotes the balance for what it is about to spend.
+Jobs that run a model are paid from one prepaid balance in US dollars. Everything else is free:
+uploads, traces objects, Datasets from traces, model uploads, inference endpoints, API keys,
+downloads and reads. A billed job is priced from its data and config when it is submitted, and
+the balance is charged then. The charge is the estimate, not what the job ends up using, and a
+failed job is still charged.
 
-| What | Route key | New account starts with |
-|---|---|---|
-| Traces object (upload, or from an endpoint) | `prepared_traces_post` | 100 |
-| Dataset upload, also the validator | `datasets_post` | 5 |
-| Dataset from a traces object | `datasets_from_prepared_traces_post` | 5 |
-| Relabel traces, train or test, full | `datasets_from_datasets_relabel_traces_post` | 5 |
-| Synthetic data generation, train or test, full | `datasets_from_datasets_generate_synthetic_data_post` | 5 |
-| Any expand, smoke | `datasets_from_datasets_smoke_post` | 20 |
-| Teacher evaluation | `teacher_evaluations_post` | 5 |
-| Model training, full | `slms_from_datasets_post` | 5 |
-| Model training, smoke | `slms_from_datasets_smoke_post` | 20 |
-| Model re-upload | `slms_post` | **0** |
-| Deployment | `deployments_from_slms_post` | 2 |
-| Inference endpoint | `inference_endpoints_post` | 10 |
+| Job | Usage event | Quantity | Priced at the tier of |
+|---|---|---|---|
+| Teacher evaluation | `teacher_eval_tokens` | The tokens in the test set | The teacher |
+| Relabel traces, smoke or full | `relabel_tokens` | The relabelled traces times their average tokens, once per teacher in the committee | Each relabelling teacher |
+| Synthetic data generation, smoke or full | `synth_data_tokens` | The generation target times the average tokens of a row | The teacher |
+| Model training, smoke or full | `sft_training_tokens`, `rl_training_tokens` | The train set's tokens times the epochs, split by `tuning.rlvr_dataset_size` | The student |
+| Deployment | `deployment_created` | 1 | The student |
 
-Downloads are free. `slms_post` starts at zero, so what it gates is unavailable until the user
-asks for a grant. Read a balance against the whole plan rather than the next submission: a
-test set, a train set and a model are at least four full expand credits and one training
-credit, and synthetic data generation is wasted if no training credit is left after it.
+Every teacher and student has a price tier. Larger models and thinking variants are in the
+higher tiers, so the teacher choice moves the price of every expand after it, and the student
+choice the price of training and deployment.
 
-A call against an exhausted route is refused.
+Every stage's setup gate prices what it is about to submit with `--dry-run`
+(`execution/cli.md` § Billing) and quotes the price and the balance. A dry run is free, starts
+nothing, and takes the same config and job-description overrides as the real submission, so
+price the exact run. Read the balance against the whole plan rather than the next submission:
+a test set, a train set and a model take at least four full expand runs and a training run.
+Training can only be priced once its train set exists, so before generating data, leave room
+for it.
 
-Only metered routes appear in a balance. A route the platform never charges for is absent
-rather than reported as unlimited, so a missing key is not a zero.
+A submission the balance does not cover is refused with 402 and creates nothing:
+`This job costs $12.40 and your balance doesn't cover it. Please top up to start it.` Never
+submit to find out. When the price is over the balance, tell the user both numbers and ask them
+to add funds: `distil billing manage` opens the billing page.
 
 ## What each entity produces
 

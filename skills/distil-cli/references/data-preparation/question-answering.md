@@ -23,8 +23,8 @@ Rules beyond the shared checklist (`overview.md`):
 
 There is no classification task. A config with `task: classification` is rejected with `The task
 classification is no longer supported. Use the task question-answering instead, with a mutator
-over the class labels`, and so is a job on an existing classification Dataset, before any credit
-is spent: upload its rows into a new question-answering Dataset. A label from a fixed set is a
+over the class labels`, and so is a job on an existing classification Dataset, before anything
+is charged: upload its rows into a new question-answering Dataset. A label from a fixed set is a
 `question-answering` task:
 
 - **Rows**: user = the input text, assistant = the label and nothing else.

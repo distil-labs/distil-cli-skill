@@ -79,10 +79,10 @@ Decide the two counts:
   for a different size.
 
 Present both, the teacher, the mutator plan (`synthetic-data-generation.md` Step 1) and the
-credits: one `datasets_from_datasets_relabel_traces_post`, one
-`datasets_from_datasets_generate_synthetic_data_post`, the smoke credits, and the
-`slms_from_datasets_post` credit training will need after this
-(`../references/platform.md` § Credits). Generation is wasted if no training credit is left.
+price of the relabelling run from `--dry-run`, against the balance
+(`../references/platform.md` § Billing). The generation run is priced at its own gate, once its
+parent exists, and training only once this train set exists, so leave room in the balance for
+both.
 
 ## Step 3: Relabel Traces into the Train Split
 
@@ -136,6 +136,6 @@ a later run. Top up on the Dataset before that run instead, with the full target
   and you upload the directory as a new Dataset (`../references/execution/cli.md` § Supplying
   files).
 
-Cheapest first: a top-up or the user's correction (one credit), then generation again, then
+Cheapest first: a top-up or the user's correction, then generation again, then
 relabelling again (and generation after it), then a new teacher (teacher evaluation, then
 both).

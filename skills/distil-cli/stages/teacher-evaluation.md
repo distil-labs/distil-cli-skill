@@ -59,9 +59,10 @@ Before submitting, present and confirm:
 - the shortlist, and which entry is the production model; never launch with a default the user
   did not see
 - the judge setup for free-text tasks
-- the remaining `teacher_evaluations_post` credits, one per run, against the whole shortlist,
-  plus one more if the user plans to iterate: `../workflows/model-iterations.md` Step 0 repeats
-  one run to measure the noise (`../references/platform.md` § Credits)
+- the price of each run from `--dry-run`, against the balance, for the whole shortlist plus one
+  more run if the user plans to iterate: `../workflows/model-iterations.md` Step 0 repeats one
+  run to measure the noise. The teacher's tier sets the price, so it differs across the
+  shortlist (`../references/platform.md` § Billing)
 
 ## Step 3: Run the Evaluations
 
@@ -119,5 +120,5 @@ Review the table and the failure patterns with the user
   earlier score was measured with the old instructions and is not comparable. A stronger judge
   model (`evaluation.llm_as_a_judge_model_name`) is the other fix, with the same effect.
 
-Cost: one `teacher_evaluations_post` credit per run. A new teacher also means the train set and
+Cost: a teacher evaluation run. A new teacher also means the train set and
 training again.

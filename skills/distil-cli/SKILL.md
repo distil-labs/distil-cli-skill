@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "11.0.2"
+  version: "12.0.0"
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing a
   dataset (config.yaml, job_description.json, traces, train and test rows), running or
@@ -83,7 +83,7 @@ on a subsample before the full run (`references/platform.md` § Smoke runs). The
 directly). Stages without a smoke run number their steps consecutively.
 
 Every stage opens with a user gate: present the input, the key config choices, the plan and
-the expected cost against the remaining credits (`references/platform.md` § Credits), and get
+the price from a `--dry-run` against the balance (`references/platform.md` § Billing), and get
 the user's go-ahead. Nothing launches on defaults the user never saw. After the analysis,
 present the findings and agree on the next step together.
 
@@ -111,7 +111,7 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
 
 | Reference | Purpose |
 |---|---|
-| `references/platform.md` | How the platform behaves: entities, the expand operations, jobs, smoke runs, overrides, credits, outputs |
+| `references/platform.md` | How the platform behaves: entities, the expand operations, jobs, smoke runs, overrides, billing, outputs |
 | `references/task-types.md` | The four task types and how to choose between them |
 | `references/data-preparation/overview.md` | The Dataset directory contract and validation checklist (read first) |
 | `references/data-preparation/<task>.md` | Per-task data format: `question-answering.md` (also classifying into labels), `chat-completion.md` (both chat completion tasks) |

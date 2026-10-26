@@ -24,8 +24,8 @@ and why the config is needed: `../references/deployment.md` § Artifacts.
 ## Step 2: Confirm the Setup with the User
 
 Present and confirm: a machine with a GPU that fits the student, vLLM installed on it, and access
-to the student's base model on HuggingFace (the Llama and Gemma base models are gated). This
-stage spends no credits.
+to the student's base model on HuggingFace (the Llama and Gemma base models are gated). Nothing
+in this stage is charged.
 
 ## Step 3: Serve
 

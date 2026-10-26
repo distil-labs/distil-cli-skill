@@ -40,7 +40,8 @@ Present and confirm:
   fixed at creation.
 - **The key**: an existing inference API key or a new one. The secret goes into the user's
   secret store, never into the transcript or `run.md`.
-- **The credits** for the kind chosen (`../references/platform.md` § Credits).
+- **The price**, for a serving endpoint: its deployment, from `--dry-run` on
+  `deployment create-from-slm` (`../references/platform.md` § Billing).
 - **For a serving endpoint**: which SLM, and that its deployment is a session for trying the
   model: it stops on its own, after which the fallback answers every call. A permanent
   deployment is a request to contact@distillabs.ai (`../references/inference-endpoints.md`

@@ -86,9 +86,8 @@ Before submitting anything, present and confirm:
 - what the traces look like (count, observation format, typical length) and the task type
 - the split, the count, and what the trace pool holds after this run
 - the relabelling teacher or committee, the instructions, and relevance filtering
-- the remaining credits: `datasets_from_datasets_smoke_post` for the smoke,
-  `datasets_from_datasets_relabel_traces_post` for the full run
-  (`../references/platform.md` § Credits)
+- the price of the smoke and of the full run from `--dry-run`, against the balance
+  (`../references/platform.md` § Billing)
 - the path: normal (a smoke of 128 traces, its analysis, then the full run) or fast (skip
   Steps 3-5; the usual choice when the count is near 128 anyway, and the only one below 128
   traces, where the smoke is refused like any run short of traces)
@@ -157,6 +156,5 @@ decides what that is.
 - **New traces**: relabelling can only produce what the traces contain. Traces that show a
   failure the user cares about, run through this stage, add it to the split.
 
-All except new traces are overrides on the same parent Dataset. Cost: one
-`datasets_from_datasets_relabel_traces_post` credit, the traces it uses, and every expand after
-it again.
+All except new traces are overrides on the same parent Dataset. Cost: a full
+relabelling run, the traces it uses, and every expand after it again.

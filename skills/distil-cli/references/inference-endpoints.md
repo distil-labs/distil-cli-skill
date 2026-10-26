@@ -92,9 +92,8 @@ now, when there are only a few thousand, when the records must be filtered first
 on `source` once a student sits in front of the fallback, or when the current `test.jsonl` has
 to go into the same Dataset (`../workflows/build-a-model.md` Step 10).
 
-## Credits
+## Billing
 
-Creating an endpoint spends `inference_endpoints_post`, a deployment `deployments_from_slms_post`
-(again for every replacement of a stopped deployment), a traces object by the direct route
-`prepared_traces_post`, and the Dataset after it `datasets_from_prepared_traces_post` (or
-`datasets_post` for the download route). Balances: `platform.md` § Credits.
+A deployment is charged once, when it is created, at the student's tier, and every replacement
+of a stopped deployment is charged again. The endpoint, the traces object and the Dataset made
+from it are free. `platform.md` § Billing.

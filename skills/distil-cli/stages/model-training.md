@@ -42,12 +42,11 @@ The settings that matter are in `base` and `tuning` (`../references/configuratio
 
 Before submitting anything, present and confirm:
 
-- **The path**, from the balances (`../references/platform.md` § Credits):
-  - `slms_from_datasets_smoke_post` pays for the memory-check smokes (Steps 3-5), one per
-    attempt. With none left, go to Step 6.
-  - `slms_from_datasets_post` pays for one full run each, so a sweep of N students needs N.
-  - With credits for both, the user chooses: normal (a memory check per student, then the full
-    run) or fast (skip Steps 3-5, the usual choice for a re-run of a proven setup).
+- **The path and the price** (`../references/platform.md` § Billing): price a smoke and a full
+  run for each student with `--dry-run` and quote them against the balance. The user chooses:
+  normal (a memory check per student, then the full run) or fast (skip Steps 3-5, the usual
+  choice for a re-run of a proven setup). When the balance does not cover the full runs, the
+  user adds funds or trims the student list before anything is submitted.
 - **The student list**, fixed now, because each student is checked for memory separately. Fast
   path: one student, the best iteration's student when there is one, else `Qwen3.5-4B` unless
   the deployment target needs smaller (`../references/model-catalog.md` § Defaults). Normal path: students across the sizes that fit
@@ -56,7 +55,7 @@ Before submitting anything, present and confirm:
 ## Step 3: Smoke Run
 
 A smoke checks that a student fits in memory, on a subsample of the data, before the full run
-spends a training credit. Submit with `--smoke` (`../references/execution/cli.md` § Model
+is charged. Submit with `--smoke` (`../references/execution/cli.md` § Model
 training; what it trains on: `../references/platform.md` § Smoke runs) and an override that sets
 the student and the batch size the full run will use. One `smoke-<student>-N` series per
 student, since students of different sizes fit differently. Record `run.md`.
@@ -75,8 +74,8 @@ Move on once every student fits.
 
 ## Step 6: Full Run
 
-Present the plan first: the students, each one's settings, and the cost (one
-`slms_from_datasets_post` credit per student). On the user's go-ahead, submit one training per
+Present the plan first: the students, each one's settings, and the price of each
+run from `--dry-run`. On the user's go-ahead, submit one training per
 student against the same Dataset, without `--smoke`: all the training data, `num_train_epochs`
 at its default of 4, and the settings that passed the smoke. Each submission sends a full copy
 of the config with its student and settings. The submissions run concurrently.
@@ -104,8 +103,7 @@ than the one before:
    less GPU memory).
 5. Remove the longest ~1% of training rows, which drive peak memory. Download the Dataset,
    remove the rows from `train.jsonl`, and upload the directory as a new Dataset with
-   `distil dataset create --data` (`../references/execution/cli.md` § Supplying files; one
-   `datasets_post` credit).
+   `distil dataset create --data` (`../references/execution/cli.md` § Supplying files).
 
 The first three are config overrides; only the fourth changes the data.
 
@@ -125,5 +123,4 @@ The first three are config overrides; only the fourth changes the data.
 - **Memory settings** (§ Dealing with OOM): what lets a larger student or batch fit at all.
 
 All are config overrides on the same Dataset, and nothing regenerates, so this is the least
-expensive stage to iterate on. Cost: one `slms_from_datasets_post` credit per run; several runs
-can go in parallel.
+expensive stage to iterate on. Cost: a training run each; several runs can go in parallel.

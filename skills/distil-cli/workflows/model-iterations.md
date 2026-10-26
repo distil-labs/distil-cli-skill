@@ -70,9 +70,10 @@ Before the first autonomous iteration, agree with the user and write into the le
   for example the teacher's score (`closed` ≥ 1). A target the user gives takes precedence.
   Read `closed` with one base score for the project and the noise rule of
   `../references/evaluation-metrics.md` § Verdicts.
-- **The budget**: the credits per route the loop may spend (`../references/platform.md`
-  § Credits), and a maximum number of iterations. Every iteration spends at least one
-  `slms_from_datasets_post` credit, so propose the iteration count from the balances.
+- **The budget**: an amount in dollars the loop may spend, within the balance, and a maximum
+  number of iterations (`../references/platform.md` § Billing). Every iteration trains at
+  least one model, so propose the iteration count from the price of a training run. Price
+  every submission with `--dry-run` and keep a running total of the prices in the ledger.
 - **The noise level**: run-to-run variation is measured, not assumed. Re-run one evaluation on
   the same model and test set (for example a second teacher evaluation), and treat any
   difference smaller than the spread between the runs as noise
@@ -88,7 +89,7 @@ Within that agreement the agent iterates without asking. It must stop and ask be
   (`../references/job-description.md` § What each field feeds);
 - changing the test set (re-entering Step 5);
 - changing the judge model or the judge instructions;
-- spending beyond the budget, or on a route the budget does not cover;
+- a submission that would take the running total over the budget;
 - moving production traffic to a model.
 
 Deploying a model only to try it on traffic is allowed within the budget.
@@ -154,11 +155,11 @@ about training.
 
 Prefer the cheapest step that can fix the failure mode. From cheapest to most expensive:
 
-- **Step 8, training**: nothing regenerates; one training credit.
+- **Step 8, training**: nothing regenerates; a training run.
 - **Step 7, the train set**: the settings are `synthetic_data_generation_instructions` and
   `synthgen.mutators` for generation, and `trace_processing_instructions` for relabelling
   (each stage's § The Settings That Control the Rows). A top-up on the best kept iteration's
-  Dataset is the default (one generation credit and training); when the synthetic rows were bad, generation again on the
+  Dataset is the default (a generation run and training); when the synthetic rows were bad, generation again on the
   parent of the bad run (the relabel-train Dataset, which keeps the relabelled rows); when the
   relabelled rows carry the mistake, relabelling again on the test-set Dataset, then
   generation.
@@ -177,8 +178,8 @@ the train rows:
 
 - **Wrong reference answers**: download the best kept iteration's Dataset, correct the rows in
   `test.jsonl`, and upload the directory with `distil dataset create --data`
-  (`../references/execution/cli.md` § The Dataset). The train rows come along; one
-  `datasets_post` credit; the upload has no parent on the platform, so record the jump in the
+  (`../references/execution/cli.md` § The Dataset). The train rows come along; the upload
+  has no parent on the platform, so record the jump in the
   ledger.
 - **Rows the test set lacks**: the same upload, with `traces.jsonl` replaced by traces that
   show the failure (new ones, or leftovers downloaded from the root Dataset), then
