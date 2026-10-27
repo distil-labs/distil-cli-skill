@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "12.0.0"
+  version: "12.1.0"
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing a
   dataset (config.yaml, job_description.json, traces, train and test rows), running or
@@ -86,6 +86,11 @@ Every stage opens with a user gate: present the input, the key config choices, t
 the price from a `--dry-run` against the balance (`references/platform.md` § Billing), and get
 the user's go-ahead. Nothing launches on defaults the user never saw. After the analysis,
 present the findings and agree on the next step together.
+
+The user follows the work in the dashboard, https://app.distillabs.ai, signed in with the
+same account as the CLI. When a job starts, give them the page of what it creates:
+`/datasets/<id>`, `/slms/<id>`, `/traces/<id>` or `/inference-endpoints/<unique-name>` under
+that address. The balance and adding funds are on https://app.distillabs.ai/billing.
 
 Runs are not reproducible: the teacher and the judge run at non-zero temperature, so treat
 every score as a sample, and never decide on a difference smaller than the run-to-run variation

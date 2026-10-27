@@ -174,7 +174,9 @@ for it.
 A submission the balance does not cover is refused with 402 and creates nothing:
 `This job costs $12.40 and your balance doesn't cover it. Please top up to start it.` Never
 submit to find out. When the price is over the balance, tell the user both numbers and ask them
-to add funds: `distil billing manage` opens the billing page.
+to add funds on the billing page, https://app.distillabs.ai/billing. Give them the link: a
+browser that `distil billing manage` opens is on the machine the agent runs on, which may not be
+in front of the user.
 
 ## What each entity produces
 

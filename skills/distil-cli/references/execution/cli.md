@@ -88,7 +88,8 @@ distil billing balance
 ```
 
 `--output json` returns `{"balance_cents": 18760}`. `distil billing manage` opens the billing
-page in the browser, where the user adds funds; when no browser opens, it prints the URL.
+page, https://app.distillabs.ai/billing, in the browser, where the user adds funds; when no
+browser opens, it prints the URL.
 
 The commands that start a billed job take `--dry-run`: `teacher-evaluation
 create-from-dataset`, the four `dataset` expand commands (`relabel-traces-*`,
