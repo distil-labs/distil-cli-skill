@@ -152,14 +152,14 @@ def job_description_of(collection, entity_id):
     return response.json()
 
 
-def balance_cents():
-    """The account balance in cents."""
-    return get("/billing/balance")["balance_cents"]
+def balance():
+    """The account balance: {"usd": 187.6, "label": "$187.60"}."""
+    return get("/billing/balance")["balance"]
 
 
 def price(path, body):
     """Price a billed job without starting it: the same POST and body, with
-    ?dry_run=true. Returns charges, price_cents, balance_cents and
+    ?dry_run=true. Returns charges, price, balance and
     sufficient_balance."""
     return post(f"{path}?dry_run=true", body)
 
@@ -218,7 +218,7 @@ field, `model_client_url`. A PreparedTraces has no config or job description.
 
 ## Billing
 
-`balance_cents()` reads the balance. `price()` posts a billed job's body with `?dry_run=true`,
+`balance()` reads the balance. `price()` posts a billed job's body with `?dry_run=true`,
 which prices it and starts nothing. The billed routes are `POST /teacher-evaluations`,
 `/datasets/from-datasets`, `/datasets/from-datasets-smoke`, `/slms/from-datasets`,
 `/slms/from-datasets-smoke` and `/deployments/from-slms`. Price the exact body the submission
@@ -227,10 +227,14 @@ will send, overrides included:
 ```python
 estimate = price("/slms/from-datasets", {"from": dataset_id, "config": config})
 # {"charges": [{"event": "sft_training_tokens", "tier": "medium", "quantity": 4812000}],
-#  "price_cents": 1240, "balance_cents": 18760, "sufficient_balance": True}
+#  "price": {"usd": 12.4, "label": "$12.40"},
+#  "balance": {"usd": 187.6, "label": "$187.60"}, "sufficient_balance": True}
 if not estimate["sufficient_balance"]:
     ...  # tell the user the price and the balance, and ask them to add funds
 ```
+
+`usd` is the exact amount. `label` is rounded to the cent for display: up for the price, down
+for the balance.
 
 A submission the balance does not cover fails 402 with
 `This job costs $12.40 and your balance doesn't cover it. Please top up to start it.` and

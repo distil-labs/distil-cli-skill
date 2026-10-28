@@ -87,9 +87,9 @@ distil billing balance
 # Balance: $187.60
 ```
 
-`--output json` returns `{"balance_cents": 18760}`. `distil billing manage` opens the billing
-page, https://app.distillabs.ai/billing, in the browser, where the user adds funds; when no
-browser opens, it prints the URL.
+`--output json` returns `{"balance": {"usd": 187.6, "label": "$187.60"}}`. `distil billing
+manage` opens the billing page, https://app.distillabs.ai/billing, in the browser, where the user
+adds funds; when no browser opens, it prints the URL.
 
 The commands that start a billed job take `--dry-run`: `teacher-evaluation
 create-from-dataset`, the four `dataset` expand commands (`relabel-traces-*`,
@@ -110,7 +110,8 @@ the estimate instead of an entity:
 
 ```json
 {"charges": [{"event": "sft_training_tokens", "tier": "medium", "quantity": 4812000}],
- "price_cents": 1240, "balance_cents": 18760, "sufficient_balance": true}
+ "price": {"usd": 12.4, "label": "$12.40"},
+ "balance": {"usd": 187.6, "label": "$187.60"}, "sufficient_balance": true}
 ```
 
 What each job is charged for: `../platform.md` § Billing.
