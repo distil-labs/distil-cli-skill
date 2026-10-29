@@ -81,11 +81,11 @@ closed = (tuned - base) / (teacher - base)     # each term is the primary metric
 | `closed` | Verdict | Action |
 |---|---|---|
 | **≥ 0.8** | Deploy candidate | Continue to deployment; for a sweep, take the smallest student that clears the bar |
-| **0.4 - 0.8** | Retune | Train again on the same Dataset with a different student or tuning settings; nothing is regenerated (`../workflows/model-iterations.md`, re-entry at Step 8) |
-| **< 0.4** | Iterate | The teacher's knowledge is not reaching the student, and retuning will not fix it. `../workflows/model-iterations.md` |
+| **0.4 - 0.8** | Retune | Train again on the same Dataset with a different student or tuning settings; nothing is regenerated (`../stages/model-iteration.md`, re-running training) |
+| **< 0.4** | Iterate | The teacher's knowledge is not reaching the student, and retuning will not fix it. `../stages/model-iteration.md` |
 
 A `closed` of 1 or above means the student matches or beats the teacher's score on this test
-set, which is the default target of `../workflows/model-iterations.md`.
+set, which is the default target of `../workflows/autoresearch.md`.
 
 These are gates for judgement. When `teacher - base` is small the ratio is unstable, and when
 the gap is inside the noise band no branch follows from the numbers: say so.

@@ -99,7 +99,7 @@ upload: note the jump in `run.md`.
 Record the approved Dataset id in `test-set.md` as the test-set Dataset. It is the input of
 `teacher-evaluation.md`, and its `test.jsonl` is the project's test set from here on. Scores
 measured on different test sets are not comparable, so when the test rows change later
-(`../workflows/model-iterations.md` re-entering `build-a-model.md` Step 5), every earlier
+(`model-iteration.md` § Changing the Test Set), every earlier
 score is stale: re-run the teacher evaluations on the new test set before reading any verdict.
 
 ## What Can Be Changed to Improve the Next Iteration
@@ -115,4 +115,4 @@ score is stale: re-run the teacher evaluations on the new test set before readin
   failure the user cares about, relabelled into the test split, add it to the test set.
 
 A new test set makes every earlier score stale, so it needs the user's approval
-(`../workflows/model-iterations.md` Step 0).
+(`model-iteration.md` § Changing the Test Set).

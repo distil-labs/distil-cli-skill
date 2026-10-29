@@ -108,7 +108,7 @@ rows and the traces, and the requested slices. Check the size against the plan.
 
 ## Topping Up
 
-A later iteration that needs more rows (`../workflows/model-iterations.md` Step 4) does not
+A later iteration that needs more rows (`model-iteration.md` Step 4) does not
 rebuild: run `synthetic-data-generation.md` on the train split of the best kept iteration's
 Dataset, with `train_generation_target` set to the rows to add. The job generates from every
 row already in the split, relabelled and synthetic alike, and dedups against them

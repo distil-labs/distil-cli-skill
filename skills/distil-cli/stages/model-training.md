@@ -19,7 +19,7 @@ model-training/
 │   ├── run.md           # the Dataset id, the override sent and the SLM id returned
 │   └── output/          # fetched metrics and training logs
 ├── smoke-<student>-2/   # next memory check for that student, after an OOM fix
-└── full-<student>-1/    # one full training per student
+└── full-<student>-1/    # one full training per student; full-<student>-2/ for the next run
 ```
 
 ## Step 1: Prepare the Input
@@ -77,7 +77,7 @@ Move on once every student fits.
 Present the plan first: the students, each one's settings, and the price of each
 run from `--dry-run`. On the user's go-ahead, submit one training per
 student against the same Dataset, without `--smoke`: all the training data, `num_train_epochs`
-at its default of 4, and the settings that passed the smoke. Each submission sends a full copy
+at its default of 4 unless the plan changes it, and the settings that passed the smoke. Each submission sends a full copy
 of the config with its student and settings. The submissions run concurrently.
 
 ## Step 7: Analyze the Results

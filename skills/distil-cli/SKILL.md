@@ -1,16 +1,18 @@
 ---
 name: distil-cli
 metadata:
-  version: "12.1.1"
+  version: "13.0.0"
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing a
   dataset (config.yaml, job_description.json, traces, train and test rows), running or
   analyzing any pipeline stage (building a test set or a train set from traces by relabelling
   and synthetic data generation, teacher evaluation, model training, deployment), iterating
   when a teacher score or student score is too low, or deciding what to run next after a
-  stage completes. Activate for phrasings like "build a model for X", "train a student model",
+  stage completes, or iterating on a model on its own until it reaches a target
+  (autoresearch). Activate for phrasings like "build a model for X", "train a student model",
   "build a test set from my traces", "run a teacher eval", "generate synthetic data", "the
-  score is low, what now", or "add more training data". Stages run through the distil CLI or
+  score is low, what now", "add more training data", or "keep iterating until the model is as
+  good as you can get it". Stages run through the distil CLI or
   the distil labs API. This skill owns the model-building logic on top of it. Also activate for
   distil labs lookups that are not a full build: distil CLI commands (distil auth,
   distil traces, distil dataset, distil teacher-evaluation, distil slm, distil deployment,
@@ -42,9 +44,10 @@ every other page links to it.
   (`relabel-traces.md`, `synthetic-data-generation.md`), which run one expand operation on one
   split.
 - **Workflows** (`workflows/`): sequence the stages and own the decision points, verdicts and
-  gates. `build-a-model.md` is the outer loop, from traffic to a served model and back;
-  `model-iterations.md` is the inner loop that improves a model on a locked test set. Each
-  opens with a Workflow Map; print it to the user when the workflow starts.
+  gates. There are two: `build-a-model.md` builds a model in a single pass, from traffic or
+  files to a served model, and `autoresearch.md` iterates on a model for the user, running
+  `stages/model-iteration.md` until an agreed target or budget. Each opens with a Workflow
+  Map; print it to the user when the workflow starts.
 - **References** (`references/`): shared knowledge, one page per topic.
   `references/platform.md` owns how the platform behaves.
 - **Execution backends** (`references/execution/`): the only files that know how stages actually
@@ -87,6 +90,13 @@ the price from a `--dry-run` against the balance (`references/platform.md` § Bi
 the user's go-ahead. Nothing launches on defaults the user never saw. After the analysis,
 present the findings and agree on the next step together.
 
+A plan the user confirmed covers the stages that carry it out: a stage run from
+`stages/model-iteration.md` Step 4 presents only what differs from that plan, and under
+`workflows/autoresearch.md` the Step 0 agreement replaces every gate of the stages it runs,
+including the agreement after the analysis. Neither covers a decision that
+`workflows/autoresearch.md` Step 0 lists as the user's, and every submission is still priced
+with `--dry-run`.
+
 The user follows the work in the dashboard, https://app.distillabs.ai, signed in with the
 same account as the CLI. When a job starts, give them the page of what it creates:
 `/datasets/<id>`, `/slms/<id>`, `/traces/<id>` or `/inference-endpoints/<unique-name>` under
@@ -107,12 +117,13 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
 | `stages/synthetic-data-generation.md` | Mechanics: one generation run into the test or the train split |
 | `stages/teacher-evaluation.md` | Pick the teacher from a shortlist, and score the production model as the baseline |
 | `stages/model-training.md` | Finetune the student and evaluate it |
+| `stages/model-iteration.md` | Improve a trained model by one change: read the scores, inspect the predictions, find the step the errors come from, change it, run again; keeps the ledger |
 | `stages/local-deployment.md` | Serve the trained model with vLLM on your own GPU |
 
 | Workflow | Purpose |
 |---|---|
-| `workflows/build-a-model.md` | The outer loop: endpoint → traces → dataset → test set → teacher evaluation → train set → training → serving endpoint → back to traces. Entry points: an LLM in production, or files on disk |
-| `workflows/model-iterations.md` | The inner loop: read the scores, inspect the predictions, find the step the errors come from, change it, run again. Runs autonomously to an agreed target on a locked test set |
+| `workflows/build-a-model.md` | A single pass: endpoint → traces → dataset → test set → teacher evaluation → train set → training → serving endpoint → back to traces. Entry points: an LLM in production, or files on disk |
+| `workflows/autoresearch.md` | The agent iterates on a model on its own: `stages/model-iteration.md` again and again, to a target and within a budget agreed once with the user |
 
 | Reference | Purpose |
 |---|---|
@@ -152,8 +163,11 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
 - Single-stage request ("run a teacher eval", "train on this dataset") → that stage file plus
   the execution backend in use. If none is set up yet, run
   `references/execution/README.md` § Set up the CLI and § Choose the backend first.
-- Results are disappointing ("teacher score is low", "student is far below teacher"), or "keep
-  iterating until the model is good" → `workflows/model-iterations.md`.
+- Results are disappointing ("teacher score is low", "student is far below teacher", "what
+  should I change") → `stages/model-iteration.md`, one iteration with the user.
+- "Keep iterating until the model is good", "iterate on it for me", a target or a budget for
+  improving the model, or autoresearch → `workflows/autoresearch.md`. This wins over the
+  end-to-end route when a request asks for both: autoresearch runs `build-a-model.md` first.
 - A seed dataset, a training dataset, or a command that exits 1 naming another command →
   `references/migrating-old-entities.md`.
 - One model for many system prompts ("per-request system prompt", "multi-tenant prompt",

@@ -53,7 +53,8 @@ a project if you skip it. On Windows, run the CLI inside WSL.
 ## Layout
 
 `SKILL.md` is the entry point. `stages/` holds one unit of pipeline work each, `workflows/` the
-two workflows (the build loop and the improvement loop), and `references/` the shared knowledge,
+two workflows (building a model in a single pass, and autoresearch, where the agent iterates on
+the model for you), and `references/` the shared knowledge,
 with every `distil` command in `references/execution/cli.md` and every REST API request in
 `references/execution/backend-api.md`. Swapping the CLI for the REST API changes the commands and
 nothing else.

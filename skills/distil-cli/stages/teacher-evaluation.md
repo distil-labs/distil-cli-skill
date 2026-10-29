@@ -60,9 +60,10 @@ Before submitting, present and confirm:
   did not see
 - the judge setup for free-text tasks
 - the price of each run from `--dry-run`, against the balance, for the whole shortlist plus one
-  more run if the user plans to iterate: `../workflows/model-iterations.md` Step 0 repeats one
-  run to measure the noise. The teacher's tier sets the price, so it differs across the
-  shortlist (`../references/platform.md` § Billing)
+  more run of the best teacher if the user plans to iterate: the spread between its two runs
+  is the noise every iteration is read against (`model-iteration.md` § The Ledger). The
+  teacher's tier sets the price, so it differs across the shortlist
+  (`../references/platform.md` § Billing)
 
 ## Step 3: Run the Evaluations
 
@@ -100,7 +101,7 @@ Review the table and the failure patterns with the user
   it becomes `base.teacher_model_name` for `build-a-train-set.md`. Record the chosen teacher,
   the production model's score (the baseline) and the TeacherEvaluation ids in the project
   root's `test-set.md`, next to the test-set Dataset id; `model-training.md` Step 7 and
-  `../workflows/model-iterations.md` read them from there.
+  `model-iteration.md` read them from there.
 - **ITERATE**: add a better-suited teacher to the shortlist, or fix mislabelled test rows
   (`build-a-test-set.md` Step 4). When the teacher misses conventions the user's labels follow,
   write them into `task_description` with the user's approval, then evaluate again

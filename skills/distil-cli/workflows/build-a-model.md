@@ -1,6 +1,6 @@
 # Workflow: Build a Model
 
-The outer loop: from the user's traffic or files to a served model, and from the served model's
+A single pass: from the user's traffic or files to a served model, and from the served model's
 traffic to the next model. Each step is a stage file: follow the stage's own protocol and
 return here for the next step. Before the first step, install the `distil` CLI and sign in per
 `../references/execution/README.md` § Set up the CLI, then settle the execution backend per
@@ -33,7 +33,7 @@ Print this map to the user when starting the workflow, before the first step:
  7 Train set ─── relabel some of the remaining traces, then synthetic rows: smoke ► full
    ▼
  8 Train and decide ─┬─ Deploy candidate, above the baseline ─► 9
-   │                 └─ Not good enough ─► model-iterations.md (the inner loop)
+   │                 └─ Not good enough ─► model-iteration.md, or autoresearch.md
    ▼
  9 Serving endpoint ─── the student as primary, the production model as fallback
    ▼
@@ -51,6 +51,7 @@ Ask what the user has, then start at the matching step. Both entries meet at Ste
 | The user has | Entry |
 |---|---|
 | An LLM in production that OpenRouter serves, and can point the application at an inference endpoint | A, Step 1 |
+| An inference endpoint that already holds the traces | A, Step 3 |
 | Files: a trace file (exported logs, converted), a labelled train set, a test set, or any combination | B, Step 4 |
 
 Prefer entry A whenever the production model is on OpenRouter: Step 9 needs an endpoint anyway,
@@ -142,10 +143,11 @@ Every score is the primary metric agreed for the project
 
 - **Deploy candidate**, and above the production model when there is a baseline → Step 9. For
   a sweep, the smallest student that clears the bar.
-- **Anything else** → `model-iterations.md`, which decides whether to retune (Step 8 again on
-  the same Dataset), rebuild the train set (Step 7), change the teacher (Step 6), or, with the
-  user's approval, change the test set (Step 5). It returns here with a deploy candidate, or
-  with a report of why it stopped.
+- **Anything else** → `../stages/model-iteration.md`, one iteration with the user, which
+  decides whether to retune (Step 8 again on the same Dataset), rebuild the train set (Step 7),
+  change the teacher (Step 6), or, with the user's approval, change the test set (Step 5).
+  When the user wants the agent to keep iterating on its own, `autoresearch.md` instead. Both
+  return here with a deploy candidate, or with a report of why they stopped.
 
 ## Step 9: Deploy to an Inference Endpoint
 
@@ -189,4 +191,5 @@ Rows Come From). When the user wants the model retrained on the records:
    failures the user sees in production are not in the test set.
 4. Step 6 only when the test set changed; with the same rows, the teacher and the baseline
    scores in `test-set.md` still hold. Then Steps 7 and 8. The previous model's scores are in
-   the ledger; with the same test set, the new model is read against them.
+   the ledger (`../stages/model-iteration.md` § The Ledger); with the same test set, the new
+   model is read against them.
