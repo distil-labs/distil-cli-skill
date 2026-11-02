@@ -196,10 +196,10 @@ submission. See § Overrides.
 |---|---|---|---|---|
 | (job input) | PreparedTraces | `POST /prepared-traces`, from a staged `traces.jsonl` or an endpoint's name | `GET /prepared-traces[/<id>]`, `GET /prepared-traces/<id>/download` | no config of its own |
 | (job input) | Dataset | `POST /datasets` from staged files, or `POST /datasets/from-prepared-traces` with a config and a job description inline | `GET /datasets[/<id>]`, `GET /datasets/<id>/{status,logs,metrics,sample,download,download-metadata}` | staged files only |
-| relabel-traces | Dataset → Dataset | `POST /datasets/from-datasets[-smoke]` with `operation: relabel_traces_{train,test}` | same | yes |
-| synthetic-data-generation | Dataset → Dataset | `POST /datasets/from-datasets[-smoke]` with `operation: generate_synthetic_data_{train,test}` | same | yes |
+| relabel-traces | Dataset → Dataset | `POST /datasets/from-datasets` with `operation: relabel_traces_{train,test}` | same | yes |
+| synthetic-data-generation | Dataset → Dataset | `POST /datasets/from-datasets` with `operation: generate_synthetic_data_{train,test}` | same | yes |
 | teacher-evaluation | TeacherEvaluation | `POST /teacher-evaluations` with `from_dataset_id` | `GET /teacher-evaluations[/<id>]`, `GET /teacher-evaluations/<id>/{status,logs,metrics,download-metadata}` | yes |
-| model-training | SLM | `POST /slms/from-datasets[-smoke]`, or `POST /slms` from a staged tarball | `GET /slms[/<id>]`, `GET /slms/<id>/{status,logs,metrics,download,download-metadata}` | yes |
+| model-training | SLM | `POST /slms/from-datasets`, or `POST /slms` from a staged tarball | `GET /slms[/<id>]`, `GET /slms/<id>/{status,logs,metrics,download,download-metadata}` | yes |
 | inference-endpoint | Deployment, InferenceEndpoint | `POST /deployments/from-slms`, then `POST /inference-endpoints` with the deployment as `primary`; or `POST /inference-endpoints` with no primary | `GET /deployments/<id>/{status,endpoint,logs}`, `DELETE /deployments/<id>`, `GET /inference-endpoints[/<name>]` | no config of its own |
 
 Seed datasets, training datasets and 410 responses: `../migrating-old-entities.md`.
@@ -220,8 +220,7 @@ field, `model_client_url`. A PreparedTraces has no config or job description.
 
 `balance()` reads the balance. `price()` posts a billed job's body with `?dry_run=true`,
 which prices it and starts nothing. The billed routes are `POST /teacher-evaluations`,
-`/datasets/from-datasets`, `/datasets/from-datasets-smoke`, `/slms/from-datasets`,
-`/slms/from-datasets-smoke` and `/deployments/from-slms`. Price the exact body the submission
+`/datasets/from-datasets`, `/slms/from-datasets` and `/deployments/from-slms`. Price the exact body the submission
 will send, overrides included:
 
 ```python
@@ -339,17 +338,20 @@ Record each id in `run.md` as the create returns it, and wait for its job (§ Wa
 before the next expand names it as `from`.
 
 The count comes from the parent's config, `trace_processing.num_{split}_relabelled`, or from
-the `config` override. A smoke is the same body posted to `/datasets/from-datasets-smoke`,
-which forces the count to 128 whatever the config says (`../platform.md` § Smoke runs).
+the `config` override. A smoke is an override that sets the count to 128 (`../platform.md`
+§ Smoke runs).
 
 ### Synthetic data generation
 
 The same route and body with `operation: generate_synthetic_data_train` or
-`generate_synthetic_data_test`; the target is `synthgen.{split}_generation_target`, and the
-`-smoke` route forces it to 128:
+`generate_synthetic_data_test`; the target is `synthgen.{split}_generation_target`, and a
+smoke's override sets it to 128:
 
 ```python
-smoke_id = post("/datasets/from-datasets-smoke", {
+config = config_of("datasets", dataset_id)
+config["synthgen"]["train_generation_target"] = 128
+
+smoke_id = post("/datasets/from-datasets", {
     "from": dataset_id, "operation": "generate_synthetic_data_train", "config": config,
 })["id"]
 poll("datasets", smoke_id)
@@ -363,8 +365,8 @@ ends in `JOB_FAILURE` with the cause in the log.
 ### Overrides
 
 Every job create accepts optional `config` and `job_description` objects inline, alongside
-`from`: `POST /datasets/from-datasets` and `-smoke`, `POST /teacher-evaluations` (alongside
-`from_dataset_id`), `POST /slms/from-datasets` and `-smoke`. The two are independent, and there
+`from`: `POST /datasets/from-datasets`, `POST /teacher-evaluations` (alongside
+`from_dataset_id`) and `POST /slms/from-datasets`. The two are independent, and there
 is no staging step for either. An omitted one is read from the parent Dataset's own files.
 
 Each replaces the parent's file whole, and anything you leave out reverts to a library default
@@ -430,16 +432,31 @@ slm_id = post("/slms/from-datasets", {"from": dataset_id})["id"]
 poll("slms", slm_id)
 ```
 
-A memory check before the full run is the same submission on `/slms/from-datasets-smoke`: one
-epoch on the 128 longest train rows and the 32 longest test rows (`../platform.md` § Smoke
-runs). Send it the config the full run will use, since the student and the batch size are what
-it checks:
+A smoke trains one epoch on an uploaded Dataset of the longest rows (`../platform.md` § Smoke
+runs). Build it once per Dataset from the downloaded splits (§ Reading a Dataset), then train
+on it with the config the full run will use, since the student and the batch size are what it
+checks:
 
 ```python
+smoke_dir = Path("smoke-data")
+smoke_dir.mkdir(exist_ok=True)
+download = get(f"/datasets/{dataset_id}/download")
+for field, name, count in [("train_data_url", "train.jsonl", 128), ("test_data_url", "test.jsonl", 32)]:
+    lines = [line for line in requests.get(download[field]).text.splitlines() if line]
+    (smoke_dir / name).write_text("".join(f"{line}\n" for line in sorted(lines, key=len, reverse=True)[:count]))
 config = config_of("datasets", dataset_id)
-config["base"]["student_model_name"] = "<student-a>"
+(smoke_dir / "config.yaml").write_text(yaml.safe_dump(config))
+(smoke_dir / "job_description.json").write_text(json.dumps(job_description_of("datasets", dataset_id)))
+smoke_dataset_id = post("/datasets", stage("/staging-datasets-s3-urls", {
+    "config": smoke_dir / "config.yaml",
+    "job_description": smoke_dir / "job_description.json",
+    "train_data": smoke_dir / "train.jsonl",
+    "test_data": smoke_dir / "test.jsonl",
+}, DATASET_FIELDS))["id"]
 
-smoke_id = post("/slms/from-datasets-smoke", {"from": dataset_id, "config": config})["id"]
+config["base"]["student_model_name"] = "<student-a>"
+config.setdefault("tuning", {})["num_train_epochs"] = 1
+smoke_id = post("/slms/from-datasets", {"from": smoke_dataset_id, "config": config})["id"]
 poll("slms", smoke_id)
 ```
 

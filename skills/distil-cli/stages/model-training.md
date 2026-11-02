@@ -14,6 +14,7 @@ before submitting that the model cannot be measured yet.
 model-training/
 ├── base-input/          # the Dataset id and its config; every run derives from it
 │                        # (one per Dataset trained on: base-input-2/ for the next iteration)
+├── smoke-data/          # the longest rows, uploaded as the smoke Dataset; its id in base-input/
 ├── smoke-<student>-1/   # memory check; one series per selected student
 │   ├── input/           # the config sent for this run
 │   ├── run.md           # the Dataset id, the override sent and the SLM id returned
@@ -31,6 +32,11 @@ for the last expand (`../references/execution/cli.md` § Wait for a job) before 
 
 Read its config once into `base-input/` (`../references/execution/cli.md` § Overrides). Every run
 edits the fields it varies and sends the whole file as an override.
+
+Unless the user has already chosen the fast path, build the smoke Dataset now, so Step 2 can
+price a smoke: the 128 longest train rows and the 32 longest test rows, uploaded as a Dataset of
+their own (`../references/execution/cli.md` § Model training; `../references/platform.md`
+§ Smoke runs). The upload is free. Record its id in `base-input/`.
 
 The settings that matter are in `base` and `tuning` (`../references/configuration.md`):
 `base.student_model_name`, `tuning.per_device_train_batch_size` (default 1) and
@@ -55,9 +61,9 @@ Before submitting anything, present and confirm:
 ## Step 3: Smoke Run
 
 A smoke checks that a student fits in memory, on a subsample of the data, before the full run
-is charged. Submit with `--smoke` (`../references/execution/cli.md` § Model
-training; what it trains on: `../references/platform.md` § Smoke runs) and an override that sets
-the student and the batch size the full run will use. One `smoke-<student>-N` series per
+is charged. Submit on the smoke Dataset from Step 1 (`../references/execution/cli.md` § Model
+training) with an override that sets `tuning.num_train_epochs: 1` and the student and the batch
+size the full run will use. One `smoke-<student>-N` series per
 student, since students of different sizes fit differently. Record `run.md`.
 
 ## Step 4: Pull and Analyze the Smoke Outputs
@@ -76,9 +82,9 @@ Move on once every student fits.
 
 Present the plan first: the students, each one's settings, and the price of each
 run from `--dry-run`. On the user's go-ahead, submit one training per
-student against the same Dataset, without `--smoke`: all the training data, `num_train_epochs`
-at its default of 4 unless the plan changes it, and the settings that passed the smoke. Each submission sends a full copy
-of the config with its student and settings. The submissions run concurrently.
+student against the Dataset from Step 1, not the smoke Dataset: all the training data,
+`num_train_epochs` at its default of 4 unless the plan changes it, and the settings that passed
+the smoke. Each submission sends a full copy of the config with its student and settings. The submissions run concurrently.
 
 ## Step 7: Analyze the Results
 

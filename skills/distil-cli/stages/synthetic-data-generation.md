@@ -32,7 +32,7 @@ synthetic-data-generation-<split>/
 │   ├── run.md           # the parent Dataset id, the command and the new Dataset id
 │   └── output/          # the new Dataset, downloaded, and the parent's files for the diff
 ├── smoke-2/             # next smoke: one change against smoke-1
-├── full-1/              # the last passing smoke's settings, without --smoke
+├── full-1/              # the last passing smoke's settings with the planned target
 └── top-up-1/            # a later run on another parent (build-a-train-set.md § Topping Up)
 ```
 
@@ -105,10 +105,11 @@ Before submitting anything, present and confirm:
 
 ## Step 3: Smoke Run
 
-Submit with `--smoke` (`../references/execution/cli.md` § Synthetic data generation), which
-sets the target to 128 whatever the config says. The smoke's Dataset is a side branch: the full run
-goes on the same parent (`../references/platform.md` § Smoke runs). Record the command and the
-new Dataset id in `run.md`.
+Submit the config with the split's generation target set to 128 as an override on the parent
+(`../references/execution/cli.md` § Synthetic data generation), and keep it in `input/`. The
+smoke's Dataset is a side branch: the full run goes on the same parent
+(`../references/platform.md` § Smoke runs). Record the command and the new Dataset id in
+`run.md`.
 
 ## Step 4: Pull and Analyze the Smoke Outputs
 
@@ -149,8 +150,8 @@ and the user agrees to the full run.
 
 ## Step 6: Full Run
 
-Submit the last passing smoke's settings without `--smoke`, with the target the outcome stage
-set, as an override on the parent Dataset. Record the ids in `run.md`.
+Submit the last passing smoke's settings, with the target the outcome stage set in place of
+128, as an override on the parent Dataset. Record the ids in `run.md`.
 
 ## Step 7: Analyze the Results
 

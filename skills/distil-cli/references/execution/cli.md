@@ -31,10 +31,10 @@ argument. Paths in the snippets are illustrative; the stage files own the workin
 |---|---|---|---|---|
 | (job input) | PreparedTraces | `distil traces upload --traces <file>`, or `distil traces create-from-inference-endpoint <unique-endpoint-name>` | `distil traces {list,show,download}` | no config of its own |
 | (job input) | Dataset | `distil dataset create --data <dir>`, or `distil dataset create-from-traces --config <file> --job-description <file> <traces-id>` | `distil dataset {list,show,status,logs,metrics,download,download-metadata}` | the files on disk |
-| relabel-traces | Dataset → Dataset | `distil dataset relabel-traces-{train,test} [--smoke] <dataset-id>` | same | yes |
-| synthetic-data-generation | Dataset → Dataset | `distil dataset generate-synthetic-data-{train,test} [--smoke] <dataset-id>` | same | yes |
+| relabel-traces | Dataset → Dataset | `distil dataset relabel-traces-{train,test} <dataset-id>` | same | yes |
+| synthetic-data-generation | Dataset → Dataset | `distil dataset generate-synthetic-data-{train,test} <dataset-id>` | same | yes |
 | teacher-evaluation | TeacherEvaluation | `distil teacher-evaluation create-from-dataset <dataset-id>` | `distil teacher-evaluation {list,show,status,logs,metrics,download-metadata,download-predictions}` | yes |
-| model-training | SLM | `distil slm create-from-dataset [--smoke] <dataset-id>` | `distil slm {list,show,status,logs,metrics,download,download-metadata,download-predictions}` | yes |
+| model-training | SLM | `distil slm create-from-dataset <dataset-id>` | `distil slm {list,show,status,logs,metrics,download,download-metadata,download-predictions}` | yes |
 | inference-endpoint | Deployment, InferenceEndpoint | `distil deployment create-from-slm <slm-id>`, then `distil inference-endpoint create-from-deployment <deployment-id>`; or `distil inference-endpoint create` with no SLM | `distil deployment {status,logs}`, `distil inference-endpoint {list,show,download-traces}` | no config of its own |
 
 Seed datasets and training datasets: `../migrating-old-entities.md`.
@@ -94,8 +94,8 @@ adds funds; when no browser opens, it prints the URL.
 The commands that start a billed job take `--dry-run`: `teacher-evaluation
 create-from-dataset`, the four `dataset` expand commands (`relabel-traces-*`,
 `generate-synthetic-data-*`), `slm create-from-dataset` and `deployment create-from-slm`. It
-prices the job and starts nothing. It combines with `--smoke`, `--config` and
-`--job-description`, so price the exact submission:
+prices the job and starts nothing. It combines with `--config` and `--job-description`, so
+price the exact submission:
 
 ```bash
 distil slm create-from-dataset --dry-run --config sweep/student.yaml <dataset-id>
@@ -169,25 +169,29 @@ are already on the platform.
 ```bash
 distil dataset relabel-traces-test --output json <dataset-id> | jq -r .id     # the new Dataset
 distil dataset relabel-traces-train --output json <dataset-id> | jq -r .id
-distil dataset relabel-traces-test --smoke --output json <dataset-id> | jq -r .id
 distil dataset status --output json <new-dataset-id> | jq -r .status
 ```
 
 The count comes from `trace_processing.num_test_relabelled` or `num_train_relabelled` in the
-parent's config, or from the override; `--smoke` forces it to 128 (`../platform.md` § Smoke
-runs).
+parent's config, or from the override (§ Overrides). A smoke is an override that sets it to 128
+(`../platform.md` § Smoke runs):
+
+```bash
+distil dataset relabel-traces-test --output json \
+  --config relabel/smoke-1/config.yaml <dataset-id> | jq -r .id
+```
 
 ### Synthetic data generation
 
 ```bash
 distil dataset generate-synthetic-data-train --output json <dataset-id> | jq -r .id
 distil dataset generate-synthetic-data-test --output json <dataset-id> | jq -r .id
-distil dataset generate-synthetic-data-train --smoke --output json \
+distil dataset generate-synthetic-data-train --output json \
   --config synthgen/smoke-2/config.yaml <dataset-id> | jq -r .id
 ```
 
-The target comes from `synthgen.train_generation_target` or `test_generation_target`;
-`--smoke` forces it to 128 and combines with the override flags.
+The target comes from `synthgen.train_generation_target` or `test_generation_target` in the
+parent's config, or from the override; a smoke's override sets it to 128.
 
 ### Overrides
 
@@ -260,11 +264,23 @@ for config in sweep/student-*.yaml; do
 done
 ```
 
-A smoke takes the same arguments plus `--smoke` (`../platform.md` § Smoke runs):
+A smoke trains one epoch on an uploaded Dataset of the longest rows (`../platform.md` § Smoke
+runs). Build it once per Dataset, then train on it with each student's config, set to
+`tuning.num_train_epochs: 1`:
 
 ```bash
-distil slm create-from-dataset --smoke --output json \
-  --config sweep/student-qwen3.5-4b.yaml <dataset-id> | jq -r .id
+distil dataset download -d smoke-data <dataset-id>                    # free
+for split in train:128 test:32; do
+  file=smoke-data/${split%%:*}.jsonl
+  awk '{ print length($0) "\t" $0 }' "$file" | sort -t$'\t' -k1,1nr \
+    | head -n "${split##*:}" | cut -f2- > "$file.tmp" && mv "$file.tmp" "$file"
+done
+rm smoke-data/traces.jsonl                    # training reads train and test only
+distil dataset create --data smoke-data       # Upload successful. Dataset ID: <smoke-dataset-id>
+
+# edit smoke-qwen3.5-4b/config.yaml from the student's config: tuning.num_train_epochs: 1
+distil slm create-from-dataset --output json \
+  --config smoke-qwen3.5-4b/config.yaml <smoke-dataset-id> | jq -r .id
 ```
 
 ## Monitor

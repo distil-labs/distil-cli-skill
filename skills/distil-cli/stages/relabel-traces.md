@@ -94,10 +94,11 @@ Before submitting anything, present and confirm:
 
 ## Step 3: Smoke Run
 
-Submit with `--smoke` (`../references/execution/cli.md` § Relabel traces), which relabels 128
-traces of the parent whatever the config says. Below 128 traces, take the fast path. The smoke's Dataset is a side branch: the full
-run goes on the same parent (`../references/platform.md` § Smoke runs). Record the parent id,
-the command and the new Dataset id in `run.md`.
+Submit the config with `num_{split}_relabelled: 128` as an override on the parent
+(`../references/execution/cli.md` § Relabel traces), and keep it in `input/`. Below 128 traces,
+take the fast path. The smoke's Dataset is a side branch: the full run goes on the same parent
+(`../references/platform.md` § Smoke runs). Record the parent id, the command and the new
+Dataset id in `run.md`.
 
 ## Step 4: Pull and Analyze the Smoke Outputs
 
@@ -127,8 +128,8 @@ both axes.
 
 ## Step 6: Full Run
 
-Submit the last passing smoke's config, with the intended `num_{split}_relabelled`, as an
-override on the parent Dataset, without `--smoke`. Record the ids in `run.md`.
+Submit the last passing smoke's config, with the intended `num_{split}_relabelled` in place of
+128, as an override on the parent Dataset. Record the ids in `run.md`.
 
 ## Step 7: Analyze the Results
 

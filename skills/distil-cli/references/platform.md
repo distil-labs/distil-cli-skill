@@ -105,22 +105,27 @@ rather than relying on reading it back.
 
 ## Smoke runs
 
-The four expand operations and training take a smoke flag that runs the job small, on the same
-parent and with the same config otherwise:
+A smoke run is the job made small, with the same config otherwise:
 
-- **Relabel traces smoke**: the split's `num_{split}_relabelled` is forced to 128.
-- **Synthetic data generation smoke**: the split's generation target is forced to 128.
-- **Training smoke**: one epoch (`tuning.num_train_epochs: 1`) on the 128 longest train rows
-  and the 32 longest test rows of the Dataset. The rows are chosen by length alone, not per
-  class.
+- **Relabel traces smoke**: an override (§ Overrides) of
+  `trace_processing.num_{split}_relabelled: 128` on the same parent.
+- **Synthetic data generation smoke**: an override of `synthgen.{split}_generation_target: 128`
+  on the same parent.
+- **Training smoke**: one epoch (`tuning.num_train_epochs: 1`) on a Dataset uploaded with the
+  128 longest train rows and the 32 longest test rows of the Dataset to train on. The rows are
+  chosen by length alone, not per class. The longest rows set peak memory, so the smoke checks
+  that the full run fits.
 
-All accept config and job-description overrides, and all are priced on their smaller inputs
-(§ Billing), a fraction of the full run. A smoke expand writes a Dataset of its own, a side branch
-of the parent: the full run is submitted on the same parent, not on the smoke's child, so the
-smoke never costs the full run any traces.
+A smoke is priced on its smaller input (§ Billing), a fraction of the full run, and the upload
+for a training smoke is free. A smoke expand writes a Dataset of its own, a side branch of the
+parent: the full run is submitted on the same parent, not on the smoke's child, so the smoke
+never costs the full run any traces.
 
-Never continue from a smoke child: its config carries the smoke values. The full run, and every
-expand after it, is submitted on the smoke's parent.
+Never continue from a smoke's Dataset: its config carries the smoke values and, for training,
+it holds a fraction of the rows. The full run, and every expand after it, is submitted on the
+Dataset the smoke was made from, with the planned values.
+
+Teacher evaluation has no smoke run.
 
 ## Overrides
 
