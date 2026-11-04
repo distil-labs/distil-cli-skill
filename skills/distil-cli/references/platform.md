@@ -166,7 +166,39 @@ failed job is still charged.
 
 Every teacher and student has a price tier. Larger models and thinking variants are in the
 higher tiers, so the teacher choice moves the price of every expand after it, and the student
-choice the price of training and deployment.
+choice the price of training and deployment. `--dry-run` names the tier of each charge. Prices
+in USD.
+
+Open-weight teachers and all students are in `low`, `medium` or `high`:
+
+| Job | Unit | `low` | `medium` | `high` |
+|---|---|---|---|---|
+| Teacher evaluation | per 1M test set tokens | $1.00 | $4.00 | $12.00 |
+| Relabel traces | per 1M trace tokens, per teacher | $1.00 | $4.00 | $12.00 |
+| Synthetic data generation | per 1M generated tokens | $1.00 | $4.00 | $12.00 |
+| SFT training | per 1M train set tokens × epochs | $0.10 | $0.25 | $0.50 |
+| RLVR training | per 1M train set tokens × epochs | $0.60 | $1.50 | $3.00 |
+| Deployment | per deployment | $5.00 | $5.00 | $5.00 |
+
+For example `openai.gpt-oss-120b` is `low`, `deepseek.v4-pro` `medium` and `moonshotai.kimi-k3`
+`high` as teachers, and `Qwen3-0.6B`, `Qwen3-4B-Instruct-2507` and `Qwen3.5-9B` the same as
+students.
+
+Proprietary teachers run teacher evaluation only (`model-catalog.md` § Teacher models) and have
+their own tiers:
+
+| Job | Unit | `proprietary_low` | `proprietary_mid` | `proprietary_high` |
+|---|---|---|---|---|
+| Teacher evaluation | per 1M test set tokens | $2.50 | $15.00 | $75.00 |
+
+A proprietary teacher's tier follows its running cost with reasoning included, not its family,
+so a `-thinking` variant can be a tier above the same model without it:
+
+- `proprietary_low`: `openai.gpt-6-luna`, `openai.gpt-6-luna-thinking`, `google.gemini-3.5-flash-lite`
+- `proprietary_mid`: `anthropic.claude-sonnet-5-5`, `anthropic.claude-opus-5`, `openai.gpt-6-sol`, `google.gemini-3.8-flash-thinking`
+- `proprietary_high`: `anthropic.claude-opus-5-5`, `anthropic.claude-sonnet-5-5-thinking`, `openai.gpt-6-sol-thinking`
+
+These are examples. Read a model's tier from `--dry-run`, not from this list.
 
 Every stage's setup gate prices what it is about to submit with `--dry-run`
 (`execution/cli.md` § Billing) and quotes the price and the balance. A dry run is free, starts
