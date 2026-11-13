@@ -153,8 +153,10 @@ Dataset after it inherits the change.
 Jobs that run a model are paid from one prepaid balance in US dollars. Everything else is free:
 uploads, traces objects, Datasets from traces, model uploads, inference endpoints, API keys,
 downloads and reads. A billed job is priced from its data and config when it is submitted, and
-the balance is charged then. The charge is the estimate, not what the job ends up using, and a
-failed job is still charged.
+the balance is charged then. The charge is the estimate, not what the job ends up using. When a
+job fails, its charge is refunded in full to the balance automatically, and the refund shows as
+its own line on the billing page. Deployments are the exception: a failed deployment is not
+refunded.
 
 | Job | Usage event | Quantity | Priced at the tier of |
 |---|---|---|---|
