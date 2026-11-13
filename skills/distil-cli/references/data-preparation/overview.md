@@ -26,8 +26,7 @@ Train and test rows are chat-format conversations.
 | Task | Row shape |
 |---|---|
 | `question-answering` | `{"messages": [<user>, <assistant>]}` |
-| `chat-completion` | `{"messages": [<user>, <assistant>, ...]}`, assistant turns carry content, `tool_calls`, or both |
-| `chat-completion-agentic` | `{"messages": [<user>, <assistant with tool_calls>, <tool>, ..., <assistant>]}` |
+| `chat-completion` | `{"messages": [<user>, <assistant>, ...]}`, assistant turns carry content, `tool_calls`, or both, and `<tool>` results may follow a turn with calls |
 
 - `<user>` and `<assistant>` are `{"role": ..., "content": "<non-empty>"}`. The final assistant
   message carries the answer or label as `content`.

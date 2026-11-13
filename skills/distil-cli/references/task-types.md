@@ -8,7 +8,6 @@
 |---|---|---|
 | Question Answering | `question-answering` | QA |
 | Chat Completion | `chat-completion` | Conversation |
-| Agentic Chat Completion | `chat-completion-agentic` | Conversation |
 
 Job description types: `job-description.md`.
 
@@ -18,12 +17,12 @@ Job description types: `job-description.md`.
 |---|---|
 | Free text for a single input (answers, extractions, transformations, JSON documents) | `question-answering` |
 | One label from a fixed set | `question-answering` with a mutator over the labels (`data-preparation/question-answering.md` § Classifying with question-answering) |
-| A conversational turn: free text, tool calls, or both; the model never sees tool results | `chat-completion` |
-| An agentic loop: tool calls whose results feed back, ending in a grounded answer | `chat-completion-agentic` |
+| A conversational turn: free text, tool calls, or both, with or without the tool results fed back (an agentic loop) | `chat-completion` |
 
 `question-answering` is the catch-all for any text-in text-out problem, labels included. When
-the input carries a document or retrieved text, put it inside the user message. Data with tool
-results in it is `chat-completion-agentic`.
+the input carries a document or retrieved text, put it inside the user message. Conversations, with
+or without tools and tool results, are `chat-completion`. `chat-completion-agentic` is rejected:
+change `base.task` to `chat-completion` and keep the job description, data and config as they are.
 
 Data formats and rules: `data-preparation/question-answering.md`, and
-`data-preparation/chat-completion.md` for both chat completion tasks.
+`data-preparation/chat-completion.md` for chat completion.

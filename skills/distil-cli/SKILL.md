@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "14.1.0"
+  version: "15.0.0"
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing a
   dataset (config.yaml, job_description.json, traces, train and test rows), running or
@@ -130,7 +130,7 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
 | `references/platform.md` | How the platform behaves: entities, the expand operations, jobs, smoke runs, overrides, billing, outputs |
 | `references/task-types.md` | The four task types and how to choose between them |
 | `references/data-preparation/overview.md` | The Dataset directory contract and validation checklist (read first) |
-| `references/data-preparation/<task>.md` | Per-task data format: `question-answering.md` (also classifying into labels), `chat-completion.md` (both chat completion tasks) |
+| `references/data-preparation/<task>.md` | Per-task data format: `question-answering.md` (also classifying into labels), `chat-completion.md` |
 | `references/data-preparation/traces.md` | Trace formats, and converting inference endpoint records |
 | `references/job-description.md` | Writing job descriptions per task type |
 | `references/configuration.md` | config.yaml parameters, defaults, cross-field validation |

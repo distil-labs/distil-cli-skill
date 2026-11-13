@@ -22,7 +22,7 @@ With the flag off, every row and request uses the job description's system promp
 
 | Task | System prompt |
 |---|---|
-| `question-answering`, `chat-completion`, `chat-completion-agentic` | `task_description` |
+| `question-answering`, `chat-completion` | `task_description` |
 
 With the flag on, a row without a system message gets this same prompt.
 

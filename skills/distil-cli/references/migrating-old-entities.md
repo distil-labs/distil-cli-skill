@@ -28,8 +28,9 @@ move its files into a Dataset:
      the class labels (`data-preparation/question-answering.md` § Classifying with
      question-answering).
    - **`tool-calling-closed-book`** and **`multi-turn-tool-calling-closed-book`**: set
-     `base.task: chat-completion`, or `chat-completion-agentic` when the rows carry tool
-     results (`data-preparation/chat-completion.md`).
+     `base.task: chat-completion` (`data-preparation/chat-completion.md`).
+   - **`chat-completion-agentic`**: set `base.task: chat-completion`. The job description, rows
+     and the rest of the config stay as they are.
    - **A QA job description** with text in `input_description` or `context_description`:
      remove the two keys.
    - **Deprecated config keys**: replace or delete them (`configuration.md` § Deprecated keys).

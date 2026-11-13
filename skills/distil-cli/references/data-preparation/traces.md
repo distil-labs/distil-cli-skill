@@ -60,7 +60,7 @@ turn to the request's `messages`, carry `tools` across when present, and write o
 - **The wrong model's answers**, once a student sits in front of the fallback: filter on
   `metadata.source` for the answers the next iteration should learn from.
 - **Earlier steps of an agent loop** need no filtering: an agent makes one call per step, and
-  for the chat completion tasks the platform drops a trace whose messages are a prefix of
+  for chat completion the platform drops a trace whose messages are a prefix of
   another trace's, so each loop counts once.
 
 ```python

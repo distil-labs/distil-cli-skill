@@ -37,7 +37,7 @@ setup:
   decides whether to call. `invoke` returns the whole assistant message, content and tool calls
   included.
 - The client sends one request per call and does not run the agentic loop: for
-  `chat-completion-agentic`, the caller executes the calls, appends the assistant message plus
+  a chat completion model trained on tool results, the caller executes the calls, appends the assistant message plus
   one `{"role": "tool", "tool_call_id": ..., "content": ...}` per call, and invokes again.
 
 A hand-built chat completions request matches none of that and does not fail: the server

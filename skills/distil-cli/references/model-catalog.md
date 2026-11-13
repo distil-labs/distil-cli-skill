@@ -107,8 +107,7 @@ load. Vision students: `Qwen3.5-0.8B`, `Qwen3.5-2B`, `Qwen3.5-4B`, `Qwen3.5-9B`,
 
 ## Tool-calling compatibility
 
-Applies to the chat completion tasks whenever the job description declares tools (always,
-for `chat-completion-agentic`). A tool-free `chat-completion` job has no model restriction.
+Applies to chat completion whenever the job description declares tools. A tool-free `chat-completion` job has no model restriction.
 
 - **Students**: only Llama 3, Qwen3, Qwen3.5, Qwen3.6, Qwen3.8, LFM2/LFM2.5, Gemma 4,
   FunctionGemma, Granite 4.2 and Nemotron 3.5.

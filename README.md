@@ -47,8 +47,7 @@ a project if you skip it. On Windows, run the CLI inside WSL.
 | Task Type | Use Case | Example |
 |-----------|----------|---------|
 | Question Answering | Extract answers from documents, or pick one label from a fixed set | Invoice parsing, contract analysis, intent detection, ticket triage |
-| Chat Completion | Conversational turns with text, tool calls, or both | Support chatbots, API routing, chatbot actions |
-| Agentic Chat Completion | Tool-calling loops where tool results feed back into the answer | DevOps assistants, file system assistants, database interfaces |
+| Chat Completion | Conversational turns with text, tool calls, or both, with or without tool results fed back | Support chatbots, API routing, DevOps assistants, database interfaces |
 
 ## Layout
 

@@ -8,7 +8,7 @@ set `task`, `student_model_name` and `teacher_model_name`.
 
 | Parameter | Default | Notes |
 |---|---|---|
-| `task` | required | The task the student solves: `question-answering`, `chat-completion` or `chat-completion-agentic`. See `task-types.md` |
+| `task` | required | The task the student solves: `question-answering` or `chat-completion`. See `task-types.md` |
 | `visual_task` | `false` | The task inputs carry images. Question answering only; every model must be vision-capable. Image traces use the `openai_messages_with_images` observation format |
 | `enable_thinking` | `false` | The student is trained, evaluated and served with its chat template's thinking mode on. Synthetic data generation then writes the reasoning: the teacher produces it with each assistant message it generates, and a final backfill pass fills in what is still missing. Reasoning students only. See `reasoning-models.md` |
 | `variable_system_prompt` | `false` | `false`: every example is trained, evaluated and served with the `task_description` as its system message, which replaces a system message found in a row or trace. `true`: every row and relabeled trace keeps its own system message (a row without one gets the `task_description`), and the served model reads the system message each request sends. See `variable-system-prompts.md` |
@@ -84,7 +84,7 @@ set `task`, `student_model_name` and `teacher_model_name`.
 | `output_is_json` | `false` | Question answering only: only synthetic rows whose output is valid JSON are generated. Answers in uploaded data must also be valid JSON. Teacher evaluation and student evaluation also request JSON mode from the model (`response_format` of type `json_object`) |
 | `mutators` | `[]` | Mutators applied during synthetic generation, one per dimension to vary. `mutators.md` |
 | `mutator_update_frequency` | `5` | Generation batches between two runs of the topic classifier, for every adaptive mutator. The batches in between are not classified; their counts are estimated from the classified ones. Classifying costs teacher calls, so a higher number is cheaper and coarser. `mutators.md` § Adaptive mutators |
-| `max_tool_calls_per_turn` | `null` (1 with tools declared, 0 without) | Chat completion only: the most tool calls one assistant message may contain. `unlimited` allows any number of parallel calls; `0` disallows tool calls. A job description without tools needs `0` or `null`. `data-preparation/chat-completion.md` § Tool calls per turn |
+| `max_tool_calls_per_turn` | `null` (1 with tools declared, 0 without) | Chat completion only: the most tool calls one assistant message may contain. `unlimited` allows any number of parallel calls; `0` disallows tool calls. A job description without tools needs `0` or `null`; `question-answering` rejects any value above `0`. `data-preparation/chat-completion.md` § Tool calls per turn |
 | `clean_training_targets` | `false` | A final teacher pass that minimally repairs corrupted or truncated final assistant messages (the training targets). Expansion before it follows `base.should_expand_dataset`; with `false` only the supplied final-turn targets are cleaned |
 
 ### LLM validation
@@ -136,7 +136,8 @@ These fail at config load.
 - Chat completion with tools declared restricts the student and teacher
   (`model-catalog.md` § Tool-calling compatibility).
 - `synthgen.max_tool_calls_per_turn` must match whether the job description declares tools
-  (`data-preparation/chat-completion.md` § Tool calls per turn).
+  (`data-preparation/chat-completion.md` § Tool calls per turn), and must be unset or `0` for
+  `question-answering`.
 
 The in-context exemplar count (`synthgen.num_positive_exemplars_per_generation`) is not
 validated: every generation job lowers it to the number of rows the split it draws from holds,
@@ -165,7 +166,7 @@ turn. It applies to training, to evaluation, and to the expansion before
 |---|---|
 | `auto` (default) | Expands multi-turn tasks, unless at least half of the examples share history prefixes with other examples (data that is already split per turn) |
 | `false` | Each supplied row stays one example, with only its final assistant turn as the target; earlier assistant turns are history. Evaluation scores each test row's final turn only. Use it for pre-split rows whose final responses were selected or rewritten |
-| `true` | Expands every conversation, pre-split data included. Valid only for the chat completion tasks |
+| `true` | Expands every conversation, pre-split data included. Valid only for chat completion |
 
 ## Deprecated keys
 

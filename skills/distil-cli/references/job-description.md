@@ -16,7 +16,7 @@ fields are rejected at validation.
 }
 ```
 
-**Conversation** (`chat-completion`, `chat-completion-agentic`):
+**Conversation** (`chat-completion`):
 
 ```json
 {
@@ -29,8 +29,7 @@ fields are rejected at validation.
 }
 ```
 
-`tools` is the OpenAI function-calling spec, with unique names. It is REQUIRED for
-`chat-completion-agentic`. `chat-completion` may omit the field (or pass null or `[]`) for a
+`tools` is the OpenAI function-calling spec, with unique names. `chat-completion` may omit the field (or pass null or `[]`) for a
 tool-free conversational model. Parameter schemas can declare `default` values.
 `tool_call_equivalence` treats an argument at its default as equal to omitting it. Data rules
 for tools: `data-preparation/chat-completion.md`.

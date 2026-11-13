@@ -9,7 +9,7 @@ object that a `metrics` command returns; the per-example predictions are a separ
 | Suite | Tasks | Metric keys |
 |---|---|---|
 | QA | `question-answering` | `rouge`, `binary`, `llm-as-a-judge`, `llm-as-a-judge-reference-free` |
-| Conversation | `chat-completion`, `chat-completion-agentic` | `rouge`, `tool_call_equivalence`, `binary_tool_call`, `staged_tool_call`, `llm-as-a-judge`, `llm-as-a-judge-reference-free` |
+| Conversation | `chat-completion` | `rouge`, `tool_call_equivalence`, `binary_tool_call`, `staged_tool_call`, `llm-as-a-judge`, `llm-as-a-judge-reference-free` |
 
 All 0-1:
 
