@@ -29,7 +29,8 @@ All 0-1:
   set (§ Primary metric per task); for free text, an extra check only.
 - `rouge`: text overlap, a secondary signal.
 - `tool_call_equivalence`: exact match, except an argument set to its schema default equals
-  omitting it.
+  omitting it. Defaults come from the row's own `tools` when it has them, else the job
+  description's.
 - `binary_tool_call`: strict name and arguments equality.
 - `staged_tool_call`: 0.25 per stage, one call each side → name matches → argument keys
   match → arguments match. 0.5 means right tool, wrong arguments.

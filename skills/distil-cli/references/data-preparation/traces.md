@@ -16,7 +16,8 @@ The config's `trace_processing.observation_format` must name the shape of the li
 ## Observation formats (`trace_processing.observation_format`)
 
 **`openai_messages`** (default): each line has a `messages` array, with roles `system`,
-`user`, `assistant` and `tool`. Assistant turns can carry `tool_calls`.
+`user`, `assistant` and `tool`. Assistant turns can carry `tool_calls`. For chat completion a
+line can carry the request's `tools` list (§ Tools in traces).
 
 ```jsonl
 {"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
@@ -105,6 +106,17 @@ conversion keeps `content`, which is what the application used.
 - `synthgen.validation_max_total_length` applies to relabelled rows
   (`../configuration.md`); raise it when traces embed documents or schemas.
 - Emit clean JSONL: strip control characters and unicode line separators (U+2028/U+2029).
+
+## Tools in traces
+
+A chat completion trace with a `tools` list keeps it, like a row with its own tools
+(`chat-completion.md` § Tools per row): relabelling shows the teacher those tools, validates the
+calls against them, and the relabelled row keeps them (also with `relabel: false`). Without the
+key the trace gets the job description's tools; `[]` means none. A trace whose `tools` do not
+parse is dropped, and so is one that calls a tool, or uses an argument name, the job description
+does not declare. A log records only the last request's tools, so a trace with its own list is
+also offered the job description's definition of any tool its earlier messages call that the
+list lacks. Relabelled `question-answering` rows get no tools.
 
 Any task type can train from traces. Traces with retrieved text: `../task-types.md` § Choosing
 a task type.

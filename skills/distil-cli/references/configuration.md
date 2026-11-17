@@ -17,6 +17,7 @@ set `task`, `student_model_name` and `teacher_model_name`.
 | `random_seed` | `123` | Seed for random sampling across the pipeline, mutators included |
 | `llm_num_parallel_requests` | `4` | Maximum number of LLM requests sent in parallel, across the teacher, synthetic generation and the judge. `1` turns parallelism off |
 | `should_expand_dataset` | `"auto"` | Whether a conversation becomes one example per assistant turn: `true`, `false` or `auto`. § Conversation expansion |
+| `flexible_conversation_structure` | `false` | Chat completion only; requires `variable_system_prompt: true`. Rows may hold later system messages, an assistant greeting first and consecutive turns of one role, and the generation and relabelling prompts tell the teacher these shapes are valid. `data-preparation/chat-completion.md` § Flexible conversation structure |
 
 ## tuning
 
@@ -138,6 +139,9 @@ These fail at config load.
 - `synthgen.max_tool_calls_per_turn` must match whether the job description declares tools
   (`data-preparation/chat-completion.md` § Tool calls per turn), and must be unset or `0` for
   `question-answering`.
+- `base.flexible_conversation_structure: true` requires `base.task: chat-completion` and
+  `base.variable_system_prompt: true`, and is rejected for Qwen3.5, Qwen3.6, Qwen3.8 and Gemma 3
+  students (their chat templates reject a system message that is not first).
 
 The in-context exemplar count (`synthgen.num_positive_exemplars_per_generation`) is not
 validated: every generation job lowers it to the number of rows the split it draws from holds,

@@ -30,7 +30,12 @@ fields are rejected at validation.
 ```
 
 `tools` is the OpenAI function-calling spec, with unique names. `chat-completion` may omit the field (or pass null or `[]`) for a
-tool-free conversational model. Parameter schemas can declare `default` values.
+tool-free conversational model. Parameter schemas can declare `default` values. Extra JSON
+Schema keys such as `$defs` and `$ref` are kept (a `$ref` must resolve within the tool's schema),
+a tool without `parameters` takes no arguments, and a parameter schema that is not valid JSON
+Schema fails validation with an error naming the tool. Rows and traces can carry their own
+`tools` list; every call must still name a tool declared here and use only argument names it
+declares (unless it sets `additionalProperties: true`).
 `tool_call_equivalence` treats an argument at its default as equal to omitting it. Data rules
 for tools: `data-preparation/chat-completion.md`.
 

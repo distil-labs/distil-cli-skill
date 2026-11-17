@@ -49,6 +49,8 @@ decides.
   {"messages": [{"role": "system", "content": "Do not redact person names; agents need the caller's name to verify the account."}, {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
   ```
 - Rows without one are allowed and get the fixed prompt.
+- Later system messages are rejected unless `base.flexible_conversation_structure` is on
+  (chat completion only; `data-preparation/chat-completion.md` § Flexible conversation structure).
 - Test rows carry the system messages the application will send, so the test set measures
   whether the model follows them.
 - Traces in `openai_messages` format keep the system message they were recorded with.

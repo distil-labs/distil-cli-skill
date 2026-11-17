@@ -68,7 +68,7 @@ synthetic data generation or training.
 | GPT OSS | `openai.gpt-oss-20b`, `openai.gpt-oss-20b-thinking`, `openai.gpt-oss-120b`, `openai.gpt-oss-120b-thinking` | Yes |
 | DeepSeek | `deepseek.v3.1`, `deepseek.v4-pro`, `deepseek.v4-pro-thinking`, `deepseek.v4-pro-0813-low-thinking`, `deepseek.v4-pro-0813-high-thinking`, `deepseek.v4.1-flash-low-thinking`, `deepseek.v4.1-flash-high-thinking`, `deepseek.v4-flash-vision-exp`, `deepseek.v4-flash-vision-exp-thinking` | Yes |
 | Qwen | `Qwen3-235B-A22B-Instruct-2507`, `Qwen3-480B-A35B-Coder`, `Qwen2.5-VL-72B-Instruct`, `Qwen3.8-2.4T-A95B-minimal-thinking`, `Qwen3.8-2.4T-A95B-medium-thinking`, `qwen.qwen3.8-flash`, `qwen.qwen3.8-flash-thinking`, `qwen.qwen3.8-27b`, `qwen.qwen3.8-27b-thinking` | Yes |
-| Kimi | `moonshotai.kimi-k2.6`, `moonshotai.kimi-k2.6-thinking`, `moonshotai.kimi-k3`, `moonshotai.kimi-k3-low-thinking`, `moonshotai.kimi-k3-max-thinking` | Yes |
+| Kimi | `moonshotai.kimi-k2.6`, `moonshotai.kimi-k2.6-thinking`, `moonshotai.kimi-k3`, `moonshotai.kimi-k3-low-thinking`, `moonshotai.kimi-k3-max-thinking`, `moonshotai.kimi-k3.1-pro`, `moonshotai.kimi-k3.1-pro-low-thinking`, `moonshotai.kimi-k3.1-pro-max-thinking` | Yes |
 | Nemotron | `nvidia.nemotron-3.5-super-vl`, `nvidia.nemotron-3.5-super-vl-thinking`, `nvidia.nemotron-3-ultra` | Yes |
 | Anthropic Claude (proprietary) | `anthropic.claude-opus-4-6`, `anthropic.claude-opus-5`, `anthropic.claude-opus-5-thinking`, `anthropic.claude-sonnet-5`, `anthropic.claude-opus-5-5`, `anthropic.claude-opus-5-5-thinking`, `anthropic.claude-sonnet-5-5`, `anthropic.claude-sonnet-5-5-thinking` | No, teacher evaluation only |
 | OpenAI GPT-5 / GPT-6 (proprietary) | `openai.gpt-5-mini`, `openai.gpt-5.1`, `openai.gpt-5.1-thinking`, `openai.gpt-5.2`, `openai.gpt-5.2-thinking`, `openai.gpt-5.6-sol`, `openai.gpt-5.6-sol-thinking`, `openai.gpt-5.6-luna`, `openai.gpt-5.6-luna-thinking`, `openai.gpt-5.6-terra`, `openai.gpt-5.6-terra-thinking`, `openai.gpt-6-luna`, `openai.gpt-6-luna-thinking`, `openai.gpt-6-sol`, `openai.gpt-6-sol-thinking`, `openai.gpt-6.1-sol`, `openai.gpt-6.1-sol-thinking` | No, teacher evaluation only |
@@ -77,7 +77,7 @@ synthetic data generation or training.
 A plain value and its `-thinking` twin point at the same model: the `-thinking` value turns the
 reasoning mode on, the plain value turns it off. Some families name the effort instead:
 `-low-thinking` / `-high-thinking` (GLM 5.3, DeepSeek V4 Pro 0813, DeepSeek V4.1 Flash),
-`-minimal-thinking` / `-medium-thinking` (Qwen3.8), `-low-thinking` / `-max-thinking` (Kimi K3).
+`-minimal-thinking` / `-medium-thinking` (Qwen3.8), `-low-thinking` / `-max-thinking` (Kimi K3, Kimi K3.1 Pro).
 Claude Opus 5.5 and Sonnet 5.5, GPT-6.1 Sol, Gemini 3.5 to 3.8 Flash and Gemini 3.5 Flash Lite
 always reason: their plain value runs at the lowest effort the model accepts and their
 `-thinking` value at high. `qwen.qwen3.8-27b-thinking` runs at medium effort.
@@ -95,7 +95,7 @@ The students that support it: `reasoning-models.md`.
 
 ## Vision compatibility (`base.visual_task`)
 
-Vision teachers: `moonshotai.kimi-k2.6`, `moonshotai.kimi-k2.6-thinking`, `moonshotai.kimi-k3`, `moonshotai.kimi-k3-low-thinking`, `moonshotai.kimi-k3-max-thinking`, `zai.glm-5.3-flash-low-thinking`, `zai.glm-5.3-flash-high-thinking`, `deepseek.v4.1-flash-low-thinking`, `deepseek.v4.1-flash-high-thinking`, `deepseek.v4-flash-vision-exp`, `deepseek.v4-flash-vision-exp-thinking`, `Qwen2.5-VL-72B-Instruct`, `qwen.qwen3.8-flash`, `qwen.qwen3.8-flash-thinking`, `qwen.qwen3.8-27b`, `qwen.qwen3.8-27b-thinking`, `nvidia.nemotron-3.5-super-vl`, `nvidia.nemotron-3.5-super-vl-thinking`. Every proprietary teacher is also
+Vision teachers: `moonshotai.kimi-k2.6`, `moonshotai.kimi-k2.6-thinking`, `moonshotai.kimi-k3`, `moonshotai.kimi-k3-low-thinking`, `moonshotai.kimi-k3-max-thinking`, `moonshotai.kimi-k3.1-pro`, `moonshotai.kimi-k3.1-pro-low-thinking`, `moonshotai.kimi-k3.1-pro-max-thinking`, `zai.glm-5.3-flash-low-thinking`, `zai.glm-5.3-flash-high-thinking`, `deepseek.v4.1-flash-low-thinking`, `deepseek.v4.1-flash-high-thinking`, `deepseek.v4-flash-vision-exp`, `deepseek.v4-flash-vision-exp-thinking`, `Qwen2.5-VL-72B-Instruct`, `qwen.qwen3.8-flash`, `qwen.qwen3.8-flash-thinking`, `qwen.qwen3.8-27b`, `qwen.qwen3.8-27b-thinking`, `nvidia.nemotron-3.5-super-vl`, `nvidia.nemotron-3.5-super-vl-thinking`. Every proprietary teacher is also
 vision-capable, for teacher evaluation only.
 
 `visual_task: true` requires one of these in every teacher and judge role:
@@ -103,7 +103,7 @@ vision-capable, for teacher evaluation only.
 `evaluation.llm_as_a_judge_model_name`, and each entry of
 `trace_processing.relabelling_committee_models`. One non-vision model in any role fails config
 load. Vision students: `Qwen3.5-0.8B`, `Qwen3.5-2B`, `Qwen3.5-4B`, `Qwen3.5-9B`, `Qwen3.8-27B`,
-`gemma-4-E2B-it`, `gemma-4-E4B-it`.
+`Qwen3.6-35B-A3B`, `gemma-4-E2B-it`, `gemma-4-E4B-it`.
 
 ## Tool-calling compatibility
 
