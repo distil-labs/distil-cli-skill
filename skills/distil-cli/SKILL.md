@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "15.1.0"
+  version: "15.2.0"
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing a
   dataset (config.yaml, job_description.json, traces, train and test rows), running or
@@ -89,6 +89,11 @@ Every stage opens with a user gate: present the input, the key config choices, t
 the price from a `--dry-run` against the balance (`references/platform.md` § Billing), and get
 the user's go-ahead. Nothing launches on defaults the user never saw. After the analysis,
 present the findings and agree on the next step together.
+
+A submitted teacher evaluation, dataset expansion or training can be cancelled until it finishes
+(`references/execution/cli.md` § Cancel a job), but only on the user's say-so. Offer it when a
+submission turns out wrong or a job stays pending: within 30 minutes of submitting it, the charge
+is refunded in full.
 
 A plan the user confirmed covers the stages that carry it out: a stage run from
 `stages/model-iteration.md` Step 4 presents only what differs from that plan, and under

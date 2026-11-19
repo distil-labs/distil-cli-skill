@@ -85,6 +85,8 @@ run from `--dry-run`. On the user's go-ahead, submit one training per
 student against the Dataset from Step 1, not the smoke Dataset: all the training data,
 `num_train_epochs` at its default of 4 unless the plan changes it, and the settings that passed
 the smoke. Each submission sends a full copy of the config with its student and settings. The submissions run concurrently.
+If the user drops a student while its training runs, cancel it
+(`../references/execution/cli.md` § Cancel a job).
 
 ## Step 7: Analyze the Results
 

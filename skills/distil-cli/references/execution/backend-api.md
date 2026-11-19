@@ -519,6 +519,25 @@ slms = get("/slms")
 from_dataset = [slm["id"] for slm in slms if slm.get("dataset_id") == dataset_id]
 ```
 
+### Cancel a job
+
+A teacher evaluation, a dataset expansion (relabelling or synthetic data generation) or a training
+can be cancelled any time before it finishes, with `POST /teacher-evaluations/<id>/cancel`,
+`POST /datasets/<id>/cancel` or `POST /slms/<id>/cancel`. Cancel only when the user asks for it
+or agrees to it: the job's work is lost.
+
+```python
+response = requests.post(f"{PLATFORM_URL}/slms/{slm_id}/cancel", headers=auth())
+raise_with_body(response)
+```
+
+The route takes no request body, so call `requests.post` directly rather than `post()`. It
+answers `202 Accepted` and the job stops shortly after: call `poll()` until it raises with
+`JOB_STOPPED`, and record that in `run.md`. An unknown id answers 404; a job that has already
+finished, or a Dataset no job produced, answers 409. A job cancelled within 30 minutes of
+submitting it is refunded in full (`../platform.md` § Billing). Deployments can't be cancelled;
+`DELETE /deployments/<id>` shuts one down.
+
 ## Output layout
 
 Nothing is fetched by object-storage path. Outputs arrive either as JSON in the response or as

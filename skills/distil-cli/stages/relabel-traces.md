@@ -129,7 +129,8 @@ both axes.
 ## Step 6: Full Run
 
 Submit the last passing smoke's config, with the intended `num_{split}_relabelled` in place of
-128, as an override on the parent Dataset. Record the ids in `run.md`.
+128, as an override on the parent Dataset. Record the ids in `run.md`. If the user wants a
+submitted run stopped, cancel it (`../references/execution/cli.md` § Cancel a job).
 
 ## Step 7: Analyze the Results
 

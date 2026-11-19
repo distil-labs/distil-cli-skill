@@ -79,7 +79,7 @@ against the parent Dataset, whose download is free.
 | `JOB_RUNNING` | running | no |
 | `JOB_SUCCESS` | finished; outputs readable | yes |
 | `JOB_FAILURE` | failed | yes |
-| `JOB_STOPPED` | stopped deliberately | yes |
+| `JOB_STOPPED` | stopped deliberately, such as cancelled (`execution/cli.md` § Cancel a job) | yes |
 
 There is no `JOB_FAILED`. For training, `JOB_RUNNING` covers the training and the evaluation
 after it, and the metrics appear only at `JOB_SUCCESS`.
@@ -102,6 +102,11 @@ A failed job produces no output, so no Dataset rows, metrics or verdict come fro
 cause and submit again: the retry is a new entity from the same parent. Config and job
 description are readable on some failed entities and not others, so record what you submitted
 rather than relying on reading it back.
+
+A job submitted with the wrong inputs, or one that stays in `JOB_NOT_STARTED` or `JOB_PENDING`,
+can be cancelled and submitted again from the same parent (`execution/cli.md` § Cancel a job).
+Ask the user first. A job cancelled within 30 minutes of submitting it is refunded in full
+(§ Billing) and a later cancel isn't, so catch a wrong submission early.
 
 ## Smoke runs
 
@@ -156,7 +161,8 @@ downloads and reads. A billed job is priced from its data and config when it is 
 the balance is charged then. The charge is the estimate, not what the job ends up using. When a
 job fails, its charge is refunded in full to the balance automatically, and the refund shows as
 its own line on the billing page. Deployments are the exception: a failed deployment is not
-refunded.
+refunded. A job cancelled within 30 minutes of submitting it is refunded in full the same way; a
+job cancelled later isn't.
 
 | Job | Usage event | Quantity | Priced at the tier of |
 |---|---|---|---|

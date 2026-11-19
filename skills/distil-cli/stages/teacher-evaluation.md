@@ -69,7 +69,8 @@ Before submitting, present and confirm:
 
 Submit one evaluation per shortlist entry (`../references/execution/cli.md` § Teacher
 evaluation); they run concurrently. Record each command and TeacherEvaluation id in its
-`run.md`.
+`run.md`. If the user drops a teacher from the shortlist while its evaluation runs, cancel it
+(`../references/execution/cli.md` § Cancel a job).
 
 ## Step 4: Pull and Analyze the Results
 

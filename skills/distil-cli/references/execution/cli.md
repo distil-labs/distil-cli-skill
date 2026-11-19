@@ -41,12 +41,13 @@ Seed datasets and training datasets: `../migrating-old-entities.md`.
 
 ### Which commands speak JSON
 
-`--output json` (`-o`) is registered on every command that reads, creates, deletes, links or
-downloads, and prints one JSON object or array on stdout:
+`--output json` (`-o`) is registered on every command that reads, creates, deletes, cancels,
+links or downloads, and prints one JSON object or array on stdout:
 
 - reads and creates print the entity as the API returns it, so `| jq -r .id` reads a new id;
 - deletes print `{"id": ..., "deleted": true}` (`name` for `api-keys delete`), and
   `link-api-key` / `unlink-api-key` print `{"unique_endpoint_name", "api_key_name", "linked"}`;
+- cancels print `{"id": ..., "cancelled": true}`;
 - downloads print `{"files": [...]}`, the files written.
 
 An error prints `{"error": "..."}` and exits 1. It is not registered on `auth`, `signup`,
@@ -348,6 +349,25 @@ again until it exits 0 or 1.
 A job that takes hours (`../platform.md` § Job status) is many runs of the loop. Record the id in
 `run.md` before the first run and the last status after each one, and tell the user where the
 job is between runs.
+
+### Cancel a job
+
+A teacher evaluation, a dataset expansion (relabelling or synthetic data generation) or a training
+can be cancelled any time before it finishes. Cancel only when the user asks for it or agrees to
+it: the job's work is lost.
+
+```bash
+distil teacher-evaluation cancel --force --output json <teacher-evaluation-id>
+distil dataset cancel --force --output json <dataset-id>
+distil slm cancel --force --output json <slm-id>
+```
+
+Always pass `--force`. Without it the command asks for confirmation, and with no terminal to
+answer it exits 1 with `Cannot confirm in a non-interactive terminal`. The job doesn't stop at
+once: run `poll.sh` until it exits 1 with `JOB_STOPPED`, and record that in `run.md`. Cancelling
+a job that has already finished, or a Dataset no job produced, exits 1 with the reason. A job
+cancelled within 30 minutes of submitting it is refunded in full (`../platform.md` § Billing).
+Deployments can't be cancelled; `distil deployment delete` shuts one down.
 
 ## Output layout
 
