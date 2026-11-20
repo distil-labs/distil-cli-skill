@@ -42,7 +42,8 @@ The settings that matter are in `base` and `tuning` (`../references/configuratio
 `base.student_model_name`, `tuning.per_device_train_batch_size` (default 1) and
 `tuning.num_train_epochs` (default 4). Multi-turn rows follow `base.should_expand_dataset`
 (`../references/configuration.md` § Conversation expansion). For a reasoning student, see
-`../references/reasoning-models.md`.
+`../references/reasoning-models.md`; for a vision student, `../references/visual-tasks.md`
+§ Training.
 
 ## Step 2: Confirm the Setup with the User
 

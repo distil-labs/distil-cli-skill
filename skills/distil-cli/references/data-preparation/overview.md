@@ -49,10 +49,12 @@ Enforced at upload and before every expand, so check before submitting.
 - [ ] every message `content` is non-empty, except a chat completion assistant turn that
       carries only `tool_calls`
 - [ ] per row, total length <= `synthgen.validation_max_total_length` (`../configuration.md`)
-- [ ] train and test share NO identical rows (exact duplicates fail)
+- [ ] train and test share NO identical rows (exact duplicates fail; images are compared by
+      position only, `../visual-tasks.md` § Identical rows)
 - [ ] chat completion: the conversation rules in `chat-completion.md`; rows with parallel tool
       calls need `synthgen.max_tool_calls_per_turn` of 2 or more
-- [ ] `visual_task` matches whether the rows carry images
+- [ ] `visual_task` matches whether the rows carry images, and every image is a
+      `data:image/...;base64` URI (`../visual-tasks.md` § Data format)
 - [ ] `traces.jsonl` parses in the configured `observation_format`
 
 There is no minimum row count, and you never add rows to reach one

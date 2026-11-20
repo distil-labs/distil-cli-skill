@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "15.3.0"
+  version: "15.4.0"
 description: >
   Use when building or training a model on the distil labs platform end to end: preparing a
   dataset (config.yaml, job_description.json, traces, train and test rows), running or
@@ -9,10 +9,12 @@ description: >
   and synthetic data generation, teacher evaluation, model training, deployment), iterating
   when a teacher score or student score is too low, or deciding what to run next after a
   stage completes, or iterating on a model on its own until it reaches a target
-  (autoresearch). Activate for phrasings like "build a model for X", "train a student model",
+  (autoresearch), or building a vision model from images (OCR, documents, screenshots).
+  Activate for phrasings like "build a model for X", "train a student model",
   "build a test set from my traces", "run a teacher eval", "generate synthetic data", "the
-  score is low, what now", "add more training data", or "keep iterating until the model is as
-  good as you can get it". Stages run through the distil CLI or
+  score is low, what now", "add more training data", "train an OCR model on my scans", or
+  "keep iterating until the model is as good as you can get it". Stages run through the distil
+  CLI or
   the distil labs API. This skill owns the model-building logic on top of it. Also activate for
   distil labs lookups that are not a full build: distil CLI commands (distil auth,
   distil traces, distil dataset, distil teacher-evaluation, distil slm, distil deployment,
@@ -44,10 +46,11 @@ every other page links to it.
   (`relabel-traces.md`, `synthetic-data-generation.md`), which run one expand operation on one
   split.
 - **Workflows** (`workflows/`): sequence the stages and own the decision points, verdicts and
-  gates. There are two: `build-a-model.md` builds a model in a single pass, from traffic or
-  files to a served model, and `autoresearch.md` iterates on a model for the user, running
-  `stages/model-iteration.md` until an agreed target or budget. Each opens with a Workflow
-  Map; print it to the user when the workflow starts.
+  gates. There are three: `build-a-model.md` builds a model in a single pass, from traffic or
+  files to a served model; `build-a-vision-model.md` does the same for image inputs, from the
+  user's images by relabelling alone; and `autoresearch.md` iterates on a model for the user,
+  running `stages/model-iteration.md` until an agreed target or budget. Each opens with a
+  Workflow Map; print it to the user when the workflow starts.
 - **References** (`references/`): shared knowledge, one page per topic.
   `references/platform.md` owns how the platform behaves.
 - **Execution backends** (`references/execution/`): the only files that know how stages actually
@@ -128,6 +131,7 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
 | Workflow | Purpose |
 |---|---|
 | `workflows/build-a-model.md` | A single pass: endpoint → traces → dataset → test set → teacher evaluation → train set → training → serving endpoint → back to traces. Entry points: an LLM in production, or files on disk |
+| `workflows/build-a-vision-model.md` | A single pass for image inputs (OCR and other vision tasks): the user's images → relabelled test set → teacher evaluation → relabelled train set → training → serving. No synthetic data generation |
 | `workflows/autoresearch.md` | The agent iterates on a model on its own: `stages/model-iteration.md` again and again, to a target and within a budget agreed once with the user |
 
 | Reference | Purpose |
@@ -142,6 +146,7 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
 | `references/model-catalog.md` | Teacher and student models, defaults, task compatibility |
 | `references/reasoning-models.md` | Everything about reasoning students (`base.enable_thinking`) |
 | `references/variable-system-prompts.md` | Everything about per-row system prompts (`base.variable_system_prompt`) |
+| `references/visual-tasks.md` | Everything about image inputs (`base.visual_task`) |
 | `references/mutators.md` | Synthetic data diversity controls (`synthgen.mutators`) |
 | `references/evaluation-metrics.md` | Metrics per task type, primary metrics, verdicts |
 | `references/deployment.md` | Model artifacts, the inference client, local serving |
@@ -156,6 +161,9 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
 - End-to-end request ("build/train a model for X") → `workflows/build-a-model.md`. Ask what the
   user starts with to pick the entry point: an LLM in production (entry A, Step 1) or files on
   disk, whatever subset of traces, train and test rows (entry B, Step 4).
+- The model reads images ("OCR", "transcribe scans", "read receipts / forms / screenshots",
+  "classify photos", a vision student) → `workflows/build-a-vision-model.md` instead of
+  `build-a-model.md`; facts and lookups → `references/visual-tasks.md`.
 - Endpoint questions ("put an endpoint in front of GPT-4", "download the traces", "put the
   trained model behind the endpoint") → `stages/inference-endpoint.md`.
 - Building evals or a test set ("help me build evals", "I want a test set for my case") →
@@ -172,7 +180,8 @@ measured on the same model and test set (`references/evaluation-metrics.md` § V
   should I change") → `stages/model-iteration.md`, one iteration with the user.
 - "Keep iterating until the model is good", "iterate on it for me", a target or a budget for
   improving the model, or autoresearch → `workflows/autoresearch.md`. This wins over the
-  end-to-end route when a request asks for both: autoresearch runs `build-a-model.md` first.
+  end-to-end route when a request asks for both: autoresearch runs `build-a-model.md` first
+  (`build-a-vision-model.md` for image inputs).
 - A seed dataset, a training dataset, or a command that exits 1 naming another command →
   `references/migrating-old-entities.md`.
 - One model for many system prompts ("per-request system prompt", "multi-tenant prompt",

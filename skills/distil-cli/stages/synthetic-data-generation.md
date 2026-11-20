@@ -6,6 +6,8 @@ pass, and the job writes a new Dataset with them added to the split and the cont
 removed (`../references/platform.md` § The expand operations). The same mechanics serve two
 outcomes: `build-a-test-set.md` runs it on the test split, `build-a-train-set.md` on the train
 split. This file is the procedure for one run; the outcome stages say how many rows to aim for.
+It is rejected for visual tasks (`base.visual_task: true`): the generators cannot produce
+images (`../references/visual-tasks.md`).
 
 ## The Settings That Control the Rows
 
