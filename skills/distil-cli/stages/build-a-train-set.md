@@ -13,6 +13,10 @@ passed `teacher-evaluation.md`. The train set is real rows first and synthetic r
 Both runs leave `test.jsonl` unchanged, so the model trained on the result is scored on the
 locked test set (`build-a-test-set.md`).
 
+A visual task has the first only: generation is rejected for images, so the train set is the
+relabelled traces, Step 4 is skipped, and a top-up relabels new traces instead of generating
+(`../workflows/build-a-vision-model.md` Steps 5-6).
+
 ## Where New Rows Come From
 
 New train rows come from synthetic data generation, and from relabelling when there are

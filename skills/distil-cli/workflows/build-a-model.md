@@ -53,6 +53,7 @@ Ask what the user has, then start at the matching step. Both entries meet at Ste
 | An LLM in production that OpenRouter serves, and can point the application at an inference endpoint | A, Step 1 |
 | An inference endpoint that already holds the traces | A, Step 3 |
 | Files: a trace file (exported logs, converted), a labelled train set, a test set, or any combination | B, Step 4 |
+| Images the model must read (OCR, documents, screenshots, photos) | `build-a-vision-model.md` instead |
 
 Prefer entry A whenever the production model is on OpenRouter: Step 9 needs an endpoint anyway,
 and an endpoint's fallback must be an OpenRouter model. A user with a trace file and an

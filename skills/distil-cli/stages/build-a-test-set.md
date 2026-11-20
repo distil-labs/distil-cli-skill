@@ -17,6 +17,9 @@ Two mechanics fill it, in this order:
    agreement with the teacher rather than with production, so they top the set up when the
    traces do not reach the target.
 
+A visual task has the first only: generation is rejected for images, so the test set is the
+relabelled traces and the rows the user uploads (`../workflows/build-a-vision-model.md` Step 3).
+
 Besides the rows the user uploads, nothing else adds test rows: never write, template or script
 test rows yourself (`build-a-train-set.md` § Where New Rows Come From).
 

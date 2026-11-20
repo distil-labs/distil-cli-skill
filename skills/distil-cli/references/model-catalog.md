@@ -13,6 +13,13 @@ either to its `-high-thinking` value when teacher evaluation shows the task need
 reasoning. The config default when `teacher_model_name` is omitted is
 `nvidia.nemotron-3.5-super-vl`, so always set the teacher explicitly.
 
+**Default vision teachers: Kimi K3.** GLM 5.3 (the large teacher) is text-only, so a visual task
+(`visual-tasks.md`) needs other defaults in every teacher and judge role:
+`moonshotai.kimi-k3-low-thinking` as the teacher and the judge, or
+`zai.glm-5.3-flash-low-thinking` as the teacher when cost matters more. Move the teacher to
+`moonshotai.kimi-k3-max-thinking` when teacher evaluation shows the task needs more reasoning,
+for example answers with counts or computed values. The default student family stays Qwen3.5.
+
 **The judge stays fixed.** `evaluation.llm_as_a_judge_model_name` scores every run, so set it
 explicitly in the first config (the large teacher, `zai.glm-5.3-low-thinking`, unless the user
 chooses another) and never change it: scores from two judges are not comparable. It defaults to

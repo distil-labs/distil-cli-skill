@@ -9,7 +9,7 @@ set `task`, `student_model_name` and `teacher_model_name`.
 | Parameter | Default | Notes |
 |---|---|---|
 | `task` | required | The task the student solves: `question-answering` or `chat-completion`. See `task-types.md` |
-| `visual_task` | `false` | The task inputs carry images. Question answering only; every model must be vision-capable. Image traces use the `openai_messages_with_images` observation format |
+| `visual_task` | `false` | The task inputs carry images, as `data:image/...;base64` URIs. Question answering only; every model must be vision-capable. Image traces use the `openai_messages_with_images` observation format. Synthetic data generation and RLVR are rejected. See `visual-tasks.md` |
 | `enable_thinking` | `false` | The student is trained, evaluated and served with its chat template's thinking mode on. Synthetic data generation then writes the reasoning: the teacher produces it with each assistant message it generates, and a final backfill pass fills in what is still missing. Reasoning students only. See `reasoning-models.md` |
 | `variable_system_prompt` | `false` | `false`: every example is trained, evaluated and served with the `task_description` as its system message, which replaces a system message found in a row or trace. `true`: every row and relabeled trace keeps its own system message (a row without one gets the `task_description`), and the served model reads the system message each request sends. See `variable-system-prompts.md` |
 | `student_model_name` | `Llama-3.2-1B-Instruct` | The base model that is fine-tuned into your student. See `model-catalog.md` |
@@ -133,7 +133,8 @@ These fail at config load.
   in [0.5, 0.7].
 - `base.enable_thinking: true` requires a reasoning student (`reasoning-models.md`).
 - `visual_task: true` requires a vision-capable model in every teacher and judge role, and a
-  vision-capable student. See `model-catalog.md`.
+  vision-capable student. See `model-catalog.md`. It also requires `tuning.rlvr_dataset_size: 0`
+  (`RLVR is not supported for visual tasks`).
 - Chat completion with tools declared restricts the student and teacher
   (`model-catalog.md` § Tool-calling compatibility).
 - `synthgen.max_tool_calls_per_turn` must match whether the job description declares tools

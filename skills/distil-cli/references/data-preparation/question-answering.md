@@ -18,6 +18,8 @@ Rules beyond the shared checklist (`overview.md`):
   parse as JSON.
 - Traces left in the Dataset are sampled as inspiration for generation
   (`../platform.md` § The expand operations).
+- Inputs that are images (`base.visual_task: true`) carry them as an `images` list on the user
+  message, and there is no synthgen: `../visual-tasks.md`.
 
 ## Classifying with question-answering
 

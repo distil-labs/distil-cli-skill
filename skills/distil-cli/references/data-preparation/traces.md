@@ -23,15 +23,21 @@ line can carry the request's `tools` list (§ Tools in traces).
 {"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
 ```
 
+A line may also end on the user's turn, with no answer: relabelling then writes the answer
+instead of correcting one (`../../stages/relabel-traces.md` Step 1).
+
 **`openai_messages_with_images`**: the same, but user content can be a list of
-`{"type": "text", ...}` / `{"type": "image_url", "image_url": {"url": ...}}` parts.
+`{"type": "text", ...}` / `{"type": "image_url", "image_url": {"url": ...}}` parts. Requires
+`base.visual_task: true`; images are data URIs on user messages only (`../visual-tasks.md`
+§ Data format).
 
 **`unstructured_with_openai_messages`**: each line has a `context` field whose string wraps
 a messages array. Set only by `../migrating-old-entities.md`; never written by hand.
 
 **`langfuse`**: the records of a distil labs inference endpoint, as a traces object created
 directly from the endpoint stores them (`../execution/cli.md` § Traces from an endpoint). Never
-written by hand; set it in the config of the Dataset created from that traces object.
+written by hand; set it in the config of the Dataset created from that traces object. It
+rejects image content.
 
 ## From an inference endpoint
 
@@ -56,8 +62,8 @@ turn to the request's `messages`, carry `tools` across when present, and write o
 `{"messages": [...]}` object. Skip the records that should not become training data:
 
 - **Failed calls.** Keep `metadata.status == 200` only.
-- **Empty replies.** Skip a response with neither `content` nor `tool_calls`, rather than
-  emitting a conversation that ends on the user's turn.
+- **Empty replies.** Skip a response with neither `content` nor `tool_calls`: the call
+  produced no answer to keep.
 - **The wrong model's answers**, once a student sits in front of the fallback: filter on
   `metadata.source` for the answers the next iteration should learn from.
 - **Earlier steps of an agent loop** need no filtering: an agent makes one call per step, and
