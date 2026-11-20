@@ -46,14 +46,15 @@ a project if you skip it. On Windows, run the CLI inside WSL.
 
 | Task Type | Use Case | Example |
 |-----------|----------|---------|
-| Question Answering | Extract answers from documents, or pick one label from a fixed set | Invoice parsing, contract analysis, intent detection, ticket triage |
+| Question Answering | Extract answers from documents or images, or pick one label from a fixed set | Invoice parsing, contract analysis, intent detection, ticket triage, OCR of scanned pages |
 | Chat Completion | Conversational turns with text, tool calls, or both, with or without tool results fed back | Support chatbots, API routing, DevOps assistants, database interfaces |
 
 ## Layout
 
 `SKILL.md` is the entry point. `stages/` holds one unit of pipeline work each, `workflows/` the
-two workflows (building a model in a single pass, and autoresearch, where the agent iterates on
-the model for you), and `references/` the shared knowledge,
+three workflows (building a model in a single pass, building a vision model from images, and
+autoresearch, where the agent iterates on the model for you), and `references/` the shared
+knowledge,
 with every `distil` command in `references/execution/cli.md` and every REST API request in
 `references/execution/backend-api.md`. Swapping the CLI for the REST API changes the commands and
 nothing else.

@@ -131,6 +131,12 @@ python model_client.py --conversation '[{"role": "system", "content": "<system p
   | FunctionGemma | `--enable-auto-tool-choice --tool-call-parser functiongemma` |
   | Gemma 3, SmolLM2 | none |
 
+- A vision student (`base.visual_task: true` in the model's `config.yaml`) also needs
+  `--enable-tower-connector-lora`: its adapter carries LoRA on the vision tower and the
+  connector, which vLLM applies only with this flag, and without it the served model is not the
+  one that was evaluated. Requests then carry the images as content parts
+  (`visual-tasks.md` § Deployment).
+
 Both `model-adapter/` and the model's `config.yaml` are needed: the config is not inside the
 tarball, and it names the base model and `lora_r`.
 

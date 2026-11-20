@@ -68,7 +68,7 @@ Set the relabelling deliberately:
 - `observation_format`: must match the shape of `traces.jsonl`
   (`../references/data-preparation/traces.md`).
 
-Two behaviours to expect:
+Behaviours to expect:
 
 - **No floor on the rows.** Filtering, relabelling, validation and the overlap check against
   the other split each drop traces, and whatever survives is written, zero rows included. A
@@ -76,8 +76,13 @@ Two behaviours to expect:
   example multi-turn traces for a single-turn task.
 - **The traces are shuffled and deduplicated first**, so two runs on the same parent pick
   different traces, and duplicates in `traces.jsonl` do not count.
-- **The remaining traces are written back in `openai_messages` form**, without their system
-  prompts unless `base.variable_system_prompt` is on, whatever the parent's observation format.
+- **The remaining traces are written back in `openai_messages` form**
+  (`openai_messages_with_images` for a visual task), without their system prompts unless
+  `base.variable_system_prompt` is on, whatever the parent's observation format.
+- **A trace without an answer gets one.** A trace that ends on the user's turn is completed with
+  one assistant turn the teacher writes; an observed answer is corrected while staying as close
+  to it as possible. When the observed answers are worse than none (another model's guesses the
+  teacher would only inherit), leave them out of the traces.
 
 ## Step 2: Confirm the Setup with the User
 

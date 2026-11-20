@@ -111,7 +111,9 @@ are in each stage's § What Can Be Changed to Improve the Next Iteration:
 - **Training** (`model-training.md`): on the best kept row's Dataset.
 - **The train set** (`build-a-train-set.md`): a top-up on the best kept row's Dataset by
   default (§ Topping Up); that section and the stage's cheapest-first order say when to
-  generate or relabel again instead, and on which Dataset.
+  generate or relabel again instead, and on which Dataset. For a visual task the train set
+  changes only by relabelling: more images, or the same ones again
+  (`../references/visual-tasks.md` § What does not apply).
 - **The teacher**: the next-best teacher already scored in `test-set.md` first; new candidates
   through `teacher-evaluation.md`. Then the train set again, on the test-set Dataset.
 

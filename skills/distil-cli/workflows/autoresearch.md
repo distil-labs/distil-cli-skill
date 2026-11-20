@@ -53,7 +53,9 @@ A trained model on a locked test set, with its teacher evaluations in `test-set.
 ledger's row 1. When there is none, run `build-a-model.md` Steps 1-8 with their own gates: the
 test set and the teacher are the user's decisions, and every iteration is read against them. At
 Step 6, submit the chosen teacher twice; the spread between the two runs is the noise. At Step 8,
-the first model becomes row 1 instead of a decision.
+the first model becomes row 1 instead of a decision. For image inputs, run
+`build-a-vision-model.md` Steps 1-6 instead, where teacher evaluation is Step 4 and training
+Step 6.
 
 Fill in the header: the teacher's score, the base score, the noise, the target and the spending
 so far.
