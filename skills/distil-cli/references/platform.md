@@ -188,7 +188,7 @@ Open-weight teachers and all students are in `low`, `medium` or `high`:
 | RLVR training | per 1M train set tokens × epochs | $0.60 | $1.50 | $3.00 |
 | Deployment | per deployment | $5.00 | $5.00 | $5.00 |
 
-For example `openai.gpt-oss-120b` is `low`, `deepseek.v4-pro` `medium` and `moonshotai.kimi-k3`
+For example `openai.gpt-oss-120b` is `low`, `zai.glm-5.3-low-thinking` `medium` and `moonshotai.kimi-k3`
 `high` as teachers, and `Qwen3-0.6B`, `Qwen3-4B-Instruct-2507` and `Qwen3.5-9B` the same as
 students.
 
@@ -203,8 +203,8 @@ A proprietary teacher's tier follows its running cost with reasoning included, n
 so a `-thinking` variant can be a tier above the same model without it:
 
 - `proprietary_low`: `openai.gpt-6-luna`, `openai.gpt-6-luna-thinking`, `google.gemini-3.5-flash-lite`
-- `proprietary_mid`: `anthropic.claude-sonnet-5-5`, `anthropic.claude-opus-5`, `openai.gpt-6-sol`, `google.gemini-3.8-flash-thinking`
-- `proprietary_high`: `anthropic.claude-opus-5-5`, `anthropic.claude-sonnet-5-5-thinking`, `openai.gpt-6-sol-thinking`
+- `proprietary_mid`: `anthropic.claude-sonnet-5-5`, `openai.gpt-6.1-terra`, `openai.gpt-6.2-sol`, `google.gemini-3.8-flash-thinking`
+- `proprietary_high`: `anthropic.claude-opus-5-5`, `anthropic.claude-sonnet-5-5-thinking`, `openai.gpt-6.2-sol-thinking`
 
 These are examples. Read a model's tier from `--dry-run`, not from this list.
 

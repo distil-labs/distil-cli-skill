@@ -80,7 +80,7 @@ set `task`, `student_model_name` and `teacher_model_name`.
 | `validation_max_total_length` | `30000` | Maximum total length of an example in characters: system message, input and output, images excluded. Applies to uploaded data too |
 | `validation_similarity_threshold` | `0.95` | Generated rows whose similarity to the rows already in the dataset is above this threshold are removed. Lower it if generation produces near-duplicates |
 | `validation_instructions` | `null` | Instructions for an LLM validator of synthetic examples. The evaluation judge (by default the teacher) checks each complete example, system prompt included, against these instructions and the job description, after the structural and diversity checks. Rejected examples and invalid judge replies are dropped. `null` turns it off and makes no validation LLM calls. § LLM validation |
-| `teacher_temperature` | `0.7` | Sampling temperature of the teacher, from 0 to 1: higher gives more varied output. § Cross-field validation for reasoning teachers |
+| `teacher_temperature` | `0.7` | Sampling temperature of the teacher, from 0.5 to 0.7: higher gives more varied output. A value outside that range fails config load |
 | `teacher_max_tokens` | `32000` | Maximum tokens in one teacher response. Kept well below typical context limits, so the reserved output does not crowd out large (for example multi-image) prompts |
 | `output_is_json` | `false` | Question answering only: only synthetic rows whose output is valid JSON are generated. Answers in uploaded data must also be valid JSON. Teacher evaluation and student evaluation also request JSON mode from the model (`response_format` of type `json_object`) |
 | `mutators` | `[]` | Mutators applied during synthetic generation, one per dimension to vary. `mutators.md` |
@@ -128,13 +128,11 @@ when a dataset is created from traces.
 
 These fail at config load.
 
-- A reasoning teacher (every teacher except `Qwen3-235B-A22B-Instruct-2507`,
-  `Qwen3-480B-A35B-Coder` and `Qwen2.5-VL-72B-Instruct`) requires `synthgen.teacher_temperature`
-  in [0.5, 0.7].
+- `synthgen.teacher_temperature` must be in [0.5, 0.7], whatever the teacher.
 - `base.enable_thinking: true` requires a reasoning student (`reasoning-models.md`).
 - `visual_task: true` requires a vision-capable model in every teacher and judge role, and a
   vision-capable student. See `model-catalog.md`.
-- Chat completion with tools declared restricts the student and teacher
+- Chat completion with tools declared restricts the student
   (`model-catalog.md` § Tool-calling compatibility).
 - `synthgen.max_tool_calls_per_turn` must match whether the job description declares tools
   (`data-preparation/chat-completion.md` § Tool calls per turn), and must be unset or `0` for

@@ -64,30 +64,29 @@ synthetic data generation or training.
 
 | Family | Values | Distillation |
 |---|---|---|
-| GLM | `zai.glm-5.3-low-thinking`, `zai.glm-5.3-high-thinking`, `zai.glm-5.3-flash-low-thinking`, `zai.glm-5.3-flash-high-thinking`, `zai.glm-5`, `zai.glm-5-thinking`, `zai.glm-5.2`, `zai.glm-5.2-thinking` | Yes |
-| GPT OSS | `openai.gpt-oss-20b`, `openai.gpt-oss-20b-thinking`, `openai.gpt-oss-120b`, `openai.gpt-oss-120b-thinking` | Yes |
-| DeepSeek | `deepseek.v3.1`, `deepseek.v4-pro`, `deepseek.v4-pro-thinking`, `deepseek.v4-pro-0813-low-thinking`, `deepseek.v4-pro-0813-high-thinking`, `deepseek.v4.1-flash-low-thinking`, `deepseek.v4.1-flash-high-thinking`, `deepseek.v4-flash-vision-exp`, `deepseek.v4-flash-vision-exp-thinking` | Yes |
-| Qwen | `Qwen3-235B-A22B-Instruct-2507`, `Qwen3-480B-A35B-Coder`, `Qwen2.5-VL-72B-Instruct`, `Qwen3.8-2.4T-A95B-minimal-thinking`, `Qwen3.8-2.4T-A95B-medium-thinking`, `qwen.qwen3.8-flash`, `qwen.qwen3.8-flash-thinking`, `qwen.qwen3.8-27b`, `qwen.qwen3.8-27b-thinking` | Yes |
-| Kimi | `moonshotai.kimi-k2.6`, `moonshotai.kimi-k2.6-thinking`, `moonshotai.kimi-k3`, `moonshotai.kimi-k3-low-thinking`, `moonshotai.kimi-k3-max-thinking`, `moonshotai.kimi-k3.1-pro`, `moonshotai.kimi-k3.1-pro-low-thinking`, `moonshotai.kimi-k3.1-pro-max-thinking` | Yes |
-| Nemotron | `nvidia.nemotron-3.5-super-vl`, `nvidia.nemotron-3.5-super-vl-thinking`, `nvidia.nemotron-3-ultra` | Yes |
-| Anthropic Claude (proprietary) | `anthropic.claude-opus-4-6`, `anthropic.claude-opus-5`, `anthropic.claude-opus-5-thinking`, `anthropic.claude-sonnet-5`, `anthropic.claude-opus-5-5`, `anthropic.claude-opus-5-5-thinking`, `anthropic.claude-sonnet-5-5`, `anthropic.claude-sonnet-5-5-thinking` | No, teacher evaluation only |
-| OpenAI GPT-5 / GPT-6 (proprietary) | `openai.gpt-5-mini`, `openai.gpt-5.1`, `openai.gpt-5.1-thinking`, `openai.gpt-5.2`, `openai.gpt-5.2-thinking`, `openai.gpt-5.6-sol`, `openai.gpt-5.6-sol-thinking`, `openai.gpt-5.6-luna`, `openai.gpt-5.6-luna-thinking`, `openai.gpt-5.6-terra`, `openai.gpt-5.6-terra-thinking`, `openai.gpt-6-luna`, `openai.gpt-6-luna-thinking`, `openai.gpt-6-sol`, `openai.gpt-6-sol-thinking`, `openai.gpt-6.1-sol`, `openai.gpt-6.1-sol-thinking` | No, teacher evaluation only |
+| GLM | `zai.glm-5.3-low-thinking`, `zai.glm-5.3-high-thinking`, `zai.glm-5.3-flash-low-thinking`, `zai.glm-5.3-flash-high-thinking` | Yes |
+| Kimi | `moonshotai.kimi-k3`, `moonshotai.kimi-k3-low-thinking`, `moonshotai.kimi-k3-max-thinking`, `moonshotai.kimi-k3.1-pro`, `moonshotai.kimi-k3.1-pro-low-thinking`, `moonshotai.kimi-k3.1-pro-max-thinking` | Yes |
+| Qwen3.8 | `Qwen3.8-2.4T-A95B-minimal-thinking`, `Qwen3.8-2.4T-A95B-medium-thinking` | Yes |
+| Nemotron | `nvidia.nemotron-3.5-super-vl`, `nvidia.nemotron-3.5-super-vl-thinking` | Yes |
+| GPT OSS | `openai.gpt-oss-120b`, `openai.gpt-oss-120b-thinking` | Yes |
+| Anthropic Claude (proprietary) | `anthropic.claude-opus-5-5`, `anthropic.claude-opus-5-5-thinking`, `anthropic.claude-sonnet-5-5`, `anthropic.claude-sonnet-5-5-thinking` | No, teacher evaluation only |
+| OpenAI GPT-5 / GPT-6 (proprietary) | `openai.gpt-5-mini`, `openai.gpt-5.2`, `openai.gpt-5.2-thinking`, `openai.gpt-6-luna`, `openai.gpt-6-luna-thinking`, `openai.gpt-6.1-terra`, `openai.gpt-6.1-terra-thinking`, `openai.gpt-6.2-sol`, `openai.gpt-6.2-sol-thinking` | No, teacher evaluation only |
 | Google Gemini (proprietary) | `google.gemini-3.1-pro-preview-thinking`, `google.gemini-3.1-flash-lite`, `google.gemini-3.8-flash`, `google.gemini-3.8-flash-thinking`, `google.gemini-3.7-flash`, `google.gemini-3.7-flash-thinking`, `google.gemini-3.6-flash`, `google.gemini-3.6-flash-thinking`, `google.gemini-3.5-flash`, `google.gemini-3.5-flash-thinking`, `google.gemini-3.5-flash-lite`, `google.gemini-3.5-flash-lite-thinking` | No, teacher evaluation only |
 
 A plain value and its `-thinking` twin point at the same model: the `-thinking` value turns the
 reasoning mode on, the plain value turns it off. Some families name the effort instead:
-`-low-thinking` / `-high-thinking` (GLM 5.3, DeepSeek V4 Pro 0813, DeepSeek V4.1 Flash),
-`-minimal-thinking` / `-medium-thinking` (Qwen3.8), `-low-thinking` / `-max-thinking` (Kimi K3, Kimi K3.1 Pro).
-Claude Opus 5.5 and Sonnet 5.5, GPT-6.1 Sol, Gemini 3.5 to 3.8 Flash and Gemini 3.5 Flash Lite
-always reason: their plain value runs at the lowest effort the model accepts and their
-`-thinking` value at high. `qwen.qwen3.8-27b-thinking` runs at medium effort.
+`-low-thinking` / `-high-thinking` (GLM 5.3), `-minimal-thinking` / `-medium-thinking`
+(Qwen3.8), `-low-thinking` / `-max-thinking` (Kimi K3, Kimi K3.1 Pro). Kimi K3 and Kimi K3.1 Pro
+turn reasoning off with their plain value; Qwen3.8 and
+GLM 5.3 always reason and have none. Claude Opus 5.5 and Sonnet 5.5, GPT-6.2 Sol, Gemini 3.5 to
+3.8 Flash and Gemini 3.5 Flash Lite always reason too: their plain value runs at the lowest
+effort the model accepts and their `-thinking` value at high.
 
-All teachers are reasoning models except `Qwen3-235B-A22B-Instruct-2507`,
-`Qwen3-480B-A35B-Coder` and `Qwen2.5-VL-72B-Instruct`, which matters for
-`synthgen.teacher_temperature` (`configuration.md` § Cross-field validation).
+`openai.gpt-oss-120b` runs at `low` reasoning effort, `openai.gpt-oss-120b-thinking` at
+`medium`.
 
-`openai.gpt-oss-20b` and `openai.gpt-oss-120b` run at `low` reasoning effort. Their `-thinking`
-values run at `medium`.
+Every teacher needs `synthgen.teacher_temperature` in [0.5, 0.7] (`configuration.md`
+§ Cross-field validation).
 
 ## Reasoning students (`base.enable_thinking`)
 
@@ -95,8 +94,13 @@ The students that support it: `reasoning-models.md`.
 
 ## Vision compatibility (`base.visual_task`)
 
-Vision teachers: `moonshotai.kimi-k2.6`, `moonshotai.kimi-k2.6-thinking`, `moonshotai.kimi-k3`, `moonshotai.kimi-k3-low-thinking`, `moonshotai.kimi-k3-max-thinking`, `moonshotai.kimi-k3.1-pro`, `moonshotai.kimi-k3.1-pro-low-thinking`, `moonshotai.kimi-k3.1-pro-max-thinking`, `zai.glm-5.3-flash-low-thinking`, `zai.glm-5.3-flash-high-thinking`, `deepseek.v4.1-flash-low-thinking`, `deepseek.v4.1-flash-high-thinking`, `deepseek.v4-flash-vision-exp`, `deepseek.v4-flash-vision-exp-thinking`, `Qwen2.5-VL-72B-Instruct`, `qwen.qwen3.8-flash`, `qwen.qwen3.8-flash-thinking`, `qwen.qwen3.8-27b`, `qwen.qwen3.8-27b-thinking`, `nvidia.nemotron-3.5-super-vl`, `nvidia.nemotron-3.5-super-vl-thinking`. Every proprietary teacher is also
-vision-capable, for teacher evaluation only.
+Vision teachers: `moonshotai.kimi-k3`, `moonshotai.kimi-k3-low-thinking`,
+`moonshotai.kimi-k3-max-thinking`, `moonshotai.kimi-k3.1-pro`,
+`moonshotai.kimi-k3.1-pro-low-thinking`, `moonshotai.kimi-k3.1-pro-max-thinking`,
+`zai.glm-5.3-flash-low-thinking`, `zai.glm-5.3-flash-high-thinking`,
+`nvidia.nemotron-3.5-super-vl`, `nvidia.nemotron-3.5-super-vl-thinking`. Every proprietary
+teacher is also vision-capable, for teacher evaluation only. `zai.glm-5.3-low-thinking`,
+`zai.glm-5.3-high-thinking`, Qwen3.8 and GPT OSS are text-only.
 
 `visual_task: true` requires one of these in every teacher and judge role:
 `base.teacher_model_name`, `trace_processing.teacher_model_name`,
@@ -111,7 +115,4 @@ Applies to chat completion whenever the job description declares tools. A tool-f
 
 - **Students**: only Llama 3, Qwen3, Qwen3.5, Qwen3.6, Qwen3.8, LFM2/LFM2.5, Gemma 4,
   FunctionGemma, Granite 4.2 and Nemotron 3.5.
-- **Teachers**: everything except `deepseek.v3.1`, `Qwen3-480B-A35B-Coder` and
-  `Qwen2.5-VL-72B-Instruct`.
-
-
+- **Teachers**: every teacher.
