@@ -38,5 +38,5 @@ move its files into a Dataset:
    The create validates it and names the first row that fails.
 
 The new Dataset has no parent: it is the root of a new chain. A test set from an old entity is
-a locked test set like any other (`../stages/build-a-test-set.md` Step 5), and a train set from
-an old TrainingDataset is a train set to top up (`../stages/build-a-train-set.md` § Topping Up).
+a test set like any other, and a train set from an old TrainingDataset is a train set that later
+expands add rows to.

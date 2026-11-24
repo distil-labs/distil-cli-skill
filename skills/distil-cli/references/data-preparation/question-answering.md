@@ -48,10 +48,11 @@ is charged: upload its rows into a new question-answering Dataset. A label from 
 
   Generation is then spread roughly evenly over the labels. `method: adaptive` evens it
   further, at the cost of a teacher call per surviving row it classifies (`../mutators.md` § Adaptive mutators). This mutator is the
-  normal exception to the advice of 1-2 mutators of 3-10 values (`../mutators.md` § How many,
-  and in what proportions).
-- **The metric**: `binary` exact match is the accuracy (`../evaluation-metrics.md` § Primary
-  metric per task).
+  normal exception to the advice of 3-10 values per mutator (`../mutators.md` § How many, and
+  in what proportions).
+- **The metric**: `binary` exact match is the accuracy. It is the faithful measure for a label,
+  and the primary metric when the user chooses it over the default judge
+  (`../evaluation-metrics.md` § Primary metric per task).
 - **The test set**: nothing checks that every class is present, so a test set the user
   supplies may miss rare classes. Count the labels in `test.jsonl` and tell the user which are
   missing.
@@ -60,5 +61,4 @@ What the old task did and this does not:
 
 - **No per-class report** in the metrics. Count per-class errors from the predictions file.
 - **No check that an answer is a label.** Count the labels of the generated rows in the smoke,
-  and treat an answer outside the label set as a defect of the run
-  (`../../stages/synthetic-data-generation.md` Step 4).
+  and treat an answer outside the label set as a defect of the run.

@@ -46,33 +46,35 @@ system prompt instead (`variable-system-prompts.md`).
 
 ## What each field feeds
 
-- `task_description`: in every teacher prompt (eval, synthgen, judge). Derive it from the
-  system prompt the user's production system runs, with the same care: output format with an
-  example, include/exclude rules, edge cases. Examples in it come from the train split or from
-  rows the user wrote for that purpose, never from `test.jsonl`. Keep them few and short: they
-  become part of the system prompt the model trains and serves with.
-  It defines what a correct answer is for evaluation and the judge too, so keep it fixed once
-  the test set is locked and scored. Before that, and whenever the teacher misses conventions
-  the user's labels follow (format, label names, length), write those conventions into it: it
-  is often the biggest lever on teacher quality. A change after the first teacher evaluation
-  needs the user's approval and a new teacher evaluation.
-  With `base.variable_system_prompt` on, it states only what every application's system
-  prompt has in common (`variable-system-prompts.md` § What `task_description` becomes).
+- `task_description`: in every teacher prompt (eval, synthgen, judge). Derive it from the system
+  prompt the user's production system runs, with the same care: output format with an example,
+  include/exclude rules, edge cases. Examples in it come from the train split or from rows the user
+  wrote for that purpose, never from `test.jsonl`. Keep them few and short: they become part of the
+  system prompt the model trains and serves with. It defines what a correct answer is for evaluation
+  and the judge too, so the workflow agrees it with the user before any data is made. Once agreed,
+  it is not changed, and every later Dataset inherits the agreed version. Before it is agreed, and
+  whenever the teacher misses conventions the user's labels follow (format, label names, length),
+  write those conventions into it: it often changes teacher quality more than any other field. A
+  change after that is the user's decision, changes what every later score measures, and needs new
+  teacher evaluations. With `base.variable_system_prompt` on, it states only what every
+  application's system prompt has in common (`variable-system-prompts.md` § What `task_description`
+  becomes).
 - `tools`: defines the call space. Its descriptions directly shape generated data.
 - `synthetic_data_generation_instructions` (all task types): extra guidance injected into every
   synthetic-data-generation prompt. Use it to describe the generated inputs: formats, domains,
   variation, noise. For a reasoning student, also `reasoning-models.md`.
-- `llm_as_a_judge_instructions` (all task types): the instructions the judge model
-  is given when it scores a prediction, for both judge metrics (`evaluation-metrics.md` § Metrics
-  by task) and for the RLVR reward (`configuration.md`). State the criteria: what a correct answer
-  must contain, what to ignore (order, whitespace, paraphrasing), including format rules (for
-  example, no code fences). Vague criteria make every downstream verdict noisy. When the judge
-  mismeasures, update these instructions or use a stronger judge model; either is a measurement
-  change, so earlier scores are not comparable. The judge writes its score in a `<score>` tag, in
-  one of two modes (§ Judge score modes).
+- `llm_as_a_judge_instructions` (all task types): the judge rubric, agreed with the user at the
+  start of the project together with the judge model (`evaluation-metrics.md` § Primary metric per
+  task). It is the instructions the judge model is given when it scores a prediction, for both judge
+  metrics (`evaluation-metrics.md` § Metrics by task) and for the RLVR reward (`configuration.md`).
+  State the criteria: what a correct answer must contain, what to ignore (order, whitespace,
+  paraphrasing), including format rules (for example, no code fences). Vague criteria make every
+  downstream verdict noisy. Once agreed, it is not changed, and neither is the judge model: a
+  different rubric or judge model is a measurement change, earlier scores are no longer comparable,
+  and the change is the user's decision. The judge writes its score in a `<score>` tag, in one of
+  two modes (§ Judge score modes).
 - `trace_processing_instructions` (optional, all task types): task-specific guidance appended
-  to the relabelling rewrite and fix instructions only. It is unused outside relabelling
-  (`../stages/relabel-traces.md`). Use it when the edits must respect something unusual about the traces, for
+  to the relabelling rewrite and fix instructions only, and unused outside relabelling. Use it when the edits must respect something unusual about the traces, for
   example "this is a live phone call; preserve the caller's interruptions and any cut-off
   utterances verbatim". Leave it out when no special handling is needed.
 

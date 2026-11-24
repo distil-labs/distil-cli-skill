@@ -51,13 +51,13 @@ a project if you skip it. On Windows, run the CLI inside WSL.
 
 ## Layout
 
-`SKILL.md` is the entry point. `stages/` holds one unit of pipeline work each, `workflows/` the
-three workflows (building a model in a single pass, building a vision model from images, and
-autoresearch, where the agent iterates on the model for you), and `references/` the shared
-knowledge,
-with every `distil` command in `references/execution/cli.md` and every REST API request in
-`references/execution/backend-api.md`. Swapping the CLI for the REST API changes the commands and
-nothing else.
+`SKILL.md` is the entry point: the workflow, its phases in order, every user gate, the iteration
+loop and the rules. `phases/` holds one file per phase, `protocols/` the routines several phases
+share (making rows, blind review, error analysis, the run log), `operations/` one platform job
+each, and `references/` the shared knowledge, with every `distil` command in
+`references/execution/cli.md` and every REST API request in `references/execution/backend-api.md`.
+Swapping the CLI for the REST API changes the commands and nothing else. Image inputs follow the
+same workflow with the changes listed in `references/visual-tasks.md`.
 
 ## Quick Start
 
@@ -67,9 +67,10 @@ Once the skill is installed, ask your agent to build you a model:
 
 The agent starts from the model you already run in production: it puts an inference endpoint in
 front of it to collect traces, or takes the files you have: traces, a train set, a test set, or
-any combination. It builds a test set, picks the teacher with a teacher evaluation, builds the
-train set from relabelled traces and synthetic data, trains the student, and serves it behind a
-new endpoint that takes the traffic the traces came from. Every
+any combination. It agrees the scope and the task description with you, builds a test set that
+covers that scope, then iterates on the training data (relabelled traces and synthetic rows)
+until the student reaches the teacher or the budget is spent, and serves it behind a new endpoint
+that takes the traffic the traces came from. Every
 stage confirms the setup and the expected cost with you before it submits anything.
 
 ## Documentation

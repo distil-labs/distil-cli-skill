@@ -29,9 +29,9 @@ With the flag on, a row without a system message gets this same prompt.
 ## Where to set it
 
 `base.variable_system_prompt: true` in the `config.yaml` of the uploaded Dataset, before the
-first expand, so every stage reads it:
+first expand, so every job reads it:
 
-| Stage | Flag on | Flag off |
+| Job | Flag on | Flag off |
 |---|---|---|
 | Loading train and test rows | A row keeps its system message; a row without one gets the fixed prompt | Every row gets the fixed prompt; system messages in the files are replaced |
 | Relabelling traces | A trace keeps its system message | A trace gets the fixed prompt |
@@ -99,7 +99,7 @@ synthgen:
 - Stricter system messages make harder references: read the rows where the answer looks wrong
   before blaming the teacher.
 
-Smoke check, on top of `../stages/synthetic-data-generation.md` Step 4: every new row starts
+Smoke check, on top of the usual review of a smoke: every new row starts
 with a system message, the system messages differ from row to row and from `task_description`,
 and in a handful of rows the answer would be different without the system message.
 

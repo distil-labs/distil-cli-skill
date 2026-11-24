@@ -1,6 +1,6 @@
 # Execution Backend: distil labs API
 
-How stages run on the platform. Stage files link here by operation name. Every stage is an
+How platform jobs run through the REST API. Every job's result is an
 entity created through the REST API, and every entity is created either by staging files or
 by running a job over the entity before it. The prerequisites are a distil labs account and the
 `distil` CLI signed in to it, because the CLI mints the access tokens. There is no API route that
@@ -8,7 +8,25 @@ creates an account: sign up with `distil signup`.
 
 `cli.md` is the default backend and this one is the alternative. Take it when the user
 prefers it, or when the work is already scripted in Python. `README.md` § Choose the backend
-decides between them, and the choice goes in `run.md`.
+decides between them, and the choice goes in the run log.
+
+Contents:
+
+- Prerequisites
+- Preamble
+- The entity model (supplying files)
+- Billing
+- Creating the job inputs (the traces object, the Dataset, the SLM from staged files)
+- Submitting jobs (relabel traces, synthetic data generation, overrides, teacher evaluation,
+  model training)
+- Monitor (wait for a job)
+- Output layout (reading a Dataset)
+- Fetch metrics
+- Fetch model artifacts (the inference client on its own)
+- Reuse the data for training-only runs (deploy an SLM)
+- Inference endpoints (create an endpoint, keys, the call the application makes, read the
+  traces, export the traces to a file, traces from an endpoint, serve the student behind an
+  endpoint)
 
 ## Prerequisites
 
@@ -188,11 +206,11 @@ def poll(collection, entity_id, status_field="status"):
 
 ## The entity model
 
-The routes for each stage. What the entities are and how they chain: `../platform.md`
+The routes for each job. What the entities are and how they chain: `../platform.md`
 § Entities and jobs. The `Override` column says whether a job's configuration can be varied at
 submission. See § Overrides.
 
-| Stage | Entity | Submit | Read | Override |
+| Job | Entity | Submit | Read | Override |
 |---|---|---|---|---|
 | (job input) | PreparedTraces | `POST /prepared-traces`, from a staged `traces.jsonl` or an endpoint's name | `GET /prepared-traces[/<id>]`, `GET /prepared-traces/<id>/download` | no config of its own |
 | (job input) | Dataset | `POST /datasets` from staged files, or `POST /datasets/from-prepared-traces` with a config and a job description inline | `GET /datasets[/<id>]`, `GET /datasets/<id>/{status,logs,metrics,sample,download,download-metadata}` | staged files only |
@@ -334,7 +352,7 @@ train_generated_id = post("/datasets/from-datasets", {
 })["id"]
 ```
 
-Record each id in `run.md` as the create returns it, and wait for its job (§ Wait for a job)
+Record each id in the run log as the create returns it, and wait for its job (§ Wait for a job)
 before the next expand names it as `from`.
 
 The count comes from the parent's config, `trace_processing.num_{split}_relabelled`, or from
@@ -503,8 +521,8 @@ until it returns or raises. Deployments report `deployment_status` rather than `
 need `poll(..., status_field="deployment_status")`.
 
 Submit and wait in separate calls, so that calling `poll()` again never submits the job twice.
-A job that takes hours (`../platform.md` § Job status) is many calls. Record the id in `run.md`
-before the first call and the last status after each one, and tell the user where the job is
+A job that takes hours (`../platform.md` § Job status) is many calls. Record the id in the run
+log before the first call and the last status after each one, and tell the user where the job is
 between calls.
 
 `GET /<collection>` lists every entity in a collection, newest first, and recovers a lost id.
@@ -586,7 +604,7 @@ predictions = requests.get(slm_metrics["predictions_download_url"]).text
 ```
 
 The production model's score is the `teacher_performance` of the teacher evaluation that ran
-with it as the teacher (`../../stages/teacher-evaluation.md`).
+with it as the teacher.
 
 The predictions file is JSONL, one test example per line, with `prompt`, `completion`,
 `prediction` and that example's own scores. Read a row and work from what is there.
@@ -652,8 +670,8 @@ requests.delete(f"{PLATFORM_URL}/deployments/{deployment_id}", headers=auth())
 
 The job does not return until vLLM answers, so `JOB_SUCCESS` means serving rather than merely
 scheduled. After the delete, `deployment_status` stays `JOB_SUCCESS`. `endpoint_status` going
-to `stopped` is what confirms the deployment is down. Delete the deployment when finished and
-check that field, because a running deployment bills until its idle timeout.
+to `stopped` is what confirms the deployment is down. Delete the deployment when the student should stop answering, and
+check that field to confirm it.
 
 ## Inference endpoints
 
@@ -680,7 +698,7 @@ name = endpoint["unique_endpoint_name"]     # "support-yeOdAS"
 
 `name-prefix` is a prefix, not the name. The platform appends a suffix and returns
 `unique_endpoint_name`, which every other route takes and which a request body carries. Record it
-in `run.md`. `get(f"/inference-endpoints/{name}")` reads one back, and
+in the run log. `get(f"/inference-endpoints/{name}")` reads one back, and
 `get("/inference-endpoints")` lists them newest first, which is how a lost name is recovered.
 
 `fallback.model` takes an OpenRouter model slug in `owner/model` form
@@ -706,7 +724,7 @@ requests.put(
 
 `GET /api-keys` lists names and creation dates, never secrets, and nothing reissues one. Tell the
 user where the secret is going before creating it, and never echo it into the transcript or
-`run.md`. `DELETE` on the link path unlinks; `DELETE /api-keys/<name>` revokes the key
+the run log. `DELETE` on the link path unlinks; `DELETE /api-keys/<name>` revokes the key
 everywhere.
 
 Key changes take up to a minute to propagate. A 409 from either link route means the endpoint's
@@ -732,7 +750,7 @@ requests.post(
 chat completions request, so an existing OpenAI client changes three strings: base URL, key and
 model. Send one call like this with the user before they touch their application. Then it waits:
 traces accumulate at the rate of their traffic, and the test set and the train set want hundreds,
-so the next stage is days or weeks away rather than minutes. Say that plainly when proposing this
+so the next step of the workflow is days or weeks away rather than minutes. Say that plainly when proposing this
 route.
 
 ### Read the traces

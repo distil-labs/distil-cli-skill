@@ -29,7 +29,7 @@ PreparedTraces ─► Dataset ─► Dataset ─► Dataset … ─┬─► Tea
 
 A Dataset has at most one parent (`parent_prepared_traces_id` or `parent_dataset_id`), so a
 project is a chain of Datasets, each one expand away from the previous. Every later command
-needs the ids: record each one in the iteration's `run.md` as it is created.
+needs the ids: record each one in the run log as it is created.
 
 An uploaded PreparedTraces, an uploaded Dataset and a Dataset from traces run no job: they exist
 only once the create has succeeded, their status is `JOB_SUCCESS` as soon as the create
@@ -208,10 +208,21 @@ so a `-thinking` variant can be a tier above the same model without it:
 
 These are examples. Read a model's tier from `--dry-run`, not from this list.
 
-Every stage's setup gate prices what it is about to submit with `--dry-run`
-(`execution/cli.md` § Billing) and quotes the price and the balance. A dry run is free, starts
-nothing, and takes the same config and job-description overrides as the real submission, so
-price the exact run. Read the balance against the whole plan rather than the next submission:
+**Generation depends on the parent's rows.** Generation is priced as the target times the
+average tokens of a row in the parent. A Dataset made by an expand carries the job's task
+description as a system message in every row, so generating on such a parent costs much more
+than generating on an uploaded Dataset with short rows. Observed: a 128-row smoke cost $0.05 on
+an uploaded Dataset and $3.06 on a child of an expand, with a task description of about 25,000
+characters.
+
+**Training grows with every top-up.** Training is priced from the train set's tokens, so each
+top-up raises the price of every later training run. Observed: $31, $61 and $91 for 5,000,
+10,000 and 15,000 train rows.
+
+Every submission is priced with `--dry-run` before it is submitted (`execution/cli.md`
+§ Billing), and the price is compared with the balance. A dry run is free, starts nothing, and
+takes the same config and job-description overrides as the real submission, so price the exact
+run. Read the balance against the whole plan rather than the next submission:
 a test set, a train set and a model take at least four full expand runs and a training run.
 Training can only be priced once its train set exists, so before generating data, leave room
 for it.
@@ -243,8 +254,7 @@ answers only once its job succeeds.
 Two conditions apply on top of that table:
 
 - **No entity scores the production model on its own.** The baseline the student must beat is
-  a TeacherEvaluation on the Dataset with the production model as `base.teacher_model_name`
-  (`../stages/teacher-evaluation.md`).
+  a TeacherEvaluation on the Dataset with the production model as `base.teacher_model_name`.
 - **An SLM reports both scores but only the tuned model's predictions.** The base-vs-tuned gap
   is available as numbers. A base-model failure case is not.
 

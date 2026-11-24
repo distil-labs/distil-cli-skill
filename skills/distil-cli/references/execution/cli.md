@@ -1,17 +1,33 @@
 # distil CLI
 
-The commands that run each stage. How the platform behaves (entities, expand operations, job
+The commands that run each platform job. How the platform behaves (entities, expand operations, job
 status, smoke runs, overrides, billing, outputs): `../platform.md`. Installing the CLI and
 signing in: `README.md` § Set up the CLI.
 
 This is the default backend and `backend-api.md` is the alternative. Take that one when the
 user prefers it, or when the work is already scripted in Python. `README.md` § Choose the backend
-decides between the two, and the choice goes in `run.md`. Two things differ from the API
+decides between the two, and the choice goes in the run log. Two things differ from the API
 backend: the CLI stages and uploads the files for you, so a directory is one argument, and an
 override is a file path rather than a JSON body.
 
 Check `distil --help` and `distil <group> --help` before trusting a flag; `distil update`
 installs the latest release.
+
+Contents:
+
+- Prerequisites
+- The entity model (which commands speak JSON, supplying files)
+- Billing
+- Creating the job inputs (the traces object, the Dataset)
+- Submitting jobs (relabel traces, synthetic data generation, overrides, teacher evaluation,
+  model training)
+- Monitor (job logs, cancelling a job; wait for a job)
+- Output layout (reading a Dataset)
+- Fetch metrics
+- Fetch model artifacts
+- Reuse the data for training-only runs
+- Inference endpoints (deploy an SLM, create an endpoint, keys, the call the application makes,
+  download the traces, traces from an endpoint)
 
 ## Prerequisites
 
@@ -22,12 +38,13 @@ distil logout
 ```
 
 The snippets also use `jq`. Each command runs in its own shell, so nothing carries state from
-one command to the next: record each entity id in `run.md` and pass it back as a literal
-argument. Paths in the snippets are illustrative; the stage files own the working directories.
+one command to the next: record each entity id in the run log and pass it back as a literal
+argument. Paths in the snippets are illustrative; the calling phase chooses the working
+directories.
 
 ## The entity model
 
-| Stage | Entity | Submit | Read | Override |
+| Job | Entity | Submit | Read | Override |
 |---|---|---|---|---|
 | (job input) | PreparedTraces | `distil traces upload --traces <file>`, or `distil traces create-from-inference-endpoint <unique-endpoint-name>` | `distil traces {list,show,download}` | no config of its own |
 | (job input) | Dataset | `distil dataset create --data <dir>`, or `distil dataset create-from-traces --config <file> --job-description <file> <traces-id>` | `distil dataset {list,show,status,logs,metrics,download,download-metadata}` | the files on disk |
@@ -145,7 +162,7 @@ once. The trace file's shape must match `trace_processing.observation_format` in
 (`../data-preparation/traces.md`): `langfuse` for a traces object from an endpoint. A
 `traces.jsonl` downloaded from such a traces object uploads again with `dataset create
 --traces` and the same `langfuse` setting, which is how a test set is put next to new
-endpoint traces (`../../workflows/build-a-model.md` Step 10).
+endpoint traces in one Dataset.
 
 From files on disk (`../data-preparation/overview.md`), any subset of the three data files:
 
@@ -314,6 +331,17 @@ and its parent as `parent_dataset_id` or `parent_prepared_traces_id`; a Prepared
 `source`. `dataset show <id>` prints the same for one Dataset, plus its status (`JOB_SUCCESS` at once
 for a Dataset no job produced). `list` recovers a lost id, and `show` walks a chain back to its root.
 
+**Job logs.**
+
+```bash
+distil dataset logs --output json <dataset-id> | jq -r .logs
+distil slm logs --output json <slm-id> | jq -r .logs
+```
+
+The job log of an expand says how many rows were dropped and why. With
+`synthgen.validation_instructions` set, it has lines such as `Synthetic example LLM
+validation: 94/103 accepted` (`../configuration.md` § LLM validation). The job log of a training run shows its progress: the epoch and the loss.
+
 ### Wait for a job
 
 One loop waits for every job. Save it once as `poll.sh` in the project root and run
@@ -347,7 +375,7 @@ call. It prints the last status and exits 0 on `JOB_SUCCESS`, 1 on `JOB_FAILURE`
 again until it exits 0 or 1.
 
 A job that takes hours (`../platform.md` § Job status) is many runs of the loop. Record the id in
-`run.md` before the first run and the last status after each one, and tell the user where the
+the run log before the first run and the last status after each one, and tell the user where the
 job is between runs.
 
 ### Cancel a job
@@ -415,6 +443,10 @@ distil teacher-evaluation download-predictions <teacher-evaluation-id>
 distil slm download-predictions <slm-id>
 ```
 
+Both `download-predictions` commands write `<id>-<kind>-predictions.jsonl` into the current
+directory, whatever the run directory is. Run them from the directory the file belongs in, or
+give the path with `--file-name`.
+
 Without `--output json`, `metrics` prints every metric, `llm-as-a-judge-reference-free`
 included. The `*_performance` object maps
 metric name to score (`../evaluation-metrics.md` § Metrics by task). A metric the run did not compute is `null`
@@ -461,8 +493,7 @@ distil slm create-from-dataset --output json --config retrain/config.yaml <datas
 
 ## Inference endpoints
 
-How endpoints behave: `../inference-endpoints.md`. The procedure:
-`../../stages/inference-endpoint.md`.
+How endpoints behave: `../inference-endpoints.md`.
 
 ```bash
 distil inference-endpoint create --name <prefix> --fallback-model <owner/model>
@@ -507,7 +538,7 @@ slug in `owner/model` form. `--trace-sample-rate <0-1>` sets the fraction of cal
 default 1; `show` reports it as `trace_sampling_rate`.
 
 `create` also takes `--primary-url` and `--primary-api-key`, which connect a model already
-deployed elsewhere as the primary. No stage in this skill uses them.
+deployed elsewhere as the primary. The workflow does not use them.
 
 ### Keys
 
@@ -517,10 +548,12 @@ distil api-keys list --output json
 distil api-keys delete <key-name>
 ```
 
-`create` prints the secret once and writes it to `<key-name>.json`. Send its output to
-`/dev/null` so the secret stays out of the transcript; the file keeps it. `--no-file` skips the
-file, for a key that goes straight into a secret store. Never echo a secret into the transcript
-or into `run.md`; name the file instead.
+`create` prints the secret once and writes `<key-name>.json` into the current directory, with
+the fields `id`, `name`, `message` and `secret`; the key itself is `secret`. Send the command's
+output to `/dev/null` so the secret stays out of the transcript; the file keeps it, and
+`jq -r .secret <key-name>.json` reads it into a variable or a request without printing it.
+`--no-file` skips the file, for a key that goes straight into a secret store. Never print the
+secret, or write it into the transcript or the run log; name the file instead.
 
 ### The call the application makes
 

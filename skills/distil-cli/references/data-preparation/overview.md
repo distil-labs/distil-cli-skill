@@ -57,18 +57,17 @@ Enforced at upload and before every expand, so check before submitting.
       `data:image/...;base64` URI (`../visual-tasks.md` § Data format)
 - [ ] `traces.jsonl` parses in the configured `observation_format`
 
-There is no minimum row count, and you never add rows to reach one
-(`../../stages/build-a-train-set.md` § Where New Rows Come From). With only a few user rows, put
-the coverage they miss into mutators (`../mutators.md`) and
-`synthetic_data_generation_instructions` (`../job-description.md`). The test set covers the
-production distribution (`../../stages/build-a-test-set.md`).
+There is no minimum row count, and you never add rows from outside the platform to reach one:
+new rows come from relabelling and synthetic generation. With only a few user rows, put the
+coverage they miss into mutators (`../mutators.md`) and `synthetic_data_generation_instructions`
+(`../job-description.md`). The test set covers the production distribution.
 
 ## Empty splits
 
 A missing or empty data file says "no data of this kind". A populated split is held to every
-rule above. What each stage does with an empty split:
+rule above. What each job does with an empty split:
 
-| Stage | Empty split | Behavior |
+| Job | Empty split | Behavior |
 |---|---|---|
 | relabel traces | train or test | Fills it. The job needs traces, not rows |
 | synthetic data generation | the split it fills | Runs zero-shot, and the output becomes the split |
@@ -81,11 +80,11 @@ rule above. What each stage does with an empty split:
 Tell the user before they build on an empty split:
 
 - **No test set means no scores**: no teacher evaluation, no base-vs-tuned comparison, no
-  verdict. `slm metrics` returns null scores, which is not a failed job. The test set is built
-  first for that reason (`../../stages/build-a-test-set.md`).
+  verdict. `slm metrics` returns null scores, which is not a failed job. The workflow builds
+  the test set first for that reason.
 - **No train set means synthetic data generation must run before training**: it fills the
   split from the task description, the tool definitions and the traces, with no rows
-  to imitate (`../../stages/build-a-train-set.md`).
+  to imitate.
 
 The two failures, in the job log:
 

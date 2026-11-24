@@ -1,7 +1,6 @@
 # Inference Endpoints
 
-How an inference endpoint behaves. Procedure: `../stages/inference-endpoint.md`. Commands:
-`execution/cli.md` § Inference endpoints.
+How an inference endpoint behaves. Commands: `execution/cli.md` § Inference endpoints.
 
 ## What an endpoint is
 
@@ -9,8 +8,11 @@ An inference endpoint is an OpenAI-compatible gateway at `https://inference.dist
 An application calls it with an ordinary chat completions request, and the endpoint keeps a
 record of every call. It has two models behind it:
 
-- **The fallback**: the model the user runs in production today, named by its OpenRouter slug
-  in `owner/model` form (https://openrouter.ai/models lists them). Every endpoint has one.
+- **The fallback**: named by an OpenRouter slug in `owner/model` form
+  (https://openrouter.ai/models lists them). Every endpoint has one. It is the model the user runs
+  in production when OpenRouter serves it, otherwise the closest model OpenRouter serves. Any
+  application that calls an LLM through an OpenAI-compatible chat API can be pointed at the
+  endpoint, whatever its current model.
 - **The primary**: in this skill, a hosted deployment of a trained SLM. An endpoint has either
   none or one.
 
@@ -40,8 +42,8 @@ moves its `model` string to it.
 The deployment behind a primary is a session for trying the model on real traffic: it stops
 after six hours, or after one hour with no traffic, and it cannot be restarted. From then on the
 endpoint answers every call from the fallback. Serving the student again needs a new deployment
-and a new endpoint in front of it. A running deployment bills until it stops, so delete it when
-it is no longer needed; after a delete the endpoint answers from the fallback. To serve a model
+and a new endpoint in front of it. A deployment is charged once, when it is created (`platform.md` § Billing). Delete it when
+the student should stop answering; after a delete the endpoint answers from the fallback. To serve a model
 permanently, the customer contacts contact@distillabs.ai.
 
 The deployment serves the SLM's LoRA adapter with vLLM on the student's HuggingFace base model
@@ -90,7 +92,8 @@ There are two ways to turn an endpoint's records into a PreparedTraces:
 Use the direct route for the full trace set. Use the download route when the traces are needed
 now, when there are only a few thousand, when the records must be filtered first, for example
 on `source` once a student sits in front of the fallback, or when the current `test.jsonl` has
-to go into the same Dataset (`../workflows/build-a-model.md` Step 10).
+to go into the same Dataset, for example when a serving endpoint's traffic starts the next
+cycle of a model.
 
 ## Billing
 

@@ -24,7 +24,7 @@ line can carry the request's `tools` list (§ Tools in traces).
 ```
 
 A line may also end on the user's turn, with no answer: relabelling then writes the answer
-instead of correcting one (`../../stages/relabel-traces.md` Step 1).
+instead of correcting one.
 
 **`openai_messages_with_images`**: the same, but user content can be a list of
 `{"type": "text", ...}` / `{"type": "image_url", "image_url": {"url": ...}}` parts. Requires

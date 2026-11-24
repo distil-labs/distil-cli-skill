@@ -15,7 +15,7 @@ set `task`, `student_model_name` and `teacher_model_name`.
 | `student_model_name` | `Llama-3.2-1B-Instruct` | The base model that is fine-tuned into your student. See `model-catalog.md` |
 | `teacher_model_name` | `nvidia.nemotron-3.5-super-vl` | The model that generates the synthetic data and that the student learns from. See `model-catalog.md` |
 | `random_seed` | `123` | Seed for random sampling across the pipeline, mutators included |
-| `llm_num_parallel_requests` | `4` | Maximum number of LLM requests sent in parallel, across the teacher, synthetic generation and the judge. `1` turns parallelism off |
+| `llm_num_parallel_requests` | `4` | Maximum number of LLM requests sent in parallel, across the teacher, synthetic generation, relabelling and the judge. Raising it (for example to `16`) makes the jobs that call LLMs faster without changing what they return. `1` turns parallelism off |
 | `should_expand_dataset` | `"auto"` | Whether a conversation becomes one example per assistant turn: `true`, `false` or `auto`. § Conversation expansion |
 | `flexible_conversation_structure` | `false` | Chat completion only; requires `variable_system_prompt: true`. Rows may hold later system messages, an assistant greeting first and consecutive turns of one role, and the generation and relabelling prompts tell the teacher these shapes are valid. `data-preparation/chat-completion.md` § Flexible conversation structure |
 
@@ -37,7 +37,7 @@ set `task`, `student_model_name` and `teacher_model_name`.
 | `enable_trainer_internal_eval` | `false` | Fine-tuning and RLVR evaluate on the validation set, which is the test split, before training and at the end of every epoch. Final metrics come from the post-training evaluation either way; `false` trains faster and with less memory |
 | `logging_steps` | `0.01` | How often fine-tuning and RLVR log their metrics, as a fraction of all optimizer steps (`0.1` logs every 10%). Above 0, at most 1 |
 | `save_steps` | `0.25` | How often fine-tuning and RLVR save a checkpoint, as a fraction of all optimizer steps (`0.1` saves every 10%). Above 0, at most 1 |
-| `memory_optimized_training` | `0` | `0`, `1` or `2`; raise it only when training runs out of GPU memory. `1`: gradient checkpointing, which recomputes activations in the backward pass instead of storing them, and is slower (RLVR also puts vLLM to sleep between generations). `2`: `1` plus activation offloading to CPU RAM, much slower. `true` reads as `2` and `false` as `0`. `../stages/model-training.md` |
+| `memory_optimized_training` | `0` | `0`, `1` or `2`; raise it only when training runs out of GPU memory. `1`: gradient checkpointing, which recomputes activations in the backward pass instead of storing them, and is slower (RLVR also puts vLLM to sleep between generations). `2`: `1` plus activation offloading to CPU RAM, much slower. `true` reads as `2` and `false` as `0` |
 | `use_qlora` | `false` | Loads the base model in 4-bit NF4 (QLoRA) for fine-tuning and attaches the LoRA adapter in higher precision. The base model uses about a third of the GPU memory, and training is slightly slower. Requires bitsandbytes (Linux only) |
 | `max_completion_length` | `2048` | Tokens the student may generate: caps generation in student evaluation and the rollouts of RLVR. Teachers use `synthgen.teacher_max_tokens` instead. Raise it when training warns it is below the longest training completion |
 | `rlvr_dataset_size` | `0.0` | Fraction of the dataset in the RLVR split, from 0 to 1. RLVR, an optional reinforcement learning stage after fine-tuning, runs when this is above 0. With the default RLVR batching, the split needs at least 16 rows (see `rlvr_steps_per_generation`) |
@@ -90,22 +90,30 @@ set `task`, `student_model_name` and `teacher_model_name`.
 
 ### LLM validation
 
-Set `synthgen.validation_instructions` to a non-empty prompt to enable these checks.
-The criteria do not have to appear in the job description. The judge receives the
-instructions, the job description and the complete example, including its system
-prompt, tool calls and images.
+`synthgen.validation_instructions` turns on a second check of every generated example by an
+LLM. A non-empty string turns it on; `null` or leaving the field out turns it off; an empty
+string is invalid.
 
-Validation uses `evaluation.llm_as_a_judge_model_name`, falling back to
-`base.teacher_model_name`. It runs only during synthetic generation, after structural
-and diversity checks, with one judge call per surviving example and the configured
-request parallelism. Rejected examples and malformed judgments are dropped without
-rewriting. Omit the field or set it to `null` to disable it; an empty string is invalid.
-This check does not run during relabeling, target cleanup or dataset loading.
+- **The validator** is `evaluation.llm_as_a_judge_model_name`, or `base.teacher_model_name`
+  when that is not set. It receives the instructions, the job description and the complete
+  example, including its system prompt, tool calls and images. The criteria do not have to
+  appear in the job description.
+- **When it runs**: only during synthetic generation, after the structural and diversity
+  checks, with one call per example that passed them, sent `base.llm_num_parallel_requests` at
+  a time. It does not run during relabelling, target cleanup or dataset loading.
+- **What happens to a rejected example**: it is dropped, not rewritten. A reply that cannot be
+  read as a verdict drops the example too.
+- **What it reports**: the job log has lines such as `Synthetic example LLM validation: 94/103
+  accepted` (`execution/cli.md` § Monitor).
+
+Useful instructions ask the validator to work out the answer again from the input, to compute
+the facts that decide it (a time window, an amount, a priority), and to reject an example whose
+answer differs, whose facts are missing or contradict each other, or whose input states the
+conclusion or names the answer.
 
 ## trace_processing
 
-Read by `relabel-traces-train` and `relabel-traces-test`
-(`../stages/relabel-traces.md`); `observation_format` is also read
+Read by `relabel-traces-train` and `relabel-traces-test`; `observation_format` is also read
 when a dataset is created from traces.
 
 | Parameter | Default | Notes |

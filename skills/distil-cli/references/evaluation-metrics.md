@@ -1,8 +1,8 @@
 # Evaluation Metrics
 
-Metrics per task and the verdict thresholds. The aggregated scores are the `*_performance`
-object that a `metrics` command returns; the per-example predictions are a separate download
-(`execution/cli.md` § Fetch metrics).
+Metrics per task, the primary metric, and the reference points that scores are read against.
+The aggregated scores are the `*_performance` object that a `metrics` command returns; the
+per-example predictions are a separate download (`execution/cli.md` § Fetch metrics).
 
 ## Metrics by task
 
@@ -19,7 +19,7 @@ All 0-1:
 - `llm-as-a-judge-reference-free`: LLM verdict (good=1, bad=0, or a graded score from 0 to 1) on whether the prediction solves
   the problem, from the full prefix and the prediction alone. The judge never sees the
   reference, so a wrong reference does not lower the score. It is the default primary metric
-  when the teacher wrote the references (§ Primary metric per task). Read it next to `llm-as-a-judge`: a
+  (§ Primary metric per task). Read it next to `llm-as-a-judge`: a
   prediction marked bad against the reference but good without it points at the reference row,
   not the model. Unparseable verdicts count as bad (0).
 - Both judge metrics give a pass/fail verdict by default, and the metric is the fraction marked
@@ -42,67 +42,81 @@ stay meaningful for tool-free rows; the judge metrics carry the text signal.
 
 ## Primary metric per task
 
-The default primary metric depends on who wrote the test set's answers, for every task:
+The default primary metric, for every task, is `llm-as-a-judge-reference-free` with a strong
+judge model (`evaluation.llm_as_a_judge_model_name`) and a rubric (`llm_as_a_judge_instructions`
+in the job description, `job-description.md` § What each field feeds). The judge model and
+the rubric are agreed with the user at the start of the project and never changed afterwards: a
+different judge or rubric makes every earlier score incomparable. It needs no reference answer,
+so it works when the teacher wrote the test set's answers.
 
-- **The user** (gold labels): `llm-as-a-judge`, scored against the reference.
-- **The teacher** (relabelled or synthetic rows): `llm-as-a-judge-reference-free`. When the
-  teachers score near 1 on it, it no longer separates them: switch to `llm-as-a-judge`.
-- **`binary`** exact match only where exact string equality is the faithful measure: a label
+Two alternatives, each chosen with the user:
+
+- **`binary`** exact match, where exact string equality is the faithful measure: a label
   (`data-preparation/question-answering.md` § Classifying with question-answering) or a set.
-  Never for free text or code, where correct answers differ in form.
+  There is then no judge to agree. Never for free text or code, where correct answers differ in
+  form.
+- **`llm-as-a-judge`** (reference-based), when the user's gold labels are the reference and the
+  user prefers it.
 
-The user can name a different one, agreed at the start of the project. Every score in
-§ Verdicts (teacher, base, tuned, production model, `closed`) is the agreed key.
+Every score in § Verdicts (teacher, base, student, production model, `closed`) is the agreed key.
 
 ## Verdicts
 
 Judge results on the primary metric (§ Primary metric per task) against reference points,
-never as absolute numbers: 0.72
-is a good result against a teacher at 0.75 and a poor one against a teacher at 1.00.
+never as absolute numbers: 0.72 is a good result against a teacher at 0.75 and a poor one
+against a teacher at 1.00. This section defines the reference points; what to do next is
+decided by the workflow.
 
-**Noise.** The judge runs at non-zero temperature, so the same model on the same test set
-scores differently from run to run. A difference between two scores means something only when
-it is larger than that run-to-run variation. Measure the variation for the test set in use, for
-example by running the same evaluation again, and call it the noise band.
+**Noise.** A difference between two scores means something only when it is larger than the noise.
+The noise has three sources, and a decision should use the ones that apply to it:
 
-**Teacher evaluation.**
+- **Evaluation noise.** The teacher and the judge run at non-zero temperature, so the same
+  predictions score differently from run to run. Measure it as the spread between two teacher
+  evaluations on the same test set.
+- **Training noise.** Two trainings on the same Dataset with different `random_seed` values give
+  different models. Their scores usually differ by more than the evaluation noise, and the
+  difference is often a handful of the same borderline rows flipping between models. Measure it by
+  training one Dataset twice. It is the noise that matters when you compare two trained models.
+- **Test-set noise.** A small group measures little: one row in a group of 50 moves the group's
+  score by 0.02. A group's spread between two runs says how stable that group is. It is not the
+  noise for the whole test set.
 
-| Verdict | When |
-|---|---|
-| PROCEED | The user has seen the teacher's score and its failure patterns and accepts that quality for production |
-| ITERATE | The score or the failure patterns are not acceptable, and a different teacher, or a fix to wrong test rows or to the judge, could change that |
-| RETHINK | No teacher does the task well: the task type, the task definition or the metric is likely wrong |
+Use judgement to put these together. Some guidelines:
 
-**Training.** The fraction of the base → teacher gap the student closed decides the branch:
+- Read a decision on the scores it is about. A change aimed at one kind of input is judged on
+  that group, and on the real-row groups that show what the change broke elsewhere.
+- A group whose scores swing between runs is unstable. Report it as unstable and give its
+  differences a wider margin. Do not widen the noise of every other comparison because of it.
+- Measure the training noise before a close decision rests on it. That means retraining once
+  with another seed when a change helps one group and hurts another by a few rows, or when
+  several models in a row land on the same side of the best model. A best model that was
+  trained once may be a lucky draw.
+- Write down which noise estimate a decision used and why, so the decision can be checked later.
+
+**Target.** By default, the mean score of one to three strong models other than the teacher
+that wrote the test references: that teacher's own score on its references is inflated. The
+target is reached when the best score is above it, or below it by no more than the noise.
+
+**`closed`.** The share of the base → teacher gap the student closed:
 
 ```
-closed = (tuned - base) / (teacher - base)     # each term is the primary metric
+closed = (score - base) / (target - base)     # each term is the primary metric
 ```
 
-| `closed` | Verdict | Action |
-|---|---|---|
-| **≥ 0.8** | Deploy candidate | Continue to deployment; for a sweep, take the smallest student that clears the bar |
-| **0.4 - 0.8** | Retune | Train again on the same Dataset with a different student or tuning settings; nothing is regenerated (`../stages/model-iteration.md`, re-running training) |
-| **< 0.4** | Iterate | The teacher's knowledge is not reaching the student, and retuning will not fix it. `../stages/model-iteration.md` |
+It is reported for every trained model in the ledger of the run log. When `target - base` is
+small the ratio is unstable: say so.
 
-A `closed` of 1 or above means the student matches or beats the teacher's score on this test
-set, which is the default target of `../workflows/autoresearch.md`.
-
-These are gates for judgement. When `teacher - base` is small the ratio is unstable, and when
-the gap is inside the noise band no branch follows from the numbers: say so.
-
-Every training run scores the base student again, so `closed` moves with the noise in both
-`tuned` and `base`. Use one base score for the project: the first run's, or the mean of the
-runs so far. Count a target as reached only when `closed` still clears it with the tuned score
-lowered by the noise band.
+**One base score per project.** Every training run scores the base student again, so the base
+moves with the noise. Use one base score for the project: the first run's, or the mean of the
+runs so far.
 
 **The production model is a floor.** The model the user runs in production is scored on the
-test set by a teacher evaluation with it as `base.teacher_model_name`
-(`../stages/teacher-evaluation.md`): `teacher_performance` of that run is its answers scored
-with the same metric suite as the student, against the same references. A student below it is
-not deployed whatever `closed` says. Compare the same primary-metric key. When the production
-model is not in the catalog (`model-catalog.md` § Production baselines), there is no baseline, and the user judges the student on the
-absolute score.
+test set by a teacher evaluation with it as `base.teacher_model_name`: `teacher_performance` of
+that run is its answers scored with the same metric suite as the student, against the same
+references. A student below it is not deployed, whatever `closed` says. Compare the same
+primary-metric key. When the production model is not in the catalog (`model-catalog.md`
+§ Teacher models), there is no baseline, and the user judges the student on the absolute
+score.
 
 With an empty test split there are no reference points and no verdict
 (`data-preparation/overview.md` § Empty splits): report the model as unmeasured.

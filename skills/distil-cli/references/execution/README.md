@@ -1,8 +1,8 @@
 # Execution Backends
 
-An execution backend is the client that runs the stages. This directory holds one file for each
-backend, and this file tells you how to set them up and which one to use. Do it at the start of a
-project, before the first stage.
+An execution backend is the client that runs the platform jobs. This directory holds one file for
+each backend, and this file tells you how to set them up and which one to use. Do it at the start
+of a project, before the first platform call.
 
 | File | Backend | Use it |
 |---|---|---|
@@ -52,13 +52,13 @@ that is set) and refreshes it, so a long project needs no second sign-in.
 take it whenever the user prefers it, or whenever the work is already scripted in Python. Ask the
 user, or take the choice your operator already made. A stated preference settles it.
 
-Record which backend and why in `run.md` at the start of the project. Each later stage uses that
-backend.
+Record which backend and why in the run log at the start of the project. Every later job uses
+that backend.
 
 ## When the install is impossible
 
 The install script supports Linux x86_64, Linux arm64, macOS on Intel, and macOS on Apple
-Silicon only. The skill cannot run stages in these conditions, with either backend, because the
+Silicon only. The skill cannot run platform jobs in these conditions, with either backend, because the
 API backend needs the CLI for its access tokens:
 
 | Condition | What to do |
@@ -74,11 +74,11 @@ ready to run once the CLI is available.
 ## What the choice does not change
 
 Both backends create the same entities on the same platform. They accept the same config
-overrides, and they identify each entity by the same UUID. Stage files cite operations by § name,
+overrides, and they identify each entity by the same UUID. Other files cite commands by § name,
 and both backend files use the same § names.
 
 So the choice of backend changes the commands only. It changes no result, and it changes no
-stage protocol. A project can also move from one backend to the other, because an id from one
+step of the workflow. A project can also move from one backend to the other, because an id from one
 works in the other.
 
 Both files also use the same entity names, so a citation such as § The Dataset resolves in

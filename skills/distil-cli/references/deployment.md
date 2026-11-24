@@ -1,8 +1,8 @@
 # Deployment
 
-Trained-model artifacts, the inference client, and serving. Procedures:
-`../stages/local-deployment.md` (your own GPU) and `../stages/inference-endpoint.md` (hosted,
-behind an inference endpoint). Fetching the files: `execution/cli.md` § Fetch model artifacts.
+Trained-model artifacts, the inference client, and serving, on your own GPU or hosted behind
+an inference endpoint (`inference-endpoints.md`). Fetching the files: `execution/cli.md`
+§ Fetch model artifacts.
 The vLLM commands in § Serving locally are the one set of commands kept outside
 `execution/cli.md`.
 
@@ -33,6 +33,10 @@ setup:
 - The sampling settings the student was evaluated with (the vendor's recommended ones; none,
   so the server defaults, for a student without a recommendation), and the thinking setting of
   training sent as `chat_template_kwargs` (`reasoning-models.md` § Deployment).
+- For a task with JSON answers (`synthgen.output_is_json`), JSON mode:
+  `response_format={"type": "json_object"}`, as in the platform's own evaluation. Without it
+  the model sometimes writes malformed JSON (a repeated key, a broken string) that a parser
+  rejects.
 - Chat completion models with tools call with `tools=TOOLS, tool_choice="auto"`, so the model
   decides whether to call. `invoke` returns the whole assistant message, content and tool calls
   included.
@@ -40,10 +44,17 @@ setup:
   a chat completion model trained on tool results, the caller executes the calls, appends the assistant message plus
   one `{"role": "tool", "tool_call_id": ..., "content": ...}` per call, and invokes again.
 
-A hand-built chat completions request matches none of that and does not fail: the server
-answers `200`, reasoning text appears in the answer of a model trained without thinking, and
-the score falls well below the evaluation metrics. So every new caller and integration queries
-through the client, and every deployment is smoke-tested with it on a few test-set rows.
+`model_client.py` is a reference, not a fixed tool: it is a standard OpenAI client in a few lines
+of Python. Adapt it, or write your own caller from it, when a use needs something else, for
+example temperature 0 and a token limit for an evaluation, a different system prompt, or batching.
+What to keep from it are the request settings above (the system prompt, thinking, JSON mode,
+tools), because they reproduce the setup the model was trained and evaluated with.
+
+A hand-built chat completions request that drops those settings does not fail: the server
+answers `200`, reasoning text appears in the answer of a model trained without thinking, JSON
+answers come back malformed, and the score falls below the evaluation metrics. So every new
+caller starts from the client's request settings, and every deployment is smoke-tested on a few
+test-set rows.
 
 The model must run with a system prompt in every request: the `task_description` it was
 trained with, or, with `variable_system_prompt` on, the system prompt the application chooses

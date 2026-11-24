@@ -36,7 +36,7 @@ it writes carries the setting, so training inherits it and needs no override.
 - `synthgen.train_generation_target: 0` skips generation and still writes reasoning onto the
   existing train rows, which adds reasoning to a labelled set without generating new rows.
 - A run with it on expands multi-turn rows per turn, so a later top-up cannot use that
-  Dataset's train split as examples (`../stages/build-a-train-set.md` § Topping Up).
+  Dataset's train split as examples.
 
 ## Where the reasoning comes from
 

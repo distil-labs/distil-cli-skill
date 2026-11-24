@@ -27,7 +27,7 @@ synthgen:
 | `name` | yes | The dimension. Unique across mutators: it labels the sampled value and seeds the mutator's own random stream |
 | `values` | no | The values, each a plain string. Leave the field out to have the teacher detect them, which requires a `description` (§ Auto-detected values). An empty list is a config error |
 | `method` | no | `fixed` (default) samples from the target distribution. `adaptive` measures what survived validation and samples more of the values that fall behind (§ Adaptive mutators). Any other value is rejected |
-| `target_distribution` | no | `uniform` (default), `match_seed` (§ Matching the seed distribution), or one weight per listed value, e.g. `[5, 3, 2]` (normalised) |
+| `target_distribution` | no | `uniform` (default), `match_seed` (§ Matching the split's distribution), or one weight per listed value, e.g. `[5, 3, 2]` (normalised) |
 | `description` | no | What the dimension means. Required when `values` is left out. Otherwise read only by the classifier, so it matters with `adaptive` and `match_seed` |
 | `auto_detect_sample_size` | no | Seed examples the detector sees when `values` is left out. Default `50` |
 | `beta` | no | `adaptive` only, 0 to 1, default `0.9`. How far sampling may move away from the target (§ Adaptive mutators) |
@@ -58,8 +58,9 @@ name, so a config reproduces its own draws and renaming a mutator changes them.
 
 - One mutator per independent dimension. Two mutators of three values each cover a 3x3 grid
   without enumerating nine combinations.
-- 1-2 mutators of 3-10 values each. More gives each value fewer generation calls;
-  fewer limits diversity.
+- Only the dimensions that matter for the task, usually 1-3 mutators of 3-10 values each
+  (labels are the exception, § Mutators for labels). More values give each value fewer
+  generation calls; fewer limit diversity.
 - To skew the mix, give one weight per value: `values: [English, French]` with
   `target_distribution: [3, 1]` asks for English in about three calls out of four.
 - A single-value mutator applies the same directive to every call: a constant extra generation
@@ -181,9 +182,47 @@ synthgen:
         - "very specific: use precise, domain-heavy terms and references"
 ```
 
+## Patterns that work
+
+Learned on a classification task with 82 labels; they apply to any task.
+
+- **One value per label, or per slice to cover.** A value that stands for many labels ("one of
+  the billing labels") leaves the teacher to choose among them, and the mix comes out uneven.
+- **One mutator per dimension, each with its own weights.** Typical dimensions: the answer (the
+  label), the message form (a single issue, very short, with typos, several issues, a long
+  email), and the language. Separate mutators let each mix be set and checked on its own.
+- **Hard cases as their own values, with the deciding facts fixed.** When the teacher gets a
+  kind of case wrong because it must work the answer out (a count near a threshold, a date
+  computation), write that case as its own value that fixes the deciding facts and the answer
+  together ("written between 21:30 and 21:58, before the 22:00 cutoff, so the answer is X"), and
+  keep the numbers in the other values away from the hard region. Stating an answer in a value
+  only holds when the value fixes everything the answer depends on: the text the teacher writes
+  around it can still contradict the stated answer. So the validator re-derives the answer from
+  the generated input, and the smoke review checks these rows first.
+- **No value flags the answer.** A value worded as "the main thing" or "the real reason I'm
+  writing" marks the winning issue in the input, and the student learns the marker instead of
+  the rule that decides between issues.
+- **Exact days and times, not relative time words.** Relative words in a value can produce
+  inputs that contradict themselves ("cancelled last night at 22:15 for tomorrow's order").
+  Name the weekday and the exact time instead.
+- **Look-alikes next to a value that teaches a decision.** A value aimed at one side of a
+  decision needs a value that shares its surface features (wording, framing, topic, order) but
+  gets the other answer, for example a request introduced with "First" that still loses to a
+  higher-priority one. Without it the student learns the surface feature instead of the deciding
+  fact.
+- **A new value on an existing train set.** What matters is the mix of the whole train set after
+  the top-up, not of the top-up alone. A small top-up (a few hundred rows on a few thousand) can
+  put most of its weight on the new value, because the whole set barely shifts. A larger one gives
+  the new value a moderate weight and keeps the other values at their usual weights, because
+  cutting the other forms shrinks their share of the whole set and can make the model worse on
+  them.
+- **A smoke that tests a new value: about 70% weight on it**, so the review sees enough of its
+  rows. The full run uses the weights above.
+
 ## Which option for which problem
 
 - Values unknown: § Auto-detected values. A value comes up short: `method: adaptive` or a
   heavier weight. Proportions should follow the split's rows: `target_distribution: match_seed`.
 - Wrong length or difficulty profile: a § Recipes mutator. Near-duplicates of the split's rows:
   `synthgen.validation_similarity_threshold` (`configuration.md`), not a mutator.
+- The teacher mislabels rows near a threshold, or rows of one shape: § Patterns that work.
