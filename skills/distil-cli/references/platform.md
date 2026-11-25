@@ -162,7 +162,8 @@ the balance is charged then. The charge is the estimate, not what the job ends u
 job fails, its charge is refunded in full to the balance automatically, and the refund shows as
 its own line on the billing page. Deployments are the exception: a failed deployment is not
 refunded. A job cancelled within 30 minutes of submitting it is refunded in full the same way; a
-job cancelled later isn't.
+job cancelled later isn't. A new account starts with $50 of signup credit, which expires 30 days
+after signup: whatever is left of it then comes off the balance.
 
 | Job | Usage event | Quantity | Priced by |
 |---|---|---|---|

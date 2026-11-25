@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "16.0.0"
+  version: "16.1.0"
 description: >
   Use when building, training, improving or evaluating a task-specific small language model on
   the distil labs platform, end to end or one step at a time: scoping the model with the user,
