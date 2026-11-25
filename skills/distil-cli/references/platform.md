@@ -164,49 +164,83 @@ its own line on the billing page. Deployments are the exception: a failed deploy
 refunded. A job cancelled within 30 minutes of submitting it is refunded in full the same way; a
 job cancelled later isn't.
 
-| Job | Usage event | Quantity | Priced at the tier of |
+| Job | Usage event | Quantity | Priced by |
 |---|---|---|---|
 | Teacher evaluation | `teacher_eval_tokens` | The tokens in the test set | The teacher |
 | Relabel traces, smoke or full | `relabel_tokens` | The relabelled traces times their average tokens, once per teacher in the committee | Each relabelling teacher |
 | Synthetic data generation, smoke or full | `synth_data_tokens` | The generation target times the average tokens of a row | The teacher |
-| Model training, smoke or full | `sft_training_tokens`, `rl_training_tokens` | The train set's tokens times the epochs, split by `tuning.rlvr_dataset_size` | The student |
-| Deployment | `deployment_created` | 1 | The student |
+| Model training, smoke or full | `sft_training_tokens`, `rl_training_tokens` | The train set's tokens times the epochs, split by `tuning.rlvr_dataset_size` | The student's tier |
+| Deployment | `deployment_created` | 1 | The student's tier |
 
-Every teacher and student has a price tier. Larger models and thinking variants are in the
-higher tiers, so the teacher choice moves the price of every expand after it, and the student
-choice the price of training and deployment. `--dry-run` names the tier of each charge. Prices
-in USD.
+Every teacher value has its own price, and every student is in the `low`, `medium` or `high`
+tier. The teacher choice moves the price of every expand after it, and the student choice the
+price of training and deployment. Prices in USD.
 
-Open-weight teachers and all students are in `low`, `medium` or `high`:
+A thinking variant at a higher reasoning effort writes more tokens, so it costs 2 or 4 times as
+much as the same model at its lowest effort. `--dry-run` shows this as the tokens counted 2 or 4
+times, priced as the model behind the value: `zai.glm-5.3-high-thinking` on a 2M-token test set
+is 8,000,000 tokens of `zai.glm-5.3` at $7.40, the `zai.glm-5.3-low-thinking` price.
 
-| Job | Unit | `low` | `medium` | `high` |
+Open-weight teachers:
+
+| Teacher | Teacher evaluation per 1M tok | Relabel traces per 1M tok, per teacher | Synthetic data generation per 1M tok |
+|---|---|---|---|
+| `openai.gpt-oss-120b` | $0.63 | $1.50 | $1.80 |
+| `openai.gpt-oss-120b-thinking` | $1.26 | $3.00 | $3.60 |
+| `nvidia.nemotron-3.5-super-vl` | $0.95 | $2.20 | $2.60 |
+| `nvidia.nemotron-3.5-super-vl-thinking` | $1.90 | $4.40 | $5.20 |
+| `zai.glm-5.3-flash-low-thinking` | $0.95 | $2.20 | $2.60 |
+| `zai.glm-5.3-flash-high-thinking` | $3.80 | $8.80 | $10.40 |
+| `zai.glm-5.3-low-thinking` | $7.40 | $17.00 | $20.00 |
+| `zai.glm-5.3-high-thinking` | $29.60 | $68.00 | $80.00 |
+| `Qwen3.8-2.4T-A95B-minimal-thinking` | $12.00 | $28.00 | $32.00 |
+| `Qwen3.8-2.4T-A95B-medium-thinking` | $24.00 | $56.00 | $64.00 |
+| `moonshotai.kimi-k3.1-pro` | $16.00 | $36.00 | $48.00 |
+| `moonshotai.kimi-k3.1-pro-low-thinking` | $16.00 | $36.00 | $48.00 |
+| `moonshotai.kimi-k3.1-pro-max-thinking` | $64.00 | $144.00 | $192.00 |
+| `moonshotai.kimi-k3` | $24.00 | $54.00 | $72.00 |
+| `moonshotai.kimi-k3-low-thinking` | $24.00 | $54.00 | $72.00 |
+| `moonshotai.kimi-k3-max-thinking` | $96.00 | $216.00 | $288.00 |
+
+Proprietary teachers run teacher evaluation only (`model-catalog.md` § Teacher models):
+
+| Teacher | Teacher evaluation per 1M tok |
+|---|---|
+| `openai.gpt-6-luna` | $0.80 |
+| `openai.gpt-6-luna-thinking` | $3.20 |
+| `google.gemini-3.1-flash-lite` | $2.30 |
+| `openai.gpt-5-mini` | $2.80 |
+| `google.gemini-3.5-flash-lite` | $3.40 |
+| `google.gemini-3.5-flash-lite-thinking` | $13.60 |
+| `google.gemini-3.6-flash` | $6.00 |
+| `google.gemini-3.6-flash-thinking` | $24.00 |
+| `google.gemini-3.7-flash` | $6.00 |
+| `google.gemini-3.7-flash-thinking` | $24.00 |
+| `google.gemini-3.8-flash` | $6.60 |
+| `google.gemini-3.8-flash-thinking` | $26.40 |
+| `openai.gpt-6.1-terra` | $8.00 |
+| `openai.gpt-6.1-terra-thinking` | $32.00 |
+| `google.gemini-3.5-flash` | $14.00 |
+| `google.gemini-3.5-flash-thinking` | $56.00 |
+| `anthropic.claude-sonnet-5-5` | $16.00 |
+| `anthropic.claude-sonnet-5-5-thinking` | $64.00 |
+| `openai.gpt-6.2-sol` | $16.00 |
+| `openai.gpt-6.2-sol-thinking` | $64.00 |
+| `google.gemini-3.1-pro-preview-thinking` | $36.00 |
+| `openai.gpt-5.2` | $20.00 |
+| `openai.gpt-5.2-thinking` | $40.00 |
+| `anthropic.claude-opus-5-5` | $32.00 |
+| `anthropic.claude-opus-5-5-thinking` | $128.00 |
+
+Students:
+
+| Tier | SFT training per 1M tok × epochs | RLVR training per 1M tok × epochs | Deployment | Students |
 |---|---|---|---|---|
-| Teacher evaluation | per 1M test set tokens | $1.00 | $4.00 | $12.00 |
-| Relabel traces | per 1M trace tokens, per teacher | $1.00 | $4.00 | $12.00 |
-| Synthetic data generation | per 1M generated tokens | $1.00 | $4.00 | $12.00 |
-| SFT training | per 1M train set tokens × epochs | $0.10 | $0.25 | $0.50 |
-| RLVR training | per 1M train set tokens × epochs | $0.60 | $1.50 | $3.00 |
-| Deployment | per deployment | $5.00 | $5.00 | $5.00 |
+| `low` | $0.10 | $0.60 | $5.00 | `Qwen3.5-0.8B`, `Llama-3.2-1B-Instruct`, `Qwen3-0.6B`, `LFM2-350M`, `LFM2.5-350M`, `functiongemma-270m-it`, `gemma-3-270m-it`, `gemma-3-1b-it`, `SmolLM2-135M-Instruct` |
+| `medium` | $0.25 | $1.50 | $5.00 | `Qwen3.5-4B`, `Qwen3.5-2B`, `Llama-3.2-3B-Instruct`, `Qwen3-1.7B`, `Qwen3-4B-Instruct-2507`, `LFM2-1.2B`, `LFM2-2.6B`, `LFM2.5-1.2B-Instruct`, `gemma-4-E2B-it`, `gemma-3-4b-it`, `SmolLM2-1.7B-Instruct` |
+| `high` | $0.50 | $3.00 | $5.00 | `Qwen3.5-9B`, `Llama-3.1-8B-Instruct`, `Qwen3-8B`, `gemma-4-E4B-it`, `Qwen3.6-35B-A3B`, `Qwen3.8-27B`, `Granite-4.2-8B`, `Nemotron-3.5-Lightning-30B-A3B` |
 
-For example `openai.gpt-oss-120b` is `low`, `zai.glm-5.3-low-thinking` `medium` and `moonshotai.kimi-k3`
-`high` as teachers, and `Qwen3-0.6B`, `Qwen3-4B-Instruct-2507` and `Qwen3.5-9B` the same as
-students.
-
-Proprietary teachers run teacher evaluation only (`model-catalog.md` § Teacher models) and have
-their own tiers:
-
-| Job | Unit | `proprietary_low` | `proprietary_mid` | `proprietary_high` |
-|---|---|---|---|---|
-| Teacher evaluation | per 1M test set tokens | $2.50 | $15.00 | $75.00 |
-
-A proprietary teacher's tier follows its running cost with reasoning included, not its family,
-so a `-thinking` variant can be a tier above the same model without it:
-
-- `proprietary_low`: `openai.gpt-6-luna`, `openai.gpt-6-luna-thinking`, `google.gemini-3.5-flash-lite`
-- `proprietary_mid`: `anthropic.claude-sonnet-5-5`, `openai.gpt-6.1-terra`, `openai.gpt-6.2-sol`, `google.gemini-3.8-flash-thinking`
-- `proprietary_high`: `anthropic.claude-opus-5-5`, `anthropic.claude-sonnet-5-5-thinking`, `openai.gpt-6.2-sol-thinking`
-
-These are examples. Read a model's tier from `--dry-run`, not from this list.
+The dry run is the source of truth: quote its price, not one worked out from these tables.
 
 **Generation depends on the parent's rows.** Generation is priced as the target times the
 average tokens of a row in the parent. A Dataset made by an expand carries the job's task

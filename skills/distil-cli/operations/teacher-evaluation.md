@@ -8,7 +8,7 @@ with the scores and the per-row predictions; the Dataset is unchanged.
 | | |
 |---|---|
 | **Called by** | the task-description phase (scoring a job description version, comparing teachers) and the test-set phase (the target, the noise, the production baseline) |
-| **Price** | the tokens in the test set, at the evaluated model's tier; proprietary models have their own, higher tiers (`../references/platform.md` § Billing) |
+| **Price** | the tokens in the test set, at the evaluated model's price; a higher-effort thinking variant costs 2 or 4 times as much (`../references/platform.md` § Billing; every teacher's price: https://www.distillabs.ai/docs/getting-started/billing#teachers) |
 
 ## Settings that control the output
 
@@ -70,8 +70,8 @@ distil teacher-evaluation create-from-dataset --dry-run --config teacher-evaluat
   --job-description teacher-evaluation/<name>/input/job_description.json <dataset-id>
 ```
 
-The model's tier sets the price, so it differs between models on the same test set; the dry run
-names the tier. Add the price to the run log's spending and to `run.md`. If the balance does not
+Each model has its own price, so it differs between models on the same test set; the dry run
+names the model each charge is priced as. Add the price to the run log's spending and to `run.md`. If the balance does not
 cover it, the submission would be refused with 402: report both numbers to the user with
 https://app.distillabs.ai/billing.
 

@@ -243,12 +243,17 @@ will send, overrides included:
 
 ```python
 estimate = price("/slms/from-datasets", {"from": dataset_id, "config": config})
-# {"charges": [{"event": "sft_training_tokens", "tier": "medium", "quantity": 4812000}],
+# {"charges": [{"event": "sft_training_tokens", "pricing_group": "medium", "quantity": 4812000}],
 #  "price": {"usd": 12.4, "label": "$12.40"},
 #  "balance": {"usd": 187.6, "label": "$187.60"}, "sufficient_balance": True}
 if not estimate["sufficient_balance"]:
     ...  # tell the user the price and the balance, and ask them to add funds
 ```
+
+A charge's `pricing_group` is the student's tier (`low`, `medium` or `high`) for training and deployment.
+For `teacher_eval_tokens`, `relabel_tokens` and `synth_data_tokens` it's the model the teacher
+is priced as, such as `"zai.glm-5.3"` for `zai.glm-5.3-high-thinking`, and `quantity` counts a
+thinking variant's tokens 2 or 4 times when it costs 2 or 4 times as much.
 
 `usd` is the exact amount. `label` is rounded to the cent for display: up for the price, down
 for the balance.

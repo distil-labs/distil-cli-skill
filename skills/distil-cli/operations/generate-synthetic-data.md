@@ -9,7 +9,7 @@ parent is unchanged.
 | | |
 |---|---|
 | **Called by** | the make-rows protocol, for the test split (test-set phase) or the train split (model-iteration phase), as a smoke or a full run |
-| **Price** | the generation target times the average tokens of a row in the parent, at the teacher's tier (`../references/platform.md` § Billing). A Dataset made by an expand carries the task description in every row, so a long task description raises the price |
+| **Price** | the generation target times the average tokens of a row in the parent, at the teacher's price (`../references/platform.md` § Billing). A Dataset made by an expand carries the task description in every row, so a long task description raises the price |
 
 ## Settings that control the output
 

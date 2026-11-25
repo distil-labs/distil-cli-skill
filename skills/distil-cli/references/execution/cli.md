@@ -123,11 +123,13 @@ distil slm create-from-dataset --dry-run --config sweep/student.yaml <dataset-id
 # SFT Training Tokens:                    4,812,000 (medium tier)
 ```
 
-A warning follows when the balance does not cover the price. With `--output json` it prints
+Each line names the student's tier, or for a teacher job the model it's priced as, such as
+`(zai.glm-5.3)` for `zai.glm-5.3-high-thinking`, with a thinking variant's tokens counted
+2 or 4 times. A warning follows when the balance does not cover the price. With `--output json` it prints
 the estimate instead of an entity:
 
 ```json
-{"charges": [{"event": "sft_training_tokens", "tier": "medium", "quantity": 4812000}],
+{"charges": [{"event": "sft_training_tokens", "pricing_group": "medium", "quantity": 4812000}],
  "price": {"usd": 12.4, "label": "$12.40"},
  "balance": {"usd": 187.6, "label": "$187.60"}, "sufficient_balance": true}
 ```

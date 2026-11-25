@@ -9,7 +9,7 @@ operations). The parent is unchanged.
 | | |
 |---|---|
 | **Called by** | the make-rows protocol, for the test split (test-set phase) or the train split (model-iteration phase), as a smoke or a full run |
-| **Price** | the relabelled traces times their average tokens, once per teacher in the committee, at each relabelling teacher's tier (`../references/platform.md` § Billing) |
+| **Price** | the relabelled traces times their average tokens, once per teacher in the committee, at each relabelling teacher's price (`../references/platform.md` § Billing) |
 
 ## Settings that control the output
 
