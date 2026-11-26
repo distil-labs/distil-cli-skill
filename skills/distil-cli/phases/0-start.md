@@ -9,8 +9,8 @@
 
 ## Step 1: Set up
 
-Install the CLI and sign in (`references/execution/README.md` § Set up the CLI), choose the
-backend, and create the project directory and `log.md` (`protocols/run-log.md`). Copy the user's
+Install or update the CLI and this skill and sign in (`references/execution/README.md` § Set up
+the CLI), choose the backend, and create the project directory and `log.md` (`protocols/run-log.md`). Copy the user's
 files into `raw-inputs/` unchanged.
 
 ## Step 2: Choose the entry point

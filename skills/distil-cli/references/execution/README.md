@@ -25,7 +25,20 @@ access token that `distil access-token` prints.
 3. Run `distil --version` again. If the shell does not find the binary, add `~/.local/bin` to
    `PATH` and run the command again. If the install failed, see § When the install is
    impossible.
-4. Run `distil whoami`. If it prints a user, the CLI is ready. If it prints no user, ask whether
+4. Bring the CLI and this skill up to date. Run the two commands in this order, because an older
+   CLI does not have `distil skill update`:
+
+   ```bash
+   distil update                                           # the latest CLI
+   distil skill update                                     # the latest skill
+   ```
+
+   When `distil skill update` installs a newer skill, it prints the version it moved from and to.
+   Read this skill's `SKILL.md` again then, from the same place, and reread any other skill file
+   before you use it: the new version can change any of them. When it prints that the skill is
+   up to date, or that it is not installed (this copy came from elsewhere), carry on. If either
+   command fails, for example with no network, say so and carry on with the versions in place.
+5. Run `distil whoami`. If it prints a user, the CLI is ready. If it prints no user, ask whether
    the user already has a distil labs account, then run the matching command:
 
    ```bash
@@ -44,7 +57,6 @@ access token that `distil access-token` prints.
 
 The CLI keeps its session in `~/.config/distillabs/session.json` (under `$XDG_CONFIG_HOME` when
 that is set) and refreshes it, so a long project needs no second sign-in.
-`distil update` replaces the binary in place.
 
 ## Choose the backend
 

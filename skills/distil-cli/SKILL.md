@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "16.1.0"
+  version: "16.2.0"
 description: >
   Use when building, training, improving or evaluating a task-specific small language model on
   the distil labs platform, end to end or one step at a time: scoping the model with the user,
@@ -26,8 +26,8 @@ it. The work follows one workflow, below: agree the scope, fix the task descript
 test set you can trust, then iterate on the training data until the student reaches the
 teacher, and finally deploy and evaluate it.
 
-Before the first platform call, install the `distil` CLI and sign in
-(`references/execution/README.md` § Set up the CLI), and choose the backend: the CLI
+Before the first platform call, install or update the `distil` CLI and this skill and sign in
+(`references/execution/README.md` § Set up the CLI). Then choose the backend: the CLI
 (`references/execution/cli.md`) by default, or the REST API (`references/execution/backend-api.md`)
 when the user prefers it (§ Choose the backend). Record the choice in the run log.
 

@@ -22,8 +22,8 @@ distil skill install
 
 `distil skill install` puts the skill in `~/.agents/skills`, the shared directory that Codex,
 Cursor, GitHub Copilot, Gemini CLI, OpenCode, Cline and many other agents read. It also links the
-skill into Claude Code. Run it again to update the skill. `distil skill uninstall` removes it. The command needs `git`. It does not
-need Node.
+skill into Claude Code. `distil skill update` updates the skill when a newer version is published,
+and `distil skill uninstall` removes it. The command needs `git`. It does not need Node.
 
 ### With the skills CLI
 
