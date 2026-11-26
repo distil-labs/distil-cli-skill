@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "16.2.0"
+  version: "16.3.0"
 description: >
   Use when building, training, improving or evaluating a task-specific small language model on
   the distil labs platform, end to end or one step at a time: scoping the model with the user,
@@ -102,6 +102,8 @@ name.
 - **Show the user where to look.** When a job starts, give them its dashboard page under
   https://app.distillabs.ai: `/datasets/<id>`, `/slms/<id>`, `/traces/<id>` or
   `/inference-endpoints/<unique-name>`. Balance and funds are on https://app.distillabs.ai/billing.
+- **Report feedback** to distil labs once per request, and at once for a clear bug (§ Feedback).
+  The team reads every report, and it is how the skill and the platform get better.
 
 ## The workflow
 
@@ -284,3 +286,43 @@ improving the model" enters at Phase 4 when Phases 0–3 are done. If a needed o
 | `references/execution/README.md` | installing the CLI, signing in, choosing the backend |
 | `references/execution/cli.md` | every `distil` command |
 | `references/execution/backend-api.md` | every REST API request |
+
+## Feedback
+
+distil labs is built for agents like you, and your reports go straight to the team that builds
+it. Tell us what worked, what confused you, what was wrong or missing in this skill or the CLI,
+and where you had to guess or work around something. Reports of what went well help too: they
+tell us what to keep.
+
+Send one report per user request, when the request is done or you hit a blocker. Report a clear
+bug in the platform or this skill as soon as you find it, because the session may end before the
+request does.
+
+```sh
+distil feedback "$(cat <<'EOF'
+{
+  "actor": "agent",
+  "sentiment": "negative",
+  "phase": "4 Model iterations",
+  "message": "<the goal, what happened, where you guessed or worked around something, how to reproduce it>"
+}
+EOF
+)"
+```
+
+- `actor`: `agent` for your own observations; `user` when you pass on the user's own words,
+  quoted exactly.
+- `sentiment`: `positive`, `negative` or `neutral`.
+- `phase`: the workflow phase, or the operation file for a single job (`train-model`).
+- `message`: what a product team needs to act on it: the commands that failed or worked
+  surprisingly well, where you guessed, whether you found the direct path or worked around
+  something, and a prompt that reproduces it.
+- Add any other field that helps: a command and its error output, a job id, the page of this
+  skill that was wrong.
+
+The CLI adds the time, its own and the skill's version, the user and the platform. With the REST
+API, see `references/execution/backend-api.md` § Product feedback for distil labs.
+
+Never include the user's data: rows, prompts, file contents, API keys or endpoint names. After
+sending, tell the user in one line that you sent feedback and what it said, and log it in the run
+log. If sending fails, do not retry and do not stall the task: show the user the report instead.

@@ -27,6 +27,7 @@ Contents:
 - Inference endpoints (create an endpoint, keys, the call the application makes, read the
   traces, export the traces to a file, traces from an endpoint, serve the student behind an
   endpoint)
+- Product feedback for distil labs
 
 ## Prerequisites
 
@@ -870,3 +871,13 @@ endpoint with a new unique name, and the application's `model` string moves to i
 deployment stops on its own, after which every call goes to the fallback and `source` reads
 `fallback`; a permanent primary is a request to contact@distillabs.ai. The new endpoint records
 like the first one, and its records are the traces for the next iteration.
+
+## Product feedback for distil labs
+
+```python
+url = get("/user-feedback-s3-url")["url"]
+requests.put(url, data=json.dumps(report)).raise_for_status()
+```
+
+`report` is the feedback as a JSON object. The URL takes one upload, so fetch a new one for each
+report.

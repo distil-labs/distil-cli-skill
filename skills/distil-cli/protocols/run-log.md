@@ -101,7 +101,8 @@ Target … · Noise: evaluation ±…, training ±… · Base … · closed = (s
 
 Dated entries, oldest first: what was done, why, and the outcome with absolute numbers
 ("0.864 → 0.903", not "+0.039"). Include every user decision and its wording when it changes
-the plan.
+the plan, and every feedback report sent, with its sentiment and a one-line summary, so a resumed
+session does not send it again.
 
 ## Resuming
 

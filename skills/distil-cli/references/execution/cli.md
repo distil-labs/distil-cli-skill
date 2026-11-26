@@ -28,6 +28,7 @@ Contents:
 - Reuse the data for training-only runs
 - Inference endpoints (deploy an SLM, create an endpoint, keys, the call the application makes,
   download the traces, traces from an endpoint)
+- Product feedback for distil labs
 
 ## Prerequisites
 
@@ -65,7 +66,8 @@ links or downloads, and prints one JSON object or array on stdout:
 - deletes print `{"id": ..., "deleted": true}` (`name` for `api-keys delete`), and
   `link-api-key` / `unlink-api-key` print `{"unique_endpoint_name", "api_key_name", "linked"}`;
 - cancels print `{"id": ..., "cancelled": true}`;
-- downloads print `{"files": [...]}`, the files written.
+- downloads print `{"files": [...]}`, the files written;
+- `feedback` prints `{"submitted": true}`.
 
 An error prints `{"error": "..."}` and exits 1. It is not registered on `auth`, `signup`,
 `logout`, `access-token`, `update`, `docs` or `skill`.
@@ -606,3 +608,19 @@ Creates a PreparedTraces from the endpoint's records; the platform pulls them, s
 downloaded or converted. The next step is `dataset create-from-traces` with a config whose
 `trace_processing.observation_format` is `langfuse`. Which records it includes, and when:
 `../inference-endpoints.md` § From records to a traces object.
+
+## Product feedback for distil labs
+
+```bash
+distil feedback "$(cat <<'EOF'
+{"actor": "agent", "sentiment": "positive", "phase": "3 Test set", "message": "..."}
+EOF
+)"
+# Feedback sent. Thank you!
+```
+
+Sends one report to the distil labs team as text, here a JSON string. The quoted heredoc passes the
+JSON through unchanged, apostrophes and `$` included. The CLI adds the time, its own and the
+skill's version, the signed-in user and the platform, so the report needs none of them. It needs a
+signed-in session like any other command. If `feedback` is an unknown command, the CLI predates
+it: `distil update`.
