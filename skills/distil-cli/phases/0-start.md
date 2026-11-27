@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Input** | what the user has: an LLM in production, files, or both |
+| **Input** | what the user has: an LLM in production, files, both, or only a task |
 | **Output** | the project directory and run log; the first Dataset id; whether traces, labelled rows and train rows exist |
 | **Gate** | none |
 | **Uses** | `operations/inference-endpoint.md`, `operations/create-dataset.md`, `protocols/run-log.md` |
@@ -15,13 +15,14 @@ files into `raw-inputs/` unchanged.
 
 ## Step 2: Choose the entry point
 
-Ask what the user has. Both entries end in a Dataset; the later phases do not depend on which.
+Ask what the user has. Every entry ends in a Dataset; the later phases do not depend on which.
 
 | The user has | Entry |
 |---|---|
 | An LLM in production, called by an application through an OpenAI-compatible chat API that can be pointed at another base URL | A |
 | An endpoint that already holds traffic | A, from Step A3 |
 | Files: labelled rows, train rows, unlabelled inputs, logs, or any mix | B |
+| Only a task: the user can say what goes in and what a correct answer is, and has no data | C |
 
 The production model does not have to be one OpenRouter serves. The endpoint forwards each call to
 a fallback model, which is named by an OpenRouter slug: the production model itself when OpenRouter
@@ -64,6 +65,20 @@ rows only through relabelling (Phase 3, Phase 4).
 2. **B2.** Convert them into the Dataset format (`references/data-preparation/overview.md` and the
    file for the task type). Remove fields that leak the answer, such as a rationale.
 3. **B3.** Upload with a draft config and job description (`operations/create-dataset.md`).
+
+## Entry C: a task, no data
+
+The platform can make every row: generation into an empty split runs zero-shot from the job
+description (`references/data-preparation/overview.md` § Empty splits).
+
+1. **C1.** Tell the user what this means: every row is generated, so the scores show how well the
+   student learns the teacher's reading of the task, not how it does on production inputs. Real
+   rows make the scores closer to production. Say once that inputs they write with their correct
+   answers, or an open dataset they choose, can go in through Entry B instead, and that an LLM in
+   production can sit behind an endpoint (Entry A). Do not press: the choice is theirs.
+2. **C2.** Upload a config and a draft job description with no data files
+   (`operations/create-dataset.md`): the task type (`references/task-types.md`), the user's
+   description of the task, and the defaults.
 
 Whichever entry, check the task type against the answer format before the first upload
 (`references/task-types.md`): an answer that calls tools is `chat-completion`, never

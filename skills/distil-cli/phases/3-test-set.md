@@ -18,7 +18,7 @@ The test set starts from real rows: the user's labelled rows, and relabelled tra
 rows are added only for the gaps that the coverage check below finds. Rows generated for no
 particular gap, or with the same settings that will later generate the training rows, measure
 little: the student learns that generator's style and scores near 1.0 on such rows, whatever its
-real quality.
+real quality. With no real rows at all (Entry C), follow § No real rows.
 
 ## Step 1: Take stock
 
@@ -88,6 +88,39 @@ test set later describes. Then, on the agreed test-set Dataset:
 
 Present the target, the evaluation noise (and any unstable group) and the baseline to the
 user.
+
+## No real rows
+
+When the user brought no rows (Entry C), every item of the scope is a gap, and Steps 2 to 4 fill
+them all with generated rows. Two things keep such a test set a measure:
+
+- **A different teacher from training.** Generate the test rows with a test-row teacher other
+  than the agreed teacher, which later generates the training rows. Otherwise the student learns
+  the one generator's style and scores near 1.0, as § Goal says. Record which teacher made them.
+- **The user checks a sample.** Before the agreement in Step 5, show the user about 20 test rows,
+  spread over the outputs and the input kinds. Ask which answers are wrong and which inputs
+  production would never send. Correct the rows they flag (a local fix, `SKILL.md` § Rules), and
+  when several share a cause, fix the settings that made them and generate those rows again. The
+  checked rows are their own row group. Where later phases read the real-row groups, read this
+  group.
+
+**Start small and iterate.** Without real rows, the first settings are a guess at what the user
+means, and each check by the user corrects that guess. Small runs make the checks cheap and quick:
+
+- **The first round is a smoke run** (`protocols/make-rows.md`): a few rows per gap, enough for
+  the user's sample. Expect the user to find errors in the first rounds: wrong answers, inputs
+  that look nothing like theirs, cases the scope missed. Each finding is a change to the
+  settings, or to the scope with the user's agreement, then another small round.
+- **Grow the test set only when a round passes**: the user finds nothing to correct, or only
+  single rows with no shared cause. Then generate the full size, and review a sample as usual.
+- **Keep the first train set small too.** Iteration 1 trains on a few hundred rows (agreed in
+  Phase 2), not thousands. A first model trained quickly shows its errors early, and the error
+  analysis often finds scope gaps that the user's description left out. Grow the train set in
+  the later iterations, once the scope holds.
+
+Record in the run log that the test set is generated, as a known limitation, and say so with
+every score you report. Real rows lift it: the serving endpoint's traffic (Phase 5) gives traces
+for the next cycle.
 
 ## Changing the test set later
 

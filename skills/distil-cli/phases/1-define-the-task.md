@@ -39,6 +39,11 @@ The input inventory is the item most often left incomplete, because the user's e
 common inputs, not all of them. Ask directly: "What else does production send?", "Which sources or
 formats are there besides these examples?", "Which inputs are rare but matter most?"
 
+With no data (Entry C), the inventory comes only from the user's answers, so ask about every item.
+Ask for one example input of each common kind, typed or pasted in the chat: generation has no
+rows to follow, and the example shows it the format (`protocols/make-rows.md` § Source
+`synthgen`).
+
 When you notice a case a reasonable person could label either way, ask the user how to label it,
 with a short example, instead of deciding it yourself.
 

@@ -1,7 +1,7 @@
 ---
 name: distil-cli
 metadata:
-  version: "16.3.0"
+  version: "16.4.0"
 description: >
   Use when building, training, improving or evaluating a task-specific small language model on
   the distil labs platform, end to end or one step at a time: scoping the model with the user,
@@ -108,12 +108,12 @@ name.
 ## The workflow
 
 ```
- Entry A: inference endpoint            Entry B: dataset upload
-        └──────────────┬──────────────────────┘
- 0 Start ─── the user's traffic or files → first Dataset
+ Entry A: inference endpoint   Entry B: dataset upload   Entry C: a task, no data
+        └───────────────────────────┼──────────────────────────┘
+ 0 Start ─── the user's traffic, files or description → first Dataset
  1 Define the task ─── inputs, outputs, scope → draft job_description.json  ◆ user confirms
  2 Plan the build ─── teacher, student(s), budget, metric; sanity check   ◆ user agrees
- 3 Test set ─── real rows, checked against the scope; fill gaps → target, noise ◆ user agrees
+ 3 Test set ─── real or user-checked rows vs the scope; fill gaps → target, noise ◆ user agrees
  4 Model iterations ─── add rows → train → compare → analyse → repeat
         stop: target reached · plateau · budget spent · user says stop
  5 Deploy and evaluate ─── production settings, against the other setups ◆ user decides to serve
@@ -131,7 +131,8 @@ phase.
 
 Read `phases/0-start.md`. Ask what the user has. **Entry A**: an LLM in production that can sit
 behind a distil labs inference endpoint, whose traffic becomes traces. **Entry B**: files to
-upload (labelled rows, train rows, unlabelled inputs). Create the project directory and the run
+upload (labelled rows, train rows, unlabelled inputs). **Entry C**: only a task the user can
+describe, with no data; generation makes every row. Create the project directory and the run
 log, and the first Dataset.
 
 Output: the first Dataset id; whether traces, labelled test rows and train rows exist.
@@ -177,7 +178,8 @@ kinds, outputs, rules, thresholds and out-of-scope inputs. ◆ Propose the gaps 
 fill them with rows built for each gap (relabelled traces, or generation with settings written
 for that gap, never the training settings), through `protocols/make-rows.md`. Then two teacher
 evaluations on the agreed test set give the evaluation noise, and evaluations of one to three
-other strong models set the target (their mean).
+other strong models set the target (their mean). With no real rows (Entry C), the whole test set
+is generated and the user checks a sample of it (`phases/3-test-set.md` § No real rows).
 
 Output: the test-set Dataset, its coverage table, the target and the noise. ◆ The user
 agrees to the test set. Once agreed, it is not changed.

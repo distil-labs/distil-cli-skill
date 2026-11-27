@@ -17,7 +17,7 @@ your recommendation and its reason, and get the user's answer.
 
 | Item | Recommendation |
 |---|---|
-| **The teacher** | the catalog's default large teacher (`references/model-catalog.md` § Defaults), or the one the user names. Optionally a stronger **test-row teacher** for test rows only, because test labels decide every verdict |
+| **The teacher** | the catalog's default large teacher (`references/model-catalog.md` § Defaults), or the one the user names. Optionally a stronger **test-row teacher** for test rows only, because test labels decide every verdict. With no real rows (Entry C) it is required (`phases/3-test-set.md` § No real rows) |
 | **The student, or a range of students** | the catalog's default student, with thinking on or off (`references/reasoning-models.md`). With a range, Phase 4 trains each student in iteration 1 and continues with the best |
 | **The budget and the time** | dollars for everything from here on, an iteration cap, and when the user needs the model. Price the plan with dry runs on the first Dataset and the draft job description (`references/platform.md` § Billing). Training cost and time grow with the train set, so estimate the later iterations too, and give the wall-clock time of one iteration (generation plus training) next to its price (`operations/train-model.md` says how to estimate training time) |
 | **The metric** | when the task has a deterministic measure the user trusts (a label, spans, a tool call checked against a schema), use it, compute it locally from the prediction files with the user's scorer, and keep the judge as a second signal. Otherwise use `llm-as-a-judge-reference-free` with a strong judge model and the rubric from Phase 1 (`references/evaluation-metrics.md` § Primary metric per task). The metric, the judge model and the rubric are fixed from here on, because a change makes every earlier score incomparable |
@@ -30,7 +30,7 @@ your recommendation and its reason, and get the user's answer.
 | undecidable rows in a blind review | ≤ 2% |
 | sample reviewed after a full test-set run | 200 rows |
 | smoke run | 100–250 rows |
-| first train set | 5,000 generated rows (plus relabelled traces, if any) |
+| first train set | 5,000 generated rows (plus relabelled traces, if any). With no real rows (Entry C), a few hundred, grown in later iterations (`phases/3-test-set.md` § No real rows) |
 | rows added per iteration (top-up) | 500–1,000, aimed at one failure mode |
 
 The first train set has to cover the whole scope, so it is large. A top-up only has to teach the
